@@ -1,0 +1,8 @@
+# Dependency install scripts stay blocked: esbuild ships a prebuilt @esbuild/* binary;
+# ssh2/cpu-features only try optional native addons (JS fallback) and protobufjs only
+# prints a version warning — all come from testcontainers.
+allowBuilds:
+  cpu-features: false
+  esbuild: false
+  protobufjs: false
+  ssh2: false

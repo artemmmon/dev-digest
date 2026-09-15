@@ -1,0 +1,5 @@
+# Dependency install scripts stay blocked: prebuilt platform binaries
+# (@esbuild/*, @img/sharp-*) are installed as optional deps, so nothing needs building.
+allowBuilds:
+  esbuild: false
+  sharp: false
