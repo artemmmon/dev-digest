@@ -4,6 +4,10 @@
    web fonts. */
 @import "../vendor/ui/styles.css";
 
+/* Tailwind auto-scans every text file under client/; docs/design holds a raw
+   Claude Design export (JSX + bundled HTML) that must not leak class candidates. */
+@source not "../../docs";
+
 @font-face {
   font-family: "Inter";
   font-style: normal;
