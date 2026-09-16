@@ -25,35 +25,39 @@ export function FindingsPopover({
 }) {
   const t = useTranslations("prReview");
   return (
-    <div style={s.popover(placement)}>
-      <div style={s.header}>
-        <Icon.AlertOctagon size={12} />
-        {t("list.findingsPopover.title", { count: total })}
-      </div>
-      {findings.length === 0 ? (
-        <span style={s.note}>
-          {loading ? t("list.findingsPopover.loading") : t("list.findingsPopover.empty")}
-        </span>
-      ) : (
-        <div style={s.list}>
-          {findings.map((f, i) => (
-            <div key={f.id} style={s.item(i === findings.length - 1)}>
-              <div style={s.titleRow}>
-                <SeverityBadge severity={f.severity as Severity} compact />
-                <span style={s.title}>{f.title}</span>
-                <CategoryTag category={f.category as Category} />
-              </div>
-              <div style={s.metaRow}>
-                <span className="mono" style={s.file}>
-                  {f.file}:{lineLabel(f)}
-                </span>
-                <ConfidenceNum value={f.confidence} />
-              </div>
-              <div style={s.rationale}>{stripMd(f.rationale)}</div>
-            </div>
-          ))}
+    // The anchor is an invisible hit area that also covers the gap to the trigger, so the
+    // pointer can travel onto the card without the popover closing under it.
+    <div style={s.anchor(placement)}>
+      <div style={s.card}>
+        <div style={s.header}>
+          <Icon.AlertOctagon size={12} />
+          {t("list.findingsPopover.title", { count: total })}
         </div>
-      )}
+        {findings.length === 0 ? (
+          <span style={s.note}>
+            {loading ? t("list.findingsPopover.loading") : t("list.findingsPopover.empty")}
+          </span>
+        ) : (
+          <div style={s.list}>
+            {findings.map((f, i) => (
+              <div key={f.id} style={s.item(i === findings.length - 1)}>
+                <div style={s.titleRow}>
+                  <SeverityBadge severity={f.severity as Severity} compact />
+                  <span style={s.title}>{f.title}</span>
+                  <CategoryTag category={f.category as Category} />
+                </div>
+                <div style={s.metaRow}>
+                  <span className="mono" style={s.file}>
+                    {f.file}:{lineLabel(f)}
+                  </span>
+                  <ConfidenceNum value={f.confidence} />
+                </div>
+                <div style={s.rationale}>{stripMd(f.rationale)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

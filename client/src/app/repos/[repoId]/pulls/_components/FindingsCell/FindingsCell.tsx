@@ -13,6 +13,13 @@ import { usePrReviews } from "@/lib/hooks/reviews";
 import { FindingsPopover } from "./_components/FindingsPopover";
 import { latestRoundFindings } from "./_components/FindingsPopover/helpers";
 
+/**
+ * Grace period before a leave actually closes the popover. The pointer briefly leaves the
+ * narrow icon cluster on any diagonal approach to the 360px card; without this the popover
+ * is unreachable.
+ */
+const CLOSE_DELAY_MS = 150;
+
 const s = {
   wrap: {
     position: "relative",
@@ -32,7 +39,25 @@ export function FindingsCell({
   placement?: "up" | "down";
 }) {
   const [hovered, setHovered] = React.useState(false);
+  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const counts = pr.findings_by_severity;
+
+  const cancelClose = React.useCallback(() => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  }, []);
+  const open = React.useCallback(() => {
+    cancelClose();
+    setHovered(true);
+  }, [cancelClose]);
+  const scheduleClose = React.useCallback(() => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setHovered(false), CLOSE_DELAY_MS);
+  }, [cancelClose]);
+  // Nothing may fire after the row unmounts (filtering, refetch, navigation).
+  React.useEffect(() => cancelClose, [cancelClose]);
   // Only fetch previews while hovered — the list itself never loads findings.
   const { data: reviews, isLoading } = usePrReviews(pr.id, { enabled: hovered });
 
@@ -42,8 +67,10 @@ export function FindingsCell({
   return (
     <span
       style={s.wrap}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      // The popover is a DOM child of this span, so landing on it re-fires onMouseEnter
+      // and cancels the pending close.
+      onMouseEnter={open}
+      onMouseLeave={scheduleClose}
       // The whole row navigates on click; the popover is a reading surface.
       onClick={(e) => e.stopPropagation()}
     >

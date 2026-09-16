@@ -54,6 +54,19 @@ design export does the same (`docs/design/src/screen_dashboard.jsx:111`); rows h
 own borders, so nothing else needed clipping.
 Where: `src/app/repos/[repoId]/pulls/styles.ts` (`tableCard`).
 
+### 2026-09-16 — A margin gap under a hover popover makes it unreachable
+`FindingsPopover` sat `marginTop: 8` below its trigger. Margins are not hit-testable, so
+that strip belongs to neither element: the pointer crosses it, `mouseleave` fires on the
+trigger and the popover unmounts before it can be entered. Put the offset in the PADDING of
+an invisible positioned wrapper around the card instead, and delay the close ~150ms for the
+diagonal approach (the trigger is ~80px wide, the card 360px). Worth knowing: the popover
+is a DOM child of the trigger, and `mouseenter`/`mouseleave` treat descendants as part of
+the element — so landing on the card re-fires the trigger's `onMouseEnter` and cancels the
+pending close, no handlers needed on the popover itself. `Dropdown.tsx:87` has the same
+dead gap via `top: calc(100% + 6px)`, but it is click-triggered so it never bites.
+Where: `src/app/repos/[repoId]/pulls/_components/FindingsCell/FindingsCell.tsx`,
+`.../FindingsCell/_components/FindingsPopover/styles.ts` (`anchor`/`card`).
+
 ## Open Questions
 
 ## Session Notes
