@@ -8,6 +8,7 @@ import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './reposit
 import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
+import { excludeFromReview } from './diff-filter.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
 export class RunCancelledError extends Error {
@@ -103,6 +104,16 @@ export class ReviewRunExecutor {
       runLog.error(`Failed to load PR diff: ${(err as Error).message}`);
       await failAll(`Failed to load PR diff: ${(err as Error).message}`);
       return;
+    }
+    // Generated / fixture files never reach the model: they burn context and their
+    // mock data has produced findings about files that do not exist (see
+    // REVIEW_EXCLUDED_PATHS).
+    const filtered = excludeFromReview(diff);
+    if (filtered.excluded.length > 0) {
+      diff = filtered.diff;
+      runLog.info(
+        `Excluded ${filtered.excluded.length} generated/fixture file(s) from review: ${filtered.excluded.slice(0, 5).join(', ')}${filtered.excluded.length > 5 ? ', …' : ''}`,
+      );
     }
     runLog.info(`Diff ready — ${diff.files.length} changed file(s); starting ${jobs.length} agent run(s)`);
 
