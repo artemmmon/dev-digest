@@ -8,8 +8,8 @@ import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import { deriveReviewStatus } from './status.js';
-import { latestBatchCostByPr } from './cost.js';
-import { latestReviewIdByPr, severityByPr } from './findings.js';
+import { latestBatchByPr, latestBatchCostByPr } from './cost.js';
+import { latestRoundReviewIds, roundScoreByPr, severityByPr } from './findings.js';
 
 /**
  * F1 — pulls module. PR import via Octokit (list + per-PR detail).
@@ -113,25 +113,48 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
-    // Latest-review SCORE and per-severity FINDINGS breakdown per PR. Computed on
-    // read from reviews (no FK denorm); the list is small, so two IN-queries + JS
-    // grouping are cheap (see ./findings.ts).
+    // Everything the list summarises — COST, SCORE and the per-severity FINDINGS
+    // breakdown — describes the PR's latest review ROUND: all agents started by one
+    // click on Run Review, i.e. one `agent_runs.batch_id`. Computed on read from
+    // reviews/runs (no FK denorm); the list is small, so three IN-queries + JS
+    // grouping are cheap (see ./cost.ts, ./findings.ts).
     const prIds = rows.map((r) => r.id);
-    const latestReviewByPr = new Map<string, { score: number | null }>();
-    let latestReviewIds = new Map<string, string>();
-    if (prIds.length > 0) {
-      const reviewRows = await container.db
-        .select({ prId: t.reviews.prId, id: t.reviews.id, score: t.reviews.score })
-        .from(t.reviews)
-        .where(and(inArray(t.reviews.prId, prIds), eq(t.reviews.kind, 'review')))
-        .orderBy(desc(t.reviews.createdAt));
-      // Rows are newest-first → first seen per PR is the latest review.
-      for (const rv of reviewRows) {
-        if (!latestReviewByPr.has(rv.prId)) latestReviewByPr.set(rv.prId, { score: rv.score });
-      }
-      latestReviewIds = latestReviewIdByPr(reviewRows);
-    }
-    const reviewIds = [...latestReviewIds.values()];
+    const runRows =
+      prIds.length > 0
+        ? await container.db
+            .select({
+              prId: t.agentRuns.prId,
+              id: t.agentRuns.id,
+              batchId: t.agentRuns.batchId,
+              costUsd: t.agentRuns.costUsd,
+            })
+            .from(t.agentRuns)
+            .where(and(inArray(t.agentRuns.prId, prIds), isNotNull(t.agentRuns.batchId)))
+            .orderBy(desc(t.agentRuns.ranAt))
+        : [];
+    const latestBatch = latestBatchByPr(runRows);
+    const costByPr = latestBatchCostByPr(runRows);
+
+    const reviewRows =
+      prIds.length > 0
+        ? await container.db
+            .select({
+              prId: t.reviews.prId,
+              id: t.reviews.id,
+              runId: t.reviews.runId,
+              score: t.reviews.score,
+            })
+            .from(t.reviews)
+            .where(and(inArray(t.reviews.prId, prIds), eq(t.reviews.kind, 'review')))
+            .orderBy(desc(t.reviews.createdAt))
+        : [];
+    const roundByPr = latestRoundReviewIds(reviewRows, runRows, latestBatch);
+    const scoreByPr = roundScoreByPr(
+      roundByPr,
+      new Map(reviewRows.map((rv) => [rv.id, rv.score])),
+    );
+
+    const reviewIds = [...roundByPr.values()].flat();
     const findingRows =
       reviewIds.length > 0
         ? await container.db
@@ -139,22 +162,10 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
             .from(t.findings)
             .where(inArray(t.findings.reviewId, reviewIds))
         : [];
-    const severityByPrId = severityByPr(latestReviewIds, findingRows);
-
-    // COST per PR = sum over its latest review batch (see ./cost.ts).
-    const costRows =
-      prIds.length > 0
-        ? await container.db
-            .select({ prId: t.agentRuns.prId, batchId: t.agentRuns.batchId, costUsd: t.agentRuns.costUsd })
-            .from(t.agentRuns)
-            .where(and(inArray(t.agentRuns.prId, prIds), isNotNull(t.agentRuns.batchId)))
-            .orderBy(desc(t.agentRuns.ranAt))
-        : [];
-    const costByPr = latestBatchCostByPr(costRows);
+    const severityByPrId = severityByPr(roundByPr, findingRows);
 
     const now = Date.now();
     return rows.map((r) => {
-      const review = latestReviewByPr.get(r.id);
       return {
         id: r.id,
         number: r.number,
@@ -175,7 +186,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         }),
         opened_at: r.openedAt?.toISOString() ?? null,
         updated_at: r.updatedAt?.toISOString() ?? null,
-        score: review ? review.score : null,
+        score: scoreByPr.get(r.id) ?? null,
         cost_usd: costByPr.get(r.id) ?? null,
         findings_by_severity: severityByPrId.get(r.id) ?? null,
       };

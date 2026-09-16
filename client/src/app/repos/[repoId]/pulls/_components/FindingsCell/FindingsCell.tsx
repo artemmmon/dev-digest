@@ -11,7 +11,7 @@ import { SeverityCounts } from "@/components/severity-counts";
 import { SEVERITY_LIST, isEmptyCounts } from "@/lib/severity-counts";
 import { usePrReviews } from "@/lib/hooks/reviews";
 import { FindingsPopover } from "./_components/FindingsPopover";
-import { latestRunFindings } from "./_components/FindingsPopover/helpers";
+import { latestRoundFindings } from "./_components/FindingsPopover/helpers";
 
 const s = {
   wrap: {
@@ -50,7 +50,7 @@ export function FindingsCell({
       <SeverityCounts counts={counts} underline />
       {hovered && (
         <FindingsPopover
-          findings={latestRunFindings(reviews)}
+          findings={latestRoundFindings(reviews)}
           total={total}
           loading={isLoading}
           placement={placement}

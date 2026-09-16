@@ -58,6 +58,7 @@ const REVIEW: ReviewRecord = {
   agent_id: "a1",
   run_id: "run-1",
   agent_name: "Security Reviewer",
+  batch_id: "batch-1",
   kind: "review",
   verdict: "request_changes",
   summary: null,
@@ -111,6 +112,16 @@ describe("PRRow — cost cell", () => {
   });
 });
 
+/** A second agent of the SAME round — the newest review, and it found nothing. */
+const CLEAN_REVIEW: ReviewRecord = {
+  ...REVIEW,
+  id: "rv-2",
+  run_id: "run-2",
+  agent_name: "Performance Reviewer",
+  score: 100,
+  findings: [],
+} as unknown as ReviewRecord;
+
 describe("PRRow — findings cell", () => {
   it("shows a count per severity present in the latest run", () => {
     renderRow(pr({ findings_by_severity: { CRITICAL: 2, WARNING: 1, SUGGESTION: 0 } }));
@@ -145,5 +156,16 @@ describe("PRRow — findings cell", () => {
 
     fireEvent.mouseLeave(cell);
     expect(screen.queryByText("1 findings in this run")).toBeNull();
+  });
+
+  it("previews the whole review round, not just the newest agent's review", () => {
+    // Regression: the newest review of a round is an arbitrary agent — here a clean
+    // Performance pass — and used to empty the popover while the icons showed 1.
+    reviews.data = [CLEAN_REVIEW, REVIEW];
+    renderRow(pr({ findings_by_severity: { CRITICAL: 1, WARNING: 0, SUGGESTION: 0 } }));
+    fireEvent.mouseEnter(screen.getByLabelText("1 Critical").parentElement!.parentElement!);
+
+    expect(screen.getByText("Hardcoded Stripe secret key")).toBeInTheDocument();
+    expect(screen.queryByText("No findings in this run")).toBeNull();
   });
 });

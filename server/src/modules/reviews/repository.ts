@@ -60,7 +60,7 @@ export class ReviewRepository {
   }
 
   /** Reviews for a PR (newest first), each with its findings. */
-  reviewsForPull(prId: string): Promise<{ review: ReviewRow; findings: FindingRow[] }[]> {
+  reviewsForPull(prId: string): Promise<{ review: ReviewRow; findings: FindingRow[]; batchId: string | null }[]> {
     return reviewRepo.reviewsForPull(this.db, prId);
   }
 

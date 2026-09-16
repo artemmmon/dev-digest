@@ -355,8 +355,16 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     const batch2Cost = batch2Rows.reduce((sum, r) => sum + r.costUsd!, 0);
     expect(listed.cost_usd).toBeCloseTo(batch2Cost, 10);
 
-    // PR list: severity breakdown of the latest review (grounding keeps one CRITICAL).
-    expect(listed.findings_by_severity).toEqual({ CRITICAL: 1, WARNING: 0, SUGGESTION: 0 });
+    // PR list: the whole latest ROUND is summed, not just its newest review — each
+    // run in batch 2 keeps one grounded CRITICAL, and batch 1's is excluded.
+    expect(batch2Rows.length).toBeGreaterThan(1);
+    expect(listed.findings_by_severity).toEqual({
+      CRITICAL: batch2Rows.length,
+      WARNING: 0,
+      SUGGESTION: 0,
+    });
+    // SCORE is the worst of the round (every agent scores 65 on this fixture).
+    expect(listed.score).toBe(65);
 
     await app.close();
   });

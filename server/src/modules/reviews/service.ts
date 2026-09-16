@@ -172,8 +172,8 @@ export class ReviewService {
         if (a) names.set(review.agentId, a.name);
       }
     }
-    return rows.map(({ review, findings }) =>
-      reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null),
+    return rows.map(({ review, findings, batchId }) =>
+      reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null, batchId),
     );
   }
 

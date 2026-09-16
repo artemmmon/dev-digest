@@ -44,13 +44,19 @@ SUGGESTION`, and `reviews` links findings to both `pr_id` and `run_id`.
 - `PrMeta.findings_by_severity: { CRITICAL: number; WARNING: number; SUGGESTION: number }
   | null | undefined` — `GET /repos/:id/pulls` only; `null` until the PR has a review.
   Name matches the existing `findings_by_severity` in `observability.ts`.
+- `ReviewRecord.batch_id: string | null | undefined` — the review round, so the list
+  popover previews exactly the findings the counts were taken from.
 
 ### PR list rollup
-The latest run of a PR = its newest `reviews` row with `kind = 'review'` — the same row the
-list's SCORE already comes from. `server/src/modules/pulls/findings.ts` (pure, like
-`cost.ts`) rolls the findings of those review ids up per PR, reusing `rollupSeverities()`
-from `status.ts` (written for this and unused until now) and mapping its keys to the
-uppercase wire values. One extra IN-query in the route, guarded on an empty id list.
+The latest review of a PR = its latest **round**: every agent started by one click on Run
+Review, i.e. one `agent_runs.batch_id` — the same grouping the COST column already sums.
+The newest `reviews` row is NOT the round: it is whichever agent finished last, often a
+clean one next to another that found four problems. `server/src/modules/pulls/findings.ts`
+(pure, like `cost.ts`) resolves the round with `latestBatchByPr` and rolls its findings up
+per PR, reusing `rollupSeverities()` from `status.ts` (written for this and unused until
+now). SCORE follows the same rule and reports the worst score of the round. Reviews with
+no `run_id`/`batch_id` (seeded rows) fall back to the newest review alone. Two extra
+IN-queries in the route, guarded on empty id lists.
 
 ### UI (client)
 - `client/src/lib/severity-counts.ts` — pure `countBySeverity()` + `SEVERITY_LIST` order.
@@ -70,6 +76,8 @@ uppercase wire values. One extra IN-query in the route, guarded on an empty id l
 
 ## Acceptance
 - A reviewed PR in the list shows severity icons with counts; an unreviewed PR shows `—`.
+- Counts, SCORE and COST on a row all describe the same review round: a clean agent
+  finishing last never hides a rejecting one.
 - Hovering those icons opens `N FINDINGS IN THIS RUN`; every preview is text only — the
   popover contains no buttons or links; clicking the row still navigates to the PR.
 - Each Timeline run tile shows its own severity breakdown; commit tiles don't; neither

@@ -47,6 +47,18 @@ built, but `pulls/routes.ts` carried a comment saying the severity breakdown was
 Before writing a new list rollup, check `status.ts` / `cost.ts` for one that already exists.
 Where: `src/modules/pulls/status.ts:23`, `src/modules/pulls/findings.ts`, `src/modules/pulls/routes.ts:115`.
 
+### 2026-09-16 — "The PR's latest review" means a batch, never the newest review row
+One click on Run Review starts every enabled agent, so `reviews ORDER BY created_at
+DESC LIMIT 1` returns an arbitrary agent of that round — whichever finished last. On
+PR #1 that was a clean Performance pass (0 findings, score 100) sitting next to a
+General run with 1 CRITICAL + 2 WARNING + 1 SUGGESTION and score 38, so the list
+showed "—" and 100 while the Agent-runs tab showed five findings. Anything the list
+summarises must group by `agent_runs.batch_id` (what COST already did) and take the
+worst/sum across the round: `latestBatchByPr` in `pulls/cost.ts` +
+`latestRoundReviewIds` in `pulls/findings.ts`. The client needs the same rule, so
+`ReviewRecord.batch_id` is now served by `GET /pulls/:id/reviews`.
+Where: `src/modules/pulls/findings.ts`, `src/modules/pulls/routes.ts`, `src/modules/reviews/repository/review.repo.ts`.
+
 ## Tool & Library Notes
 
 ## Recurring Errors & Fixes
