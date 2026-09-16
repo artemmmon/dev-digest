@@ -355,6 +355,9 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     const batch2Cost = batch2Rows.reduce((sum, r) => sum + r.costUsd!, 0);
     expect(listed.cost_usd).toBeCloseTo(batch2Cost, 10);
 
+    // PR list: severity breakdown of the latest review (grounding keeps one CRITICAL).
+    expect(listed.findings_by_severity).toEqual({ CRITICAL: 1, WARNING: 0, SUGGESTION: 0 });
+
     await app.close();
   });
 

@@ -16,6 +16,7 @@ import {
   Settings,
   Repo,
   PrDetail,
+  PrMeta,
 } from '@devdigest/shared';
 
 /**
@@ -214,5 +215,26 @@ describe('platform DTOs', () => {
         commits: [],
       }),
     ).not.toThrow();
+  });
+
+  it('PrMeta carries the list-only findings_by_severity breakdown', () => {
+    const base = {
+      number: 482,
+      title: 't',
+      author: 'a',
+      branch: 'b',
+      base: 'main',
+      head_sha: 'sha',
+      additions: 1,
+      deletions: 0,
+      files_count: 1,
+      status: 'open' as const,
+    };
+    expect(PrMeta.parse(base).findings_by_severity).toBeUndefined();
+    expect(PrMeta.parse({ ...base, findings_by_severity: null }).findings_by_severity).toBeNull();
+    expect(
+      PrMeta.parse({ ...base, findings_by_severity: { CRITICAL: 2, WARNING: 1, SUGGESTION: 0 } })
+        .findings_by_severity,
+    ).toEqual({ CRITICAL: 2, WARNING: 1, SUGGESTION: 0 });
   });
 });

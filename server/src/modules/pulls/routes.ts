@@ -9,6 +9,7 @@ import { IdParams } from '../_shared/schemas.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import { deriveReviewStatus } from './status.js';
 import { latestBatchCostByPr } from './cost.js';
+import { latestReviewIdByPr, severityByPr } from './findings.js';
 
 /**
  * F1 — pulls module. PR import via Octokit (list + per-PR detail).
@@ -112,15 +113,15 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
-    // Latest-review SCORE per PR for the list's score ring. Computed on read
-    // from reviews (no FK denorm); the list is small, so one IN-query + JS
-    // grouping is cheap. (The per-severity FINDINGS breakdown is intentionally
-    // not surfaced on the list — findings live on the PR detail page.)
+    // Latest-review SCORE and per-severity FINDINGS breakdown per PR. Computed on
+    // read from reviews (no FK denorm); the list is small, so two IN-queries + JS
+    // grouping are cheap (see ./findings.ts).
     const prIds = rows.map((r) => r.id);
     const latestReviewByPr = new Map<string, { score: number | null }>();
+    let latestReviewIds = new Map<string, string>();
     if (prIds.length > 0) {
       const reviewRows = await container.db
-        .select({ prId: t.reviews.prId, score: t.reviews.score })
+        .select({ prId: t.reviews.prId, id: t.reviews.id, score: t.reviews.score })
         .from(t.reviews)
         .where(and(inArray(t.reviews.prId, prIds), eq(t.reviews.kind, 'review')))
         .orderBy(desc(t.reviews.createdAt));
@@ -128,7 +129,17 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       for (const rv of reviewRows) {
         if (!latestReviewByPr.has(rv.prId)) latestReviewByPr.set(rv.prId, { score: rv.score });
       }
+      latestReviewIds = latestReviewIdByPr(reviewRows);
     }
+    const reviewIds = [...latestReviewIds.values()];
+    const findingRows =
+      reviewIds.length > 0
+        ? await container.db
+            .select({ reviewId: t.findings.reviewId, severity: t.findings.severity })
+            .from(t.findings)
+            .where(inArray(t.findings.reviewId, reviewIds))
+        : [];
+    const severityByPrId = severityByPr(latestReviewIds, findingRows);
 
     // COST per PR = sum over its latest review batch (see ./cost.ts).
     const costRows =
@@ -166,6 +177,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
         cost_usd: costByPr.get(r.id) ?? null,
+        findings_by_severity: severityByPrId.get(r.id) ?? null,
       };
     });
   });

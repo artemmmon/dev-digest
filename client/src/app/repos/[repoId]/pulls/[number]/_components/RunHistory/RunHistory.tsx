@@ -3,8 +3,9 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
-import type { RunSummary, PrCommit } from "@devdigest/shared";
+import type { RunSummary, PrCommit, FindingsBySeverity } from "@devdigest/shared";
 import { RunCostBadge } from "@/components/run-cost-badge";
+import { SeverityCounts } from "@/components/severity-counts";
 
 /**
  * PR timeline — every agent run interleaved with the PR's commits, newest-first
@@ -88,12 +89,15 @@ function tsOf(s: string | null | undefined): number {
 export function RunHistory({
   runs,
   commits = [],
+  severityByRun,
   onOpenTrace,
   onGoToReview,
   onDelete,
 }: {
   runs: RunSummary[];
   commits?: PrCommit[];
+  /** Severity tally per run id, derived from the reviews already loaded (no request). */
+  severityByRun?: Map<string, FindingsBySeverity>;
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -190,9 +194,13 @@ export function RunHistory({
                 </div>
               )}
               {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--text-muted)" }}>
+                  <span>
+                    {t("runStatus.findings", { count: r.findings_count ?? 0 })}
+                    {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                  </span>
+                  {/* Display only — the timeline never filters (criterion: no click). */}
+                  <SeverityCounts counts={severityByRun?.get(r.run_id)} />
                 </div>
               )}
             </div>

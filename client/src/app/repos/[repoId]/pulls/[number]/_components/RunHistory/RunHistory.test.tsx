@@ -7,7 +7,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary } from "@devdigest/shared";
+import type { FindingsBySeverity, RunSummary } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import common from "../../../../../../../../messages/en/common.json";
 import { RunHistory } from "./RunHistory";
@@ -36,10 +36,10 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[]) {
+function renderRuns(runs: RunSummary[], severityByRun?: Map<string, FindingsBySeverity>) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages, common }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} />
+      <RunHistory runs={runs} severityByRun={severityByRun} onOpenTrace={() => {}} />
     </NextIntlClientProvider>,
   );
 }
@@ -90,5 +90,32 @@ describe("RunHistory — run cost", () => {
     renderRuns([run({ status: "done", tokens_in: 100, tokens_out: 50, cost_usd: null, score: 90, blockers: 0 })]);
     expect(screen.getByText("150 tok · —")).toBeInTheDocument();
     expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — severity breakdown", () => {
+  it("shows the run's severity counts on its tile", () => {
+    renderRuns(
+      [run({ run_id: "run-1", status: "done", findings_count: 3, blockers: 1, score: 61 })],
+      new Map([["run-1", { CRITICAL: 1, WARNING: 2, SUGGESTION: 0 }]]),
+    );
+    expect(screen.getByLabelText("1 Critical")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 Warning")).toBeInTheDocument();
+    // Only severities that occur get an icon.
+    expect(screen.queryByLabelText(/Suggestion/)).toBeNull();
+  });
+
+  it("stays inert: the counts are display-only, never a button", () => {
+    renderRuns(
+      [run({ run_id: "run-1", status: "done", findings_count: 1, blockers: 1, score: 61 })],
+      new Map([["run-1", { CRITICAL: 1, WARNING: 0, SUGGESTION: 0 }]]),
+    );
+    const counts = screen.getByLabelText("1 Critical");
+    expect(counts.closest("button")).toBeNull();
+  });
+
+  it("renders nothing extra for a run without a breakdown", () => {
+    renderRuns([run({ run_id: "run-1", status: "done", findings_count: 0, blockers: 0, score: 95 })]);
+    expect(screen.queryByLabelText(/Critical/)).toBeNull();
   });
 });

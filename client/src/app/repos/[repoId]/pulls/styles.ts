@@ -87,7 +87,9 @@ export const s = {
     margin: "14px 32px 44px",
     border: "1px solid var(--border)",
     borderRadius: 10,
-    overflow: "hidden",
+    // `visible`, not `hidden`: the FINDINGS hover popover is absolutely positioned
+    // inside a row and would be clipped by the card otherwise.
+    overflow: "visible",
     background: "var(--bg-elevated)",
   } satisfies CSSProperties,
   headRow: {

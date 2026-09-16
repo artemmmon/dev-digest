@@ -39,6 +39,14 @@ saved before a field existed don't have its key. Declare added `RunStats`/`RunTr
 fields `.nullish()` and have the UI treat `undefined` like `null` (e.g. `cost_usd` → "—").
 Where: `src/vendor/shared/contracts/trace.ts`, `modules/reviews/repository/run.repo.ts`.
 
+### 2026-09-16 — `rollupSeverities` was written for the PR list and left unwired
+`modules/pulls/status.ts` has shipped a tested `rollupSeverities()` since the list was
+built, but `pulls/routes.ts` carried a comment saying the severity breakdown was
+"intentionally not surfaced", so nothing imported it. It is now the core of
+`modules/pulls/findings.ts` (latest review per PR → tally → `PrMeta.findings_by_severity`).
+Before writing a new list rollup, check `status.ts` / `cost.ts` for one that already exists.
+Where: `src/modules/pulls/status.ts:23`, `src/modules/pulls/findings.ts`, `src/modules/pulls/routes.ts:115`.
+
 ## Tool & Library Notes
 
 ## Recurring Errors & Fixes
@@ -71,8 +79,22 @@ The docstring says "release buffers/emitters", but only the emitter is deleted;
 `buffers`, `seq` and `completed` grow for the life of the process.
 Where: `src/platform/sse.ts`.
 
+### 2026-09-16 — `findings` has no index on `review_id`
+Postgres does not index a foreign key automatically and `0000_init.sql` adds only the FK
+constraint, so every read of findings by review is a sequential scan. The PR list now runs
+one `IN (latest review ids)` query per page load on top of the existing reviews/runs
+queries. Fine at seed scale; if the table grows, add the index in `db/schema/reviews.ts`
+and regenerate with `pnpm db:generate` (never hand-write the migration).
+Where: `src/db/schema/reviews.ts:28`, `src/db/migrations/0000_init.sql:378`, `src/modules/pulls/routes.ts`.
+
 ## Session Notes
 
 ### 2026-09-16 — Run Cost Badge (L01)
 Brought per-run `cost_usd` back and added `agent_runs.batch_id` so the PR list can sum
 the latest batch (spec `../specs/01-run-cost-badge.md`). The entries above came from this work.
+
+### 2026-09-16 — PR list severity breakdown (L01)
+Added `PrMeta.findings_by_severity` (mirrored into `client/src/vendor/shared`) and
+`modules/pulls/findings.ts`, following the cost-badge precedent: contract + pure rollup
+module + one extra IN-query in the route, no schema change. Spec: `specs/02-findings-severity.md`.
+

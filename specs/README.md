@@ -8,3 +8,4 @@ affected packages under **Design**.
 ## Index
 <!-- one line per spec: - [NN-name](NN-name.md) — status — packages -->
 - [01-run-cost-badge](01-run-cost-badge.md) — done — server, client
+- [02-findings-severity](02-findings-severity.md) — done — server, client
