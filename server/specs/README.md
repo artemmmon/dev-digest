@@ -23,3 +23,4 @@ Checkable criteria — what proves it works.
 
 ## Index
 <!-- one line per spec: - [NN-name](NN-name.md) — status -->
+- [01-run-cost-persistence](01-run-cost-persistence.md) — done — run cost storage + the PR-list rollups

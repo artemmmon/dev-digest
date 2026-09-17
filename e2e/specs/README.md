@@ -23,6 +23,7 @@ Checkable criteria — what proves it works.
 
 ## Index
 <!-- one line per spec: - [NN-name](NN-name.md) — status -->
+- [01-l01-coverage](01-l01-coverage.md) — done — what the flows prove about cost and severity
 
 > This folder also holds the executable flows (`NN-name.flow.json`). The runner
 > only picks up `*.flow.json`, so spec docs (`*.md`) live here safely.

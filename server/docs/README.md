@@ -9,3 +9,4 @@ are the deep dives.
 
 ## Index
 <!-- one line per doc: - [title](file.md) — when to read it -->
+- [0001 — "The PR's latest review" is a batch](0001-latest-review-is-a-batch.md) — before changing anything the PR list summarises

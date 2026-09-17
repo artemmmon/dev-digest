@@ -23,3 +23,4 @@ Checkable criteria — what proves it works.
 
 ## Index
 <!-- one line per spec: - [NN-name](NN-name.md) — status -->
+- [01-severity-ui](01-severity-ui.md) — done — severity counters, filter and the list popover

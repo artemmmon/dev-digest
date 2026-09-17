@@ -9,3 +9,4 @@ are the deep dives.
 
 ## Index
 <!-- one line per doc: - [title](file.md) — when to read it -->
+- [Usage and cost](usage-and-cost.md) — before touching token counting, pricing or a new provider

@@ -59,6 +59,10 @@ one IN-query + JS grouping (`server/src/modules/pulls/cost.ts`), like the list's
 - A new completed run stores `cost_usd` and its trace has `stats.cost_usd`.
 - All runs created by one review request share one `batch_id`.
 - PR list COST shows the latest batch sum; an earlier batch is not included.
+  The column describes the PR's current review **round**, not everything the PR has
+  ever spent — same rule as SCORE and FINDINGS, so the three columns always describe
+  the same run set. Reasoning and rejected alternatives:
+  `server/docs/0001-latest-review-is-a-batch.md`.
 - Timeline done cards show `N tok · $X`; failed/running cards show no cost line.
 - Trace drawer shows a COST tile.
 - A run or PR without cost data shows `—`, never `$0.00`.
@@ -66,4 +70,5 @@ one IN-query + JS grouping (`server/src/modules/pulls/cost.ts`), like the list's
 
 ## Open questions
 - Should failed runs report tokens/cost spent before the failure? Needs the engine to
-  surface partial usage on error.
+  surface partial usage on error. Carried over as a draft spec:
+  `reviewer-core/specs/01-usage-on-failed-runs.md`.

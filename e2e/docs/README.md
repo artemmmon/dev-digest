@@ -9,3 +9,4 @@ are the deep dives.
 
 ## Index
 <!-- one line per doc: - [title](file.md) — when to read it -->
+- [Authoring a flow](authoring-a-flow.md) — before adding or debugging a flow

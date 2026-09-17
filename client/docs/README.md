@@ -9,4 +9,5 @@ are the deep dives.
 
 ## Index
 <!-- one line per doc: - [title](file.md) — when to read it -->
+- [Overlay UI without a kit primitive](overlay-ui-without-a-kit-primitive.md) — before building any popover, tooltip or dropdown
 - [Design reference](design/README.md) — before building or changing any screen

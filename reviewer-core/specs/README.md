@@ -23,3 +23,4 @@ Checkable criteria — what proves it works.
 
 ## Index
 <!-- one line per spec: - [NN-name](NN-name.md) — status -->
+- [01-usage-on-failed-runs](01-usage-on-failed-runs.md) — draft — partial usage when a run throws
