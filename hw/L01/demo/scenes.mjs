@@ -6,6 +6,8 @@
 // Rules that keep the shot honest: never click a mutating control (config.neverClick),
 // and start the narration while the action is still moving, so there is no dead air.
 
+// FILMING order — file scenes first so Chrome starts once, before s1. The video plays
+// in `config.order`, which is what assembly concatenates.
 export const order = ['s2', 's3', 's4', 's5', 's1', 's6', 's7', 's8', 's9'];
 export const browser = ['s1', 's6', 's7', 's8', 's9'];
 
