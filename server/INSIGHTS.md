@@ -70,6 +70,15 @@ Where: `src/modules/pulls/findings.ts:39` (`latestRoundReviewIds`),
 
 ## Tool & Library Notes
 
+### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
+`CLAUDE.md` says modules are layered routes → service → repository, so the obvious ESLint
+rule is `no-restricted-imports` for `drizzle-orm` under `src/modules/**/routes.ts`. Turning
+it on reports `pulls`, `settings` and `workspace`, which all query the DB from the handler.
+The rule is written up but left out of the config until those three grow a repository —
+enabling it means rewriting starter code, not fixing a violation you introduced.
+Where: `eslint.config.mjs:33`, `src/modules/pulls/routes.ts:3`.
+
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — Local dev DB is ahead of this branch's migrations

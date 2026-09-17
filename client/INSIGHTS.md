@@ -43,6 +43,14 @@ Where: `src/app/repos/[repoId]/pulls/[number]/_components/SeverityFilterPills/Se
 
 ## Tool & Library Notes
 
+### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
+`no-restricted-globals` on `fetch` enforces the house rule that components go through a
+hook, but `apiFetch` IS the seam, so it trips on itself. Keep the single
+`eslint-disable-next-line` there rather than narrowing the rule by path — the disable
+comment is the documentation that this is the one allowed call site.
+Where: `src/lib/api.ts:26`, `eslint.config.mjs:38`.
+
+
 ### 2026-09-15 — Tailwind v4 scans every text file under client/, docs included
 Automatic source detection picks up any non-gitignored file, so the design export in
 `docs/design` (JSX + bundled HTML) added 31 files / ~800 class candidates (oxide `Scanner`:

@@ -58,7 +58,32 @@ Where: `reviewer-core/src/grounding.ts:52-84`.
 
 ## Tool & Library Notes
 
+### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
+`c6af1e4` ("revert: restore main to the starter state") discarded three merged student
+PRs and with them `eslint.config.mjs` in client/server/reviewer-core, `.dependency-cruiser.cjs`
+and the `pnpm lint` / `pnpm arch` CI steps. `git show c6af1e4^:server/eslint.config.mjs`
+still shows them — do not restore those files, they are someone else's homework. Write a
+config for the package you are in instead.
+Where: `.github/workflows/server-unit.yml:69` (this branch's own lint step).
+
+### 2026-09-17 — `no-undef` must be off for TypeScript, or every Node global errors
+Without the `globals` package, `js.configs.recommended` reports `'process' is not defined`
+across a Node package. typescript-eslint's own guidance is to disable the rule for TS: tsc
+already resolves every identifier. The client keeps it on and declares globals for its two
+root config files instead, because `next.config.mjs` is plain JS.
+Where: `server/eslint.config.mjs:25`, `client/eslint.config.mjs:26` (the globals block).
+
+
 ## Recurring Errors & Fixes
+
+### 2026-09-17 — `eslint --fix` leaves a whitespace-only line when it drops a disable directive
+Removing an "unused eslint-disable directive" deletes the comment text but keeps the
+indentation, so the file ends up with a `   ` line that no linter then complains about.
+After a `--fix` run that reported unused directives, grep the diff for whitespace-only
+lines (`git diff | grep -n '^+[[:space:]]\+$'`) before committing.
+Where: `server/test/integration.it.test.ts:13` and
+`server/test/agents-versions.it.test.ts:17` (the `console.warn` the directive sat above).
+
 
 ### 2026-09-15 — `ERR_PNPM_IGNORED_BUILDS` on `pnpm install`
 Local pnpm 12 (CI pins pnpm 10) fails install until every dependency with an install
@@ -83,3 +108,11 @@ Comments reference internal IDs (F1, A2, A6, T1.3, T2.2, T3) with no legend anyw
 Where: `server/src/platform/model-router.ts:2` ("A6 — Cost discipline (§11)").
 
 ## Session Notes
+
+### 2026-09-17 — Closing the HW1 documentation criteria (L01)
+Added ESLint to all four packages and wired it into CI, wrote the naming conventions and
+the lock-file do-not-touch rule into the root `CLAUDE.md`, gave all 39 existing INSIGHTS
+entries a verified `file:line` anchor, and filled the eight empty per-package `docs/` and
+`specs/` folders with one doc + one spec each. The PR-list COST stays scoped to the latest
+review round; the reasoning now lives in an ADR instead of only in a commit message.
+Where: `server/docs/0001-latest-review-is-a-batch.md`, `.claude/skills/engineering-insights/SKILL.md:5`.
