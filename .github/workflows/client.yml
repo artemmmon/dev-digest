@@ -46,4 +46,7 @@ jobs:
 
       - run: pnpm typecheck
 
+      # eslint is not type-aware (see client/eslint.config.mjs) — it costs seconds.
+      - run: pnpm exec eslint .
+
       - run: pnpm test

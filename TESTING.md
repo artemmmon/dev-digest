@@ -60,8 +60,8 @@ No `chat`, no model key.
 
 ```sh
 # per package
-cd client        && pnpm test           # + pnpm typecheck
-cd reviewer-core && npm test
+cd client        && pnpm typecheck && pnpm lint && pnpm test
+cd reviewer-core && npm run typecheck && npm run lint && npm test
 
 # server — the unit/integration split (see note below)
 cd server && pnpm exec vitest run --exclude '**/*.it.test.ts'   # unit, no Docker
@@ -73,6 +73,19 @@ cd server && pnpm test                                          # both
 npm i -g agent-browser && agent-browser install
 cd e2e && npm install && npm test
 ```
+
+## Static gates
+
+Every package runs two static gates before its tests, both wired into its workflow:
+
+- **`typecheck`** — `tsc --noEmit`. For `reviewer-core` this *is* the build.
+- **`lint`** — `eslint .` against the package's own `eslint.config.mjs` (flat config,
+  ESLint 9). The configs are deliberately **not** type-aware: tsc already walks the
+  same files in the same lane, so the linter only carries what tsc cannot see —
+  unused code, `any`, import style, and two architectural rules (`client`: no bare
+  `fetch` outside `src/lib/api.ts`; `reviewer-core`: no fs/child_process/network
+  outside `src/llm/`). Vendored and generated trees are ignored: `client/src/vendor`,
+  `client/docs`, `server/src/vendor`, `server/src/db/migrations`, `server/clones`.
 
 ## Conventions
 

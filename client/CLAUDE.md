@@ -9,6 +9,7 @@ settings. Talks to the API only over HTTP (`NEXT_PUBLIC_API_BASE`, default
 pnpm dev          # :3000 (needs the API for real data)
 pnpm test         # vitest + jsdom, fetch mocked — no API needed
 pnpm typecheck
+pnpm lint         # eslint + react-hooks; src/vendor and docs/design are ignored
 pnpm build
 ```
 
@@ -22,6 +23,7 @@ pnpm build
 - `messages/en/*.json` — all UI strings (next-intl), one file per feature
 
 ## Conventions
+Naming is in `../CLAUDE.md`; what follows is the shape of the code.
 - A feature component is a folder `_components/<Name>/` with `<Name>.tsx`,
   `index.ts`, and as needed `constants.ts`, `helpers.ts`, `styles.ts`,
   `<Name>.test.tsx`, nested `_components/`.

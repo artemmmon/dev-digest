@@ -9,6 +9,7 @@ Uses **npm**, not pnpm.
 ```sh
 npm install       # required — the server imports from here and crashes without it
 npm test          # vitest, stubbed LLMProvider, no keys
+npm run lint      # eslint; also guards the purity contract below
 npm run typecheck # this IS the build — the package never emits JS
 ```
 

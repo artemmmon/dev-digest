@@ -8,6 +8,7 @@ itself to `reviewer-core`. Root rules: `../CLAUDE.md`.
 ```sh
 pnpm dev                                          # tsx watch, :3001
 pnpm typecheck
+pnpm lint                                         # eslint, not type-aware
 pnpm exec vitest run --exclude '**/*.it.test.ts'  # unit, no Docker
 pnpm exec vitest run .it.test                     # integration, needs Docker
 pnpm test                                         # both
@@ -26,6 +27,7 @@ pnpm db:seed                                      # idempotent; API needs it (se
 - `src/vendor/shared/` — canonical Zod contracts (`@devdigest/shared`)
 
 ## Conventions
+Naming is in `../CLAUDE.md`; what follows is the shape of the code.
 - New module: `modules/<name>/routes.ts` default-exports a Fastify plugin, layered
   routes → service → repository; add one import + one `register` in `modules/index.ts`.
   Look in `src/db/schema/` first — the table most likely exists.

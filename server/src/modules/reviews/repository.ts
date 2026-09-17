@@ -1,5 +1,5 @@
 import type { Db } from '../../db/client.js';
-import * as t from '../../db/schema.js';
+import type * as t from '../../db/schema.js';
 import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
 
 /**

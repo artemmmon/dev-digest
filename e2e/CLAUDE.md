@@ -10,6 +10,7 @@ Uses **npm**, not pnpm.
 npm i -g agent-browser && agent-browser install   # once
 ../scripts/e2e.sh     # hermetic: own Postgres :5433, API :3101, web :3100 — preferred
 npm test              # against your running stack (only if DB has just the seed)
+npm run lint          # eslint
 npm run typecheck
 ```
 

@@ -1,4 +1,4 @@
-import * as t from './schema.js';
+import type * as t from './schema.js';
 
 /**
  * Shared row types inferred from the Drizzle schema.

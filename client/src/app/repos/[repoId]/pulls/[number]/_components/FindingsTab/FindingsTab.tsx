@@ -15,7 +15,7 @@ import type {
   PrCommit,
 } from "@devdigest/shared";
 import { countBySeverity } from "@/lib/severity-counts";
-import type { UseMutationResult } from "@tanstack/react-query";
+import type { useCancelRun } from "@/lib/hooks/reviews";
 
 interface FindingsTabProps {
   prId: string | null;
@@ -25,7 +25,7 @@ interface FindingsTabProps {
   runs: ReviewRecord[];
   prRuns: RunSummary[] | undefined;
   prCommits: PrCommit[];
-  cancelMutation: UseMutationResult<any, any, string, any>;
+  cancelMutation: ReturnType<typeof useCancelRun>;
   /** owner/repo + head sha — used to deep-link a finding's file:line to GitHub. */
   repoFullName?: string | null;
   headSha?: string | null;
