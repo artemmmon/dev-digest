@@ -15,6 +15,8 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 - README troubleshooting suggests `docker compose down -v`; `e2e/README.md` warns it wipes real data.
 - TESTING.md says `server/package.json` is `skip-worktree` — locally it is not (`git ls-files -v` → `H`).
 - `agent-runner` (lesson L06) is referenced in `.gitignore`, comments and `server-unit.yml`, but the folder doesn't exist.
+Where: `README.md:73` ("two built-in reviewers"), `TESTING.md:96` (the `skip-worktree`
+claim), `.gitignore:5` (`agent-runner/dist/`).
 
 ### 2026-09-16 — `client/docs/design/**` in the diff poisons a review run
 The design export is ~30 JSX files of MOCK data (a fake PR #482 "Add rate limiting…" with
@@ -33,13 +35,17 @@ Where: `client/docs/design/src/data.jsx`, `reviewer-core/src/grounding.ts:61`.
 copy has `AgentManifest`, `AgentVersion`, `commitFiles`, `sync`, `diffNameOnly` and
 `'openrouter'` in `LLMProvider.id`. `reviewer-core` reads the server copy.
 Check with `diff -rq server/src/vendor/shared client/src/vendor/shared`.
+Where: `client/src/vendor/shared/adapters.ts:77` vs `server/src/vendor/shared/adapters.ts:83`
+(`LLMProvider.id`).
 
 ### 2026-09-15 — `server/clones/` contains this repo
 `DEVDIGEST_CLONE_DIR=./clones` → `server/clones/artemmmon/dev-digest/` is a full
 checkout of the project. Git ignores it, grep/search does not — results get doubled.
+Where: `server/src/platform/config.ts:67` (the clone-dir default).
 
 ### 2026-09-15 — Two identical compose files
 `docker-compose.yml` and `server/docker-compose.yml` are byte-identical; `scripts/dev.sh` uses the root one.
+Where: `scripts/dev.sh:57` (`docker compose up -d`, run from the repo root).
 
 ### 2026-09-16 — Grounding gate 1 is an exact string match on the diff's file path
 `groundFindings` first checks `filesInDiff.has(finding.file)` — no normalisation, no suffix
@@ -58,7 +64,8 @@ Where: `reviewer-core/src/grounding.ts:52-84`.
 Local pnpm 12 (CI pins pnpm 10) fails install until every dependency with an install
 script is listed under `allowBuilds`, and writes a placeholder `pnpm-workspace.yaml`.
 A new such dependency → add it there with an explicit `true`/`false`; all current ones are
-`false` (prebuilt binaries / optional addons). Where: `client/` and `server/pnpm-workspace.yaml`.
+`false` (prebuilt binaries / optional addons).
+Where: `client/pnpm-workspace.yaml:3` and `server/pnpm-workspace.yaml:3` (`allowBuilds`).
 
 ### 2026-09-16 — A glob pattern in a block comment can close the comment
 Documenting a basename glob inside `/** … */` breaks the file: the pattern contains
@@ -66,11 +73,13 @@ Documenting a basename glob inside `/** … */` breaks the file: the pattern con
 something unrelated and far away (`TS1443: Module declaration names may only use ' or "
 quoted strings`, `TS1160: Unterminated template literal`). Write it as `**` + `/name`,
 or use `//`. A directory pattern like `dir/**` is safe — no `*/` in it.
-Where: `server/src/modules/reviews/diff-filter.ts`, `server/src/modules/reviews/constants.ts`.
+Where: `server/src/modules/reviews/diff-filter.ts:17` (the pattern-forms comment),
+`server/src/modules/reviews/constants.ts:28` (`REVIEW_EXCLUDED_PATHS`).
 
 ## Open Questions
 
 ### 2026-09-15 — Undocumented task IDs in comments
 Comments reference internal IDs (F1, A2, A6, T1.3, T2.2, T3) with no legend anywhere.
+Where: `server/src/platform/model-router.ts:2` ("A6 — Cost discipline (§11)").
 
 ## Session Notes

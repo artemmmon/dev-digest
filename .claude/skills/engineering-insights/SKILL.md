@@ -16,10 +16,16 @@ description: Appends non-obvious engineering findings to the INSIGHTS.md of the 
    Recurring Errors & Fixes · Open Questions · Session Notes
    (one dated summary, only for sessions that added other entries).
 4. **Append-only.** Add at the end of the section. Never edit, reorder or delete
-   entries. Proven wrong → a new entry titled `Supersedes "<old title>"`.
+   entries. Proven wrong → a new entry titled `Supersedes "<old title>"`. This governs
+   the *claim*, not its pointers: a `Where:` whose file moved or whose line drifted is
+   stale metadata — repair it in place.
 5. **Entry.** `### YYYY-MM-DD — short title`, then 1–4 lines: context → problem →
-   what to do, `Where: <path>`. It must be actionable cold: name the file, function
-   or command and the concrete action. Mark unchecked claims **(unverified)**.
+   what to do, closing with `Where: <path>:<line>`. Every entry has one, Session Notes
+   included, and at least one anchor carries a line number — open the file and read it
+   off, never guess. A bare path is for a finding about the file or directory as a
+   whole. Paths are relative to the `INSIGHTS.md`'s own package (repo-root-relative in
+   the root file). It must be actionable cold: name the file, function or command and
+   the concrete action. Mark unchecked claims **(unverified)**.
 6. **Report.** Tell the user in one line: file + section. If it will bite every task
    in that module, suggest promoting a one-liner to its `CLAUDE.md` Gotchas; don't edit it.
 

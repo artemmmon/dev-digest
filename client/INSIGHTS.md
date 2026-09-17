@@ -15,10 +15,13 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 The client copy lacks types the server already has (`AgentManifest`,
 `AgentVersion`, `'openrouter'` in `LLMProvider.id`, …). Before using a contract,
 compare with `../server/src/vendor/shared`. Details in `../INSIGHTS.md`.
+Where: `src/vendor/shared/adapters.ts:77` — `LLMProvider.id` is still
+`'openai' | 'anthropic'`; the server's copy has `'openrouter'` too.
 
 ### 2026-09-15 — Message namespaces for future lessons
 `messages/en/` already contains `eval`, `blast`, `brief`, `memory`, `skills`, `ci`…
 for screens that don't exist yet in the starter. They are placeholders, not dead files.
+Where: `messages/en/` (e.g. `messages/en/blast.json:1`).
 
 ### 2026-09-16 — No overlay primitive in `@devdigest/ui`: build hover UI in the feature folder
 There is no Popover/Tooltip/HoverCard/Portal and no positioning helper (a grep for
@@ -27,14 +30,15 @@ pattern is `Dropdown`'s: a `position: relative` wrapper with a `position: absolu
 `zIndex`, and the `ddpop` animation from `vendor/ui/styles.css`. Copy that instead of
 adding a dependency; keep the component in the feature's `_components/` unless a second
 page needs it. Vertical flip is done by the caller passing a `placement` prop.
-Where: `src/vendor/ui/kit/Dropdown.tsx`, `src/app/repos/[repoId]/pulls/_components/FindingsCell/`.
+Where: `src/vendor/ui/kit/Dropdown.tsx:88` (the relative/absolute pattern),
+`src/app/repos/[repoId]/pulls/_components/FindingsCell/`.
 
 ### 2026-09-16 — A count and a label in one button compute the name "2Warning"
 When a button renders `<span>{n}</span>` next to a text label, the accessible name has no
 separator, so `getByRole("button", { name: "2 Warning" })` and the e2e `find role button
 --name` both miss. Give such buttons an explicit `aria-label={`${n} ${label}`}`; the e2e
 flows target the pills by exactly that name.
-Where: `src/app/repos/[repoId]/pulls/[number]/_components/SeverityFilterPills/SeverityFilterPills.tsx:38`,
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/SeverityFilterPills/SeverityFilterPills.tsx:42`,
 `e2e/specs/04-pr-findings.flow.json`.
 
 ## Tool & Library Notes
@@ -43,7 +47,7 @@ Where: `src/app/repos/[repoId]/pulls/[number]/_components/SeverityFilterPills/Se
 Automatic source detection picks up any non-gitignored file, so the design export in
 `docs/design` (JSX + bundled HTML) added 31 files / ~800 class candidates (oxide `Scanner`:
 3761 vs 2973). Non-source text files under `client/` need an `@source not "<path>"` line.
-Where: `src/app/globals.css`.
+Where: `src/app/globals.css:9` (`@source not "../../docs"`).
 
 ## Recurring Errors & Fixes
 
@@ -52,7 +56,7 @@ Where: `src/app/globals.css`.
 popover rendered but was invisible below the row. Set it to `overflow: "visible"` — the
 design export does the same (`docs/design/src/screen_dashboard.jsx:111`); rows have their
 own borders, so nothing else needed clipping.
-Where: `src/app/repos/[repoId]/pulls/styles.ts` (`tableCard`).
+Where: `src/app/repos/[repoId]/pulls/styles.ts:86` (`tableCard`).
 
 ### 2026-09-16 — A margin gap under a hover popover makes it unreachable
 `FindingsPopover` sat `marginTop: 8` below its trigger. Margins are not hit-testable, so
@@ -62,22 +66,26 @@ an invisible positioned wrapper around the card instead, and delay the close ~15
 diagonal approach (the trigger is ~80px wide, the card 360px). Worth knowing: the popover
 is a DOM child of the trigger, and `mouseenter`/`mouseleave` treat descendants as part of
 the element — so landing on the card re-fires the trigger's `onMouseEnter` and cancels the
-pending close, no handlers needed on the popover itself. `Dropdown.tsx:87` has the same
+pending close, no handlers needed on the popover itself. `Dropdown.tsx:89` has the same
 dead gap via `top: calc(100% + 6px)`, but it is click-triggered so it never bites.
-Where: `src/app/repos/[repoId]/pulls/_components/FindingsCell/FindingsCell.tsx`,
-`.../FindingsCell/_components/FindingsPopover/styles.ts` (`anchor`/`card`).
+Where: `src/app/repos/[repoId]/pulls/_components/FindingsCell/FindingsCell.tsx:57`
+(`CLOSE_DELAY_MS`),
+`src/app/repos/[repoId]/pulls/_components/FindingsCell/_components/FindingsPopover/styles.ts:11`
+(`anchor`) and `:19` (`card`).
 
 ## Open Questions
 
 ## Session Notes
 
 ### 2026-09-15 — Design reference added
-Unpacked the Claude Design export into `docs/design` (`scripts/unpack-design.mjs`) and
-excluded `docs/` from Tailwind scanning.
+Unpacked the Claude Design export into `docs/design` and excluded `docs/` from Tailwind
+scanning.
+Where: `../scripts/unpack-design.mjs` (repo root, not `client/`), `src/app/globals.css:9`.
 
 ### 2026-09-16 — Findings severity counters, filter and PR-list popover (L01)
 Added `src/lib/severity-counts.ts`, the shared `SeverityCounts` cluster, `SeverityFilterPills`
 in the `FindingsPanel` toolbar, and the FINDINGS list column with a lazy hover popover.
 Counts are taken over the post-"hide low confidence" set so a pill's number always equals
-the number of cards under it. Spec: `specs/02-findings-severity.md`.
+the number of cards under it.
+Where: `src/lib/severity-counts.ts:21` (`countBySeverity`), spec `../specs/02-findings-severity.md`.
 
