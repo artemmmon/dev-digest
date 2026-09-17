@@ -72,6 +72,7 @@ Read on demand when the task matches — do not preload.
 - `README.md` — product overview, quick start, troubleshooting
 - `TESTING.md` — test strategy, suite map, test conventions
 - `docs/` — cross-package docs; `docs/agent-prompts/` — reviewer agent prompts, model choice
+- `docs/demo-video.md` — how to record a narrated demo of a lesson
 - `specs/` — cross-package feature specs (check before starting a feature)
 - `INSIGHTS.md` — cross-package gotchas and non-obvious decisions
 
