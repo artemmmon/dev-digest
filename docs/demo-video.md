@@ -1,89 +1,129 @@
-# Recording a demo video
+# Як записати демо-відео
 
-How to get a narrated screencast of a lesson. Claude does the work; you approve and
-listen. Plan for 30–40 minutes for a fresh 5-minute video, most of it waiting.
+Інструкція для мене, тому українською. Решта файлів у проєкті — англійською.
 
-## One-time setup
+Відео з озвучкою записує Claude. Від тебе потрібні дозволи, вибір голосу і команда
+почати. На свіже п'ятихвилинне відео закладай 30–40 хвилин, більшість із них —
+очікування.
 
-1. An ElevenLabs account (free tier is enough — 10k characters/month, a 5-minute video
-   costs ~3.5k). Copy an API key from https://elevenlabs.io/app/settings/api-keys, then
-   run this once — the key is not shown and is not stored in any file:
+## Разове налаштування
+
+1. **Акаунт ElevenLabs** — це сервіс, який перетворює текст на голос. Безкоштовного
+   тарифу вистачає: 10 тисяч символів на місяць, п'ятихвилинне відео з'їдає близько
+   3500. Створи ключ на https://elevenlabs.io/app/settings/api-keys, скопіюй його і
+   виконай команду нижче. Ключ не з'явиться на екрані й не ляже у файл — він
+   зберігається в Keychain, системному сховищі паролів macOS.
 
    ```sh
    security add-generic-password -s elevenlabs-api -a "$USER" -U -w "$(pbpaste)"
    ```
 
-2. Grant Terminal **Screen Recording** and **Automation** in System Settings → Privacy
-   & Security. Claude will tell you if either is missing.
+2. **Дозволи для Terminal** — System Settings → Privacy & Security → Screen Recording
+   і Automation. Без першого нічого не запишеться, без другого Claude не зможе
+   відкривати вікна. Він сам скаже, якщо чогось бракує.
 
-3. A second display. Filming happens there, so you keep working on the built-in one.
+3. **Другий монітор.** Зйомка йде на ньому, а ти тим часом працюєш на вбудованому
+   екрані й бачиш, що відбувається.
 
-## Making a video
+## Запис відео
 
-**Step 1 — the script.** In a normal Claude session:
+### Крок 1. Сценарій
+
+У звичайній сесії Claude напиши:
 
 > напиши сценарій демо для L02 за критеріями в hw/L02
 
-It reads the criteria, writes `hw/L02/demo/scenario.md` and `cues.json`, and checks every
-number it wants to say against the running app. Read the script. It will also tell you
-where the product and the criteria disagree — decide those before filming.
+Він прочитає критерії, складе сценарій і — найважливіше — звірить кожне число, яке
+збирається озвучити, із запущеним застосунком. Результат ляже у `hw/L02/demo/`:
+`scenario.md` (людська версія) і `cues.json` (репліки для озвучки).
 
-**Step 2 — filming.** Start the stack (`./scripts/dev.sh`), then type:
+Прочитай сценарій. Claude окремо напише, де продукт розходиться з критеріями — такі
+речі треба вирішити до зйомки, а не після.
+
+### Крок 2. Запустити застосунок
+
+Перед зйомкою застосунок має працювати, бо знімаємо ми саме його.
+
+```sh
+./scripts/dev.sh
+```
+
+Ця команда піднімає три частини одразу:
+
+| Частина | Де | Що це |
+|---|---|---|
+| Postgres | у Docker | база даних з репозиторіями, PR і знахідками |
+| API-сервер | порт 3001 | уся робота: GitHub, git, черги задач, звернення до LLM |
+| Веб-інтерфейс | порт 3000 | те, що видно в браузері й що ми знімаємо |
+
+У Flutter тобі вистачало `flutter run`, бо застосунок один. Тут інтерфейс і сервер —
+окремі програми, а база живе в контейнері, тому й команда піднімає все разом. Коли в
+терміналі з'явиться `localhost:3000` — готово. Це вікно має лишатись відкритим, поки
+триває зйомка; закриєш його — застосунок зупиниться.
+
+### Крок 3. Зйомка
+
+Тепер у Claude:
 
 ```
 /demo-film
 ```
 
-This one cannot start on its own — it drives your screen, so it only runs when you ask.
-It will:
+Сам він цього не запустить: зйомка керує твоїм екраном, тож стартує тільки на твою
+команду. Далі він:
 
-1. check permissions and displays, and stop if something is missing;
-2. play you 3 voice samples — **you pick one**, Claude cannot hear them;
-3. open its own VS Code, Terminal and Chrome on the second display;
-4. ask you to move the mouse off that display and say **go**.
+1. перевірить дозволи й монітори і зупиниться, якщо чогось бракує;
+2. дасть послухати три голоси — **вибираєш ти**, Claude звук не чує;
+3. відкриє власні VS Code, Terminal і Chrome на другому екрані;
+4. попросить прибрати мишу з того екрана і сказати **go**.
 
-While it films: don't type, don't touch the second display. Turn on Do Not Disturb.
-Roughly 10 minutes.
+Поки йде зйомка: не друкуй і не чіпай другий монітор, бо фокус клавіатури перестрибує
+на знімальні вікна. Увімкни «Не турбувати», щоб сповіщення не влізли в кадр. Приблизно
+десять хвилин.
 
-**Step 3 — checking.** Claude checks every frame against what is being said at that
-moment and fixes what is wrong, usually over two or three rounds. Then it reports what it
-verified. Two things only you can judge: the voice, and whether the wording is right.
+### Крок 4. Перевірка
 
-The video lands at `hw/LNN/demo-LNN.mp4`. It is not committed — videos are in
-`.gitignore`; the inputs in `hw/LNN/demo/` are what gets committed.
+Claude звіряє кожен кадр із тим, що в цю секунду говориться, і виправляє знайдене —
+зазвичай за два-три кола. Потім звітує, що саме перевірив.
 
-## Changing something later
+Дві речі оцінити може тільки людина: як звучить голос і чи вдало сформульовані репліки.
 
-Just say what is wrong. Useful things to ask for:
+Готове відео — `hw/LNN/demo-LNN.mp4`. У git воно не потрапляє (відео в `.gitignore`),
+комітяться лише вхідні файли з `hw/LNN/demo/`.
 
-| You want | Say |
+## Якщо треба щось змінити
+
+Просто скажи, що не так:
+
+| Що хочеш | Як сказати |
 |---|---|
-| one scene re-shot | "перезніми сцену 6" |
-| a line re-worded | "переозвуч репліку s7-03: <new text>" |
-| a different voice | "зміни голос, дай послухати варіанти" |
-| the whole thing again | "перезніми все" |
+| перезняти одну сцену | «перезніми сцену 6» |
+| змінити формулювання | «переозвуч репліку s7-03: <новий текст>» |
+| інший голос | «зміни голос, дай послухати варіанти» |
+| усе заново | «перезніми все» |
 
-Re-shooting one scene takes about a minute because the other scenes are cached in
-`~/.cache/demo-video/`. Don't delete that folder unless you are short on disk.
+Одна сцена — приблизно хвилина, бо решта лежить у кеші `~/.cache/demo-video/`. Не
+видаляй цю теку без потреби: без неї кожна правка означає повну перезйомку.
 
-## If it goes wrong
+## Коли щось пішло не так
 
-- **"pointer is ON the filmed display"** — move the mouse to the other screen.
-- **Nothing gets recorded after re-plugging a monitor** — say "перевір дисплеї заново";
-  capture indexes change.
-- **The voice mangles a word** — give Claude the replacement spelling for that one line.
-- Anything else: Claude has a file of known traps (`reference/gotchas.md` in the
-  `demo-film` skill). Ask it to check there first.
+- **«pointer is ON the filmed display»** — миша на знімальному екрані, перенеси її на
+  інший.
+- **Після перепідключення монітора нічого не записується** — скажи «перевір дисплеї
+  заново»: система змінює нумерацію екранів, і Claude пише не туди.
+- **Голос перекручує слово** — дай йому правильне написання для цієї однієї репліки.
+- **Будь-що інше** — у Claude є файл із відомими пастками (`reference/gotchas.md` у
+  скілі `demo-film`). Попроси спершу зазирнути туди.
 
-## What is where
+## Що де лежить
 
-| Piece | Location | Role |
+| Частина | Де | Навіщо |
 |---|---|---|
-| `demo-scenario` skill | `~/.claude/skills/` | writes the script |
-| `demo-film` skill | `~/.claude/skills/` | films it — you invoke it |
-| `frame-checker` agent | `~/.claude/agents/` | checks frames against the narration |
-| `devdigest-demo` skill | `.claude/skills/` | this repo's rules (never click Run Review, etc.) |
-| Worked example | `hw/L01/demo/` | a finished 9-scene video's inputs |
+| скіл `demo-scenario` | `~/.claude/skills/` | пише сценарій |
+| скіл `demo-film` | `~/.claude/skills/` | знімає; запускаєш тільки ти |
+| агент `frame-checker` | `~/.claude/agents/` | звіряє кадри з озвучкою |
+| скіл `devdigest-demo` | `.claude/skills/` | правила саме цього проєкту |
+| готовий приклад | `hw/L01/demo/` | вхідні файли знятого відео на 9 сцен |
 
-The two skills are personal, so they work in any project on this machine — only the
-`devdigest-demo` skill is specific to DevDigest.
+Два перші скіли лежать у домашній теці, тому працюють у будь-якому проєкті на цьому
+комп'ютері. Прив'язаний до DevDigest лише `devdigest-demo`.
