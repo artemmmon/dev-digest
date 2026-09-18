@@ -1,5 +1,5 @@
 import { type Repo } from '@devdigest/shared';
-import type * as t from '../../db/schema.js';
+import type { RepoRecord } from './ports.js';
 import { AppError } from '../../platform/errors.js';
 import {
   GITHUB_URL_REGEX,
@@ -32,7 +32,7 @@ export function githubCloneUrl(owner: string, name: string): string {
 }
 
 /** Map a persisted repo row to the API `Repo` DTO. */
-export function toRepoDto(row: typeof t.repos.$inferSelect): Repo {
+export function toRepoDto(row: RepoRecord): Repo {
   return {
     id: row.id,
     workspace_id: row.workspaceId,

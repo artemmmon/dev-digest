@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import * as t from '../db/schema.js';
 import { withTimeout, withRetry } from './resilience.js';
+import type { JobContext, JobHandler, JobQueue } from '../modules/_shared/ports.js';
 
 /**
  * JobRunner — async work (clone, PR import, indexing, polling) on a
@@ -18,13 +19,7 @@ import { withTimeout, withRetry } from './resilience.js';
  * aborted handler takes a moment to wind down.
  */
 
-export interface JobContext {
-  jobId: string;
-  /** Aborted when the attempt times out or the runner shuts down. */
-  signal: AbortSignal;
-}
-
-export type JobHandler = (payload: unknown, ctx: JobContext) => Promise<void>;
+export type { JobContext, JobHandler };
 
 export interface JobRegistration {
   /** Jobs whose payloads map to the same key run one at a time (e.g. `repo:<id>`). */
@@ -57,7 +52,7 @@ class ShutdownError extends Error {
   }
 }
 
-export class JobRunner {
+export class JobRunner implements JobQueue {
   private queue: PQueue;
   private handlers = new Map<string, { handler: JobHandler; opts: JobRegistration }>();
   /** Per-key tail of the chain: the next job for a key starts after this settles. */

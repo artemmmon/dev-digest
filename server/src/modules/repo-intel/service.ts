@@ -54,7 +54,7 @@ import {
 } from './constants.js';
 import { runFullIndex, type IndexPayload } from './pipeline/full.js';
 import { runIncremental } from './pipeline/incremental.js';
-import { repoJobKey } from '../_shared/jobs.js';
+import { repoJobKey } from '../_shared/ports.js';
 import { NotFoundError } from '../../platform/errors.js';
 
 /**

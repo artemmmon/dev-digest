@@ -198,21 +198,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/modules/repos/helpers.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-no-outer-ring"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/modules/reviews/diff-loader.ts",
     "to": "src/adapters/git/diff-parser.ts",
     "unresolvedTo": "../../adapters/git/diff-parser.js",
@@ -474,20 +459,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/modules/repos/service.ts",
-    "to": "src/modules/repo-intel/constants.ts",
-    "unresolvedTo": "../repo-intel/constants.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "no-cross-module-internals"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/modules/agents/service.ts",
     "to": "src/platform/container.ts",
     "unresolvedTo": "../../platform/container.js",
@@ -534,21 +505,6 @@
   {
     "type": "dependency",
     "from": "src/modules/repo-intel/service.ts",
-    "to": "src/platform/container.ts",
-    "unresolvedTo": "../../platform/container.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "warn",
-      "name": "application-no-container"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/repos/service.ts",
     "to": "src/platform/container.ts",
     "unresolvedTo": "../../platform/container.js",
     "dependencyTypes": [

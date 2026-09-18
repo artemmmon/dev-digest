@@ -4,10 +4,7 @@
  */
 
 // --- Job kinds (registered on JobRunner; enqueued from repos/service.ts) ----
-export const INDEX_JOB_KIND = 'repo-intel-index';
-export const REFRESH_JOB_KIND = 'repo-intel-refresh';
-/** Manual "re-analyze": fetch latest from origin + incremental reindex. */
-export const RESYNC_JOB_KIND = 'repo-intel-resync';
+export { INDEX_JOB_KIND, REFRESH_JOB_KIND, RESYNC_JOB_KIND } from '../_shared/ports.js';
 
 // --- Walk / parse scope -----------------------------------------------------
 /** [T1] Files we parse (diff-scoped in T1; whole walk in T2). */
