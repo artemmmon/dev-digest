@@ -26,6 +26,7 @@ import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
+import type { ReviewDeps } from '../modules/reviews/deps.js';
 import { SettingsRepository } from '../modules/settings/repository.js';
 import { RepoRepository } from '../modules/repos/index.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
@@ -116,6 +117,18 @@ export class Container {
 
   get pullsRepo(): PullsRepository {
     return (this._pullsRepo ??= new PullsRepository(this.db));
+  }
+
+  /** Collaborators of the review service and run executor, wired from the container. */
+  get reviewDeps(): ReviewDeps {
+    return {
+      reviews: this.reviewRepo,
+      agents: this.agentsRepo,
+      git: this.git,
+      llm: (provider) => this.llm(provider),
+      repoIntel: this.repoIntel,
+      bus: this.runBus,
+    };
   }
 
   get reviewRepo(): ReviewRepository {

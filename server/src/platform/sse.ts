@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { RunEvent, RunEventKind } from '@devdigest/shared';
+import type { RunBusPort } from '../modules/_shared/ports.js';
 
 /**
  * SSE / run-log bus.
@@ -19,7 +20,7 @@ function clockTime(): string {
 /** How long a completed run's buffer stays replayable for late subscribers. */
 const COMPLETED_RETENTION_MS = 5 * 60_000;
 
-export class RunBus {
+export class RunBus implements RunBusPort {
   constructor(private retentionMs = COMPLETED_RETENTION_MS) {}
 
   private emitters = new Map<string, EventEmitter>();

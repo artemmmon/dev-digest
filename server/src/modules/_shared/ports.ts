@@ -1,6 +1,9 @@
+import type { RunEvent, RunEventKind } from '@devdigest/shared';
+
 /**
- * Background-job contract shared by modules (core: types and constants only).
- * `platform/jobs.ts` (JobRunner) implements JobQueue; services depend on this.
+ * Contracts shared by modules (core: types and constants only). The platform
+ * implements them — `platform/jobs.ts` (JobRunner) → JobQueue, `platform/sse.ts`
+ * (RunBus) → RunBusPort — and services depend on the interfaces.
  */
 
 export interface JobContext {
@@ -18,6 +21,21 @@ export interface JobQueue {
     handler: JobHandler,
     opts?: { serializeBy?: (payload: unknown) => string },
   ): void;
+}
+
+/** Live run-event bus: per-run replay buffer + subscribers + cancellation flags. */
+export interface RunBusPort {
+  publish(runId: string, kind: RunEventKind, msg: string, data?: unknown): RunEvent;
+  subscribe(runId: string, listener: (e: RunEvent) => void): () => void;
+  /** The full buffered log of a run (persisted as the trace on completion). */
+  buffer(runId: string): RunEvent[];
+  complete(runId: string): void;
+  cancel(runId: string): void;
+  isCancelled(runId: string): boolean;
+  isComplete(runId: string): boolean;
+  onDone(runId: string, listener: () => void): () => void;
+  /** Whether the bus holds anything for the run (live, or completed and still retained). */
+  knows(runId: string): boolean;
 }
 
 // Job kinds enqueued across modules. Clone is owned by repos; the index kinds by

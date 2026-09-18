@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { Container } from '../../platform/container.js';
 import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
-import type { AgentRecord, AgentStore } from '../agents/types.js';
-import { ReviewRepository } from './repository.js';
+import type { AgentRecord } from '../agents/types.js';
+import type { ReviewDeps } from './deps.js';
 import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
@@ -20,21 +19,25 @@ export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
  *        → llm.completeStructured({ schema: Review }) (single-pass)
  *        → groundFindings(...) (citation gate — drops findings off the diff)
  *        → persist reviews + kept findings (+ grounding summary)
- *   while streaming RunEvents over container.runBus, and on completion writing
+ *   while streaming RunEvents over the run bus, and on completion writing
  *   the whole log as ONE RunTrace doc + an agent_runs row.
  *
  * Also: the finding accept/dismiss actions. The bulky run execution lives in
  * run-executor; this class keeps the public method surface.
  */
 export class ReviewService {
-  private repo: ReviewRepository;
-  private agents: AgentStore;
   private executor: ReviewRunExecutor;
 
-  constructor(private container: Container) {
-    this.repo = new ReviewRepository(container.db);
-    this.agents = container.agentsRepo;
-    this.executor = new ReviewRunExecutor(container, this.repo, this.agents);
+  constructor(private deps: ReviewDeps) {
+    this.executor = new ReviewRunExecutor(deps);
+  }
+
+  private get repo() {
+    return this.deps.reviews;
+  }
+
+  private get agents() {
+    return this.deps.agents;
   }
 
   // ===========================================================================
@@ -80,7 +83,7 @@ export class ReviewService {
   async runStream(workspaceId: string, runId: string): Promise<{ live: boolean }> {
     const status = await this.repo.runStatus(workspaceId, runId);
     if (status === undefined) throw new NotFoundError('Run not found');
-    return { live: status === 'running' || this.container.runBus.knows(runId) };
+    return { live: status === 'running' || this.deps.bus.knows(runId) };
   }
 
   /** Delete one run from the history (+ its trace). */
@@ -99,9 +102,9 @@ export class ReviewService {
     const status = await this.repo.runStatus(workspaceId, runId);
     if (status === undefined) throw new NotFoundError('Run not found');
     this.publish(runId, 'info', 'Cancellation requested — stopping…');
-    this.container.runBus.cancel(runId);
+    this.deps.bus.cancel(runId);
     await this.repo.cancelRunIfRunning(workspaceId, runId);
-    this.container.runBus.complete(runId);
+    this.deps.bus.complete(runId);
   }
 
   /** Reap runs left 'running' by a previous (now-dead) process. Called on boot. */
@@ -156,7 +159,7 @@ export class ReviewService {
   }
 
   private publish(runId: string, kind: RunEventKind, msg: string, data?: unknown) {
-    return this.container.runBus.publish(runId, kind, msg, data);
+    return this.deps.bus.publish(runId, kind, msg, data);
   }
 
   // ===========================================================================

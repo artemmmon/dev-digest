@@ -10,7 +10,7 @@ import type {
   BlameLine,
   GitCommit,
 } from '@devdigest/shared';
-import { parseUnifiedDiff } from './diff-parser.js';
+import { parseUnifiedDiff } from '@devdigest/reviewer-core';
 import { ValidationError } from '../../platform/errors.js';
 
 /**

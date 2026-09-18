@@ -17,7 +17,8 @@ npm run typecheck # this IS the build — the package never emits JS
 - `src/index.ts` — the public API; export everything consumers need from here
 - `src/review/run.ts` — orchestration (single-pass / map-reduce), `reduce.ts`
 - `src/prompt.ts` — `assemblePrompt`, `wrapUntrusted`, `INJECTION_GUARD`
-- `src/grounding.ts` — drops findings without a real diff line, recomputes score
+- `src/diff.ts` — `parseUnifiedDiff` (hunks + the new-side lines each covers; used by the server's git adapter and mocks)
+- `src/grounding.ts` — drops findings without a real diff line (path-tolerant, bounded)
 - `src/llm/` — OpenRouter provider, Zod → JSON Schema structured output with repair
 - `src/output/to-review.ts` — CI payload helper (used from lesson L06)
 

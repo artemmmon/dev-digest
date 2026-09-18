@@ -1,20 +1,6 @@
 [
   {
     "type": "dependency",
-    "from": "src/adapters/astgrep/index.ts",
-    "to": "src/modules/repo-intel/constants.ts",
-    "unresolvedTo": "../../modules/repo-intel/constants.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "adapters-not-to-modules"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/adapters/depgraph/index.ts",
     "to": "src/modules/repo-intel/constants.ts",
     "unresolvedTo": "../../modules/repo-intel/constants.js",
@@ -189,50 +175,6 @@
     "unresolvedTo": "../../adapters/codeindex/extract.js",
     "dependencyTypes": [
       "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-no-outer-ring"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/reviews/diff-loader.ts",
-    "to": "src/adapters/git/diff-parser.ts",
-    "unresolvedTo": "../../adapters/git/diff-parser.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-no-outer-ring"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/reviews/diff-loader.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-no-outer-ring"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/reviews/run-executor.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
       "import"
     ],
     "rule": {
@@ -428,51 +370,6 @@
   {
     "type": "dependency",
     "from": "src/modules/repo-intel/service.ts",
-    "to": "src/platform/container.ts",
-    "unresolvedTo": "../../platform/container.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "warn",
-      "name": "application-no-container"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/reviews/diff-loader.ts",
-    "to": "src/platform/container.ts",
-    "unresolvedTo": "../../platform/container.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "warn",
-      "name": "application-no-container"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/reviews/run-executor.ts",
-    "to": "src/platform/container.ts",
-    "unresolvedTo": "../../platform/container.js",
-    "dependencyTypes": [
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "warn",
-      "name": "application-no-container"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/reviews/service.ts",
     "to": "src/platform/container.ts",
     "unresolvedTo": "../../platform/container.js",
     "dependencyTypes": [
