@@ -30,7 +30,12 @@ import type { ReviewDeps } from '../modules/reviews/deps.js';
 import { SettingsRepository } from '../modules/settings/repository.js';
 import { RepoRepository } from '../modules/repos/index.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
+import { cpus } from 'node:os';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
+import { RepoIntelRepository } from '../modules/repo-intel/repository.js';
+import type { RepoFiles, RepoIntelDeps, SourceParser } from '../modules/repo-intel/ports.js';
+import { AstGrepSourceParser } from '../adapters/astgrep/source-parser.js';
+import { FsRepoFiles } from '../adapters/repo-files/fs.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
 
@@ -57,6 +62,8 @@ export interface ContainerOverrides {
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  sourceParser?: SourceParser;
+  repoFiles?: RepoFiles;
 }
 
 export class Container {
@@ -83,6 +90,9 @@ export class Container {
   private _reposRepo?: RepoRepository;
   private _repoIntel?: RepoIntel;
   private _depgraph?: DepGraph;
+  private _repoIntelRepo?: RepoIntelRepository;
+  private _sourceParser?: SourceParser;
+  private _repoFiles?: RepoFiles;
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
 
@@ -148,8 +158,40 @@ export class Container {
    */
   get repoIntel(): RepoIntel {
     if (this.overrides.repoIntel) return this.overrides.repoIntel;
-    this._repoIntel ??= new RepoIntelService(this);
+    this._repoIntel ??= new RepoIntelService(this.repoIntelRepo, this.repoIntelDeps);
     return this._repoIntel;
+  }
+
+  get repoIntelRepo(): RepoIntelRepository {
+    return (this._repoIntelRepo ??= new RepoIntelRepository(this.db));
+  }
+
+  /** Collaborators of the repo-intel service and its indexing pipeline, wired from the container. */
+  get repoIntelDeps(): RepoIntelDeps {
+    return {
+      git: this.git,
+      parser: this.sourceParser,
+      files: this.repoFiles,
+      depgraph: this.depgraph,
+      tokenizer: this.tokenizer,
+      // leave a core free for the API while a repo is being parsed
+      parseConcurrency: Math.max(1, cpus().length - 1),
+      jobs: this.jobs,
+      codeIndex: this.codeIndex,
+      enabled: this.config.repoIntelEnabled,
+    };
+  }
+
+  get sourceParser(): SourceParser {
+    if (this.overrides.sourceParser) return this.overrides.sourceParser;
+    this._sourceParser ??= new AstGrepSourceParser();
+    return this._sourceParser;
+  }
+
+  get repoFiles(): RepoFiles {
+    if (this.overrides.repoFiles) return this.overrides.repoFiles;
+    this._repoFiles ??= new FsRepoFiles();
+    return this._repoFiles;
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */

@@ -98,6 +98,29 @@ repo-intel pipeline ignores the signal today, so its overlap is bounded, not imp
 waiting for its key holds a p-queue slot.
 Where: `src/platform/jobs.ts:31`, `src/modules/_shared/jobs.ts:1`.
 
+### 2026-09-19 — Where a shared contract goes so both rings can import it
+A file named `ports.ts` counts as core for depcruise — including `modules/_shared/ports.ts`, which
+holds `JobQueue`, `RunBusPort`, the job kinds and `repoJobKey`. An adapter may not import any
+`modules/**` file, so a constant both an adapter and a module need goes to `vendor/shared`
+(`contracts/code-index.ts`: `SUPPORTED_EXT`, walk limits). Another module's types come through its
+`types.ts`/`index.ts` only (`agents/types.ts`, `repos/types.ts`), which re-export from its `ports.ts`.
+Where: `src/modules/_shared/ports.ts:1`, `src/vendor/shared/contracts/code-index.ts:1`.
+
+### 2026-09-19 — Wiring lives in container getters: `reviewDeps`, `repoIntelDeps`
+A service takes a plain deps object; `Container` builds it (`container.reviewDeps`,
+`container.repoIntelDeps`) and routes call `new XService(container.xDeps)`. Tests build the same
+object from fakes and real pure adapters (`test/helpers/repo-intel.ts`), so no test casts a fake
+Container or patches a private field. The parse concurrency (`cpus() - 1`) is decided in the
+container, not in the pipeline.
+Where: `src/platform/container.ts:119`, `test/helpers/repo-intel.ts:11`.
+
+### 2026-09-19 — `parseUnifiedDiff` lives in reviewer-core
+The parser was an adapter file but is pure and is what grounding depends on, so it moved to
+`reviewer-core/src/diff.ts`; the git adapter, the mocks and the review module import it from
+`@devdigest/reviewer-core`. reviewer-core's own vitest config aliases `@devdigest/reviewer-core` to
+its `src`, because its tests borrow the server mocks, which import it through that alias.
+Where: `../reviewer-core/src/diff.ts:1`, `../reviewer-core/vitest.config.ts:12`.
+
 
 ## Tool & Library Notes
 
@@ -137,6 +160,14 @@ Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:47`, 
 VALUES tuple. Postgres rejects a batch that hits the same conflict key twice ("cannot affect row a
 second time"), so dedupe by the key first — GitHub's paginated PR list can repeat a PR.
 Where: `src/modules/pulls/repository.ts:50`.
+
+### 2026-09-19 — Supersedes "Layer rules live in the onion-architecture skill, with a known-violations baseline"
+The baseline is gone: the layering debt was paid down from 45 entries to zero (pulls, settings, repos,
+agents, reviews, repo-intel), so `pnpm arch` runs the skill's config without `--ignore-known` and any
+violation fails CI. The rules still live in the skill (`assets/dependency-cruiser.cjs`), not in eslint.
+Two things the rules do not see: application code importing `platform/resilience.ts` /
+`platform/run-logger.ts`, and `RepoIntelService` taking the concrete `RepoIntelRepository` class.
+Where: `package.json:15`, `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:1`.
 
 
 ## Recurring Errors & Fixes
@@ -234,3 +265,9 @@ Indexes/CHECKs/FKs (migration 0011), transactions (agents, PR refresh, repo-inte
 PR/settings upserts and agent-name lookup, JobRunner abort + per-repo serialisation + shutdown, git
 token via header, GitHub errors → AppError, workspace scoping for runs/skills/repo-intel.
 Where: `src/platform/jobs.ts:1`.
+
+### 2026-09-19 — Phase 4 (server): layering debt to zero
+Onion slices for pulls, settings, repos, agents, reviews and repo-intel; dead code and re-export
+shims removed; response schemas on pulls/settings/repos/workspace; unit tests with fakes for the
+services. Client refactors are tracked separately in `../client/INSIGHTS.md`.
+Where: `src/modules/pulls/service.ts:1`.

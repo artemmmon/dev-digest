@@ -2,7 +2,7 @@
 name: onion-architecture
 description: Onion Architecture rules for the DevDigest backend (Fastify 5 + Drizzle + zod + Octokit/LLM SDKs + p-queue) — which ring a file belongs to, which way imports may point, where a query, an SDK call, a job handler, a zod parse or a business rule lives, how services get their dependencies (ports via constructor), transactions, error mapping, and a runnable dependency-cruiser check. Use whenever creating or changing anything under server/src/modules/**, adding a route, service, repository, adapter, job or third-party SDK, wiring platform/container.ts, reviewing backend code, or answering "where does this belong?" on the server — even if the word "architecture" is never used. Not for client code (see frontend-architecture) or query tuning (see drizzle-orm-patterns).
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Onion Architecture (DevDigest server)
@@ -71,25 +71,25 @@ outer ring — not a type, not a function, not a package [S1][S6].
 Review checklist: no DB/Fastify/SDK/`adapters/*` import in application code · no query or
 business branch in `routes.ts` · zod on params/body/response · constructor takes ports, not `Container` · repository returns domain types ·
 SDK errors mapped to `AppError` · transaction in the service · no cross-module internals or
-cycles · both contract copies updated · a touched debt file leaves cleaner.
+cycles · both contract copies updated.
 
 ## Check
 
 Run from `server/` as `pnpm arch` (the same command runs in CI, `server-unit.yml`):
 
 ```bash
-pnpm exec depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --ignore-known ../.claude/skills/onion-architecture/assets/known-violations.json --output-type err
+pnpm exec depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --output-type err
 ```
 
-Pass = `no dependency violations found`; exit ≠ 0 = new errors, each naming its rule. It sees
-**imports only**: logic in routes or a missing transaction needs the checklist. Reviewing a debt
-file? Drop `--ignore-known` and grep its path. Regenerate the baseline only after **fixing** debt.
+Pass = `no dependency violations found`; exit ≠ 0 = errors, each naming its rule. There is no
+baseline: the server is clean, so every violation is new. It sees **imports only**: logic in
+routes or a missing transaction needs the checklist.
 
 ## Read next
 
 | When you are… | Read |
 |---|---|
-| Working in `server/`, touching a known-debt file | [devdigest.md](references/devdigest.md) |
+| Working in `server/` (real ports, the Container, worked example modules) | [devdigest.md](references/devdigest.md) |
 | Using Fastify, Drizzle, zod, an SDK, the job queue or writing tests | [tools.md](references/tools.md) |
 | Writing a port, repository, service, unit of work, ACL adapter or fake | [patterns.md](references/patterns.md) |
 | Checking why a rule exists or where sources disagree | [README.md](README.md) |

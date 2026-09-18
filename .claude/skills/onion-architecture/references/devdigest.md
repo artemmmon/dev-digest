@@ -70,23 +70,27 @@ Missing and worth adding when you touch the area: **repository ports** (`ReviewS
 `LLMProvider`, enforced by `no-restricted-imports` in `reviewer-core/eslint.config.mjs`.
 Copy its style; never let it import `server/src` except via `@devdigest/shared`.
 
-## 5. Known debt (baseline: `assets/known-violations.json`)
+## 5. Worked examples (no known debt)
 
-Do not copy these patterns. Worked examples of the target shape: `modules/pulls/` and
-`modules/settings/`, `modules/repos/`, `modules/agents/`, `modules/reviews/` (ports → repository → service → thin routes). The Check in `SKILL.md` ignores exactly these, so any new
-violation fails. When you touch one of these files, move it inward:
+The Check finds zero violations and there is no baseline, so any violation is new. Copy the shape of
+these modules — ports → repository → service → thin routes:
 
-| Where | Violation | Fix direction |
-|---|---|---|
-| `modules/settings/feature-models.ts` | takes the whole `Container` (reads prefs via `container.settingsRepo`) | take a `SettingsStore` port |
-| `repo-intel/{service,pipeline/*}.ts` | direct `adapters/astgrep`, `adapters/codeindex/extract`, `adapters/tokenizer`; `fs/promises` + `os` for reading clones | parser/tokenizer/file-reader ports injected from the container |
-| `adapters/{astgrep,depgraph}` → `repo-intel/constants.ts` | adapter imports a module | move shared constants to core |
-| `platform/container.ts` ↔ `repo-intel/service.ts` (+ pipeline) | cycle via `import type { Container }` | service takes ports, not `Container` |
-| 4 files → `platform/container.ts` (warn) | whole-Container injection | constructor ports |
+| Module | What it shows |
+|---|---|
+| `modules/pulls/` | `PullStore` port, Drizzle repository returning domain records, service with GitHub sync + rollups, response schemas |
+| `modules/settings/` | small module: store port, service, secrets, connection test |
+| `modules/repos/` | records instead of rows, job queue port, service unit-tested with fakes |
+| `modules/agents/` | store port + `types.ts` public surface for other modules (`AgentRecord`) |
+| `modules/reviews/` | `ReviewDeps` (store, agents, git, llm, repo-intel, run bus), executor without the Container |
+| `modules/repo-intel/` | ports for parser / fs / import graph / tokenizer; adapters in `adapters/{astgrep,repo-files,depgraph,tokenizer}` |
 
-The same debt is recorded in `server/INSIGHTS.md` ("Refactoring leftovers", "routes don't
-touch drizzle"). That is why the rules run from this skill's config with a baseline (`pnpm arch`, also
-in CI), not from `eslint.config.mjs`.
+Cross-module contracts live in `modules/_shared/ports.ts` (`JobQueue`, `RunBusPort`, job kinds,
+`repoJobKey`): a `ports.ts` file is core, so both ring sides may import it. A module hands its own
+types to others through `index.ts` / `types.ts` (`agents/types.ts`, `repos/types.ts`).
+
+Still not covered by the Check (review these by hand): `import` of `platform/resilience.ts` and
+`platform/run-logger.ts` from application code (pure helpers in the outer folder), and the concrete
+`RepoIntelRepository` class that `RepoIntelService` receives by constructor.
 
 ## 6. Repo reminders that interact with the rings
 
@@ -95,16 +99,16 @@ in CI), not from `eslint.config.mjs`.
 - Errors: throw `AppError` subclasses from `platform/errors.ts`; the app error handler
   renders the envelope.
 - Tests touching Postgres end in `.it.test.ts` (Testcontainers); service tests with fakes
-  are plain `.test.ts`. Don't monkey-patch private fields (`test/repo-intel-resync.test.ts:51`
-  is the anti-pattern) — pass the fake to the constructor.
+  are plain `.test.ts`. Don't monkey-patch private fields — pass the fake to the constructor
+  (`test/repo-intel-resync.test.ts` does).
 - `server/src/db/migrations/` is generated — never hand-edit.
 
 ## 7. Open questions (divergences from the sources)
 
 1. **Where the rules run.** Sources run dependency rules on every commit or in CI, next to ESLint [S23][S24][S25].
-   Here the config and baseline live in the skill, because starter code still violates them
-   (`server/INSIGHTS.md`); `pnpm arch` runs them in CI (`server-unit.yml`) and fails only on new
-   violations. Fold them into `pnpm lint` once the baseline is empty.
+   Here the config lives in the skill and `pnpm arch` runs it in CI (`server-unit.yml`); with zero
+   violations it could move into `pnpm lint` (dependency-cruiser as an ESLint step), but a separate
+   script keeps the rule names readable.
 2. **Repository ports everywhere?** Palermo puts an interface in front of every repository [S1];
    pragmatic guides add ports only where I/O or test substitution needs them [S8][S9].
    Existing repositories are concrete classes. Add ports for new code, and for old code only when you touch it.

@@ -89,7 +89,7 @@ Every package runs two static gates before its tests, both wired into its workfl
   Vendored and generated trees are ignored: `client/src/vendor`, `client/docs`,
   `server/src/vendor`, `server/src/db/migrations`, `server/clones`.
 - **`arch`** (server only) — `pnpm arch`, the onion layering check (dependency-cruiser
-  with a known-violations baseline, `onion-architecture` skill).
+  `onion-architecture` skill; no baseline, any violation fails).
 
 ## Conventions
 

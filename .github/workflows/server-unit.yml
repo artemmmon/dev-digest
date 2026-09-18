@@ -70,7 +70,7 @@ jobs:
       - run: pnpm lint
 
       # Onion layering (onion-architecture skill): fails on any NEW import that
-      # points outward; existing debt is baselined in known-violations.json.
+      # points outward (the server has no baselined debt).
       - run: pnpm arch
 
   unit:

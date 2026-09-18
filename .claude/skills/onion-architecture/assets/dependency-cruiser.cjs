@@ -1,16 +1,13 @@
 /**
  * Onion Architecture dependency rules for DevDigest `server/`.
  *
- * Lives in the onion-architecture skill, NOT in the server's lint/CI: existing
- * starter modules still violate some rules (see references/devdigest.md → Known debt).
- * Run from `server/`:
+ * Lives in the onion-architecture skill; `pnpm arch` (server/) runs it, also in CI. The server
+ * currently has zero violations, so there is no baseline — any violation is new. Run from `server/`:
  *
- *   pnpm exec depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs \
- *     --ignore-known ../.claude/skills/onion-architecture/assets/known-violations.json --output-type err
+ *   pnpm exec depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --output-type err
  *
  * Adding a third-party SDK? Add it to SDK_PKGS. Adding a pure library that application code
- * may use (no I/O)? Add it to APPLICATION_PKGS. Then regenerate the baseline only if you also
- * fixed debt; never to hide a new violation.
+ * may use (no I/O)? Add it to APPLICATION_PKGS.
  *
  * Rings (inside → out):
  *   core         src/vendor/shared/**, modules/<m>/domain.ts, modules/<m>/ports.ts

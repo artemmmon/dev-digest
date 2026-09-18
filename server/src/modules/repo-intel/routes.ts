@@ -26,7 +26,7 @@ export default async function repoIntelRoutes(appBase: FastifyInstance) {
   // JobRunner stores the handler closure, not the service instance, and the
   // lazy `container.repoIntel` getter constructs its own service for read
   // calls. Both share the same DB, so behaviour is identical.
-  const service = new RepoIntelService(container);
+  const service = new RepoIntelService(container.repoIntelRepo, container.repoIntelDeps);
   service.registerIndexJobHandlers();
 
   app.get(
