@@ -64,6 +64,14 @@ and `FINDINGS` in the list describe the latest review *round*, while the severit
 run card describe that one agent — two different numbers with the same shape.
 Where: `client/src/lib/format-cost.ts:1`, `server/docs/0001-latest-review-is-a-batch.md:1`.
 
+### 2026-09-18 — Agent instructions live in AGENTS.md; CLAUDE.md is a symlink to it
+Root and all four packages keep their agent map in `AGENTS.md` (read by Codex, Cursor and
+others); `CLAUDE.md` beside it is a relative symlink (git mode 120000) so Claude Code loads the
+same file. Edit `AGENTS.md` only — an editor that "saves as copy" silently forks the two. The
+`@AGENTS.md` import stub was rejected: it works on Windows without symlink support, but the team
+is on macOS and wanted one file. `hw/L01/**` and older entries still say `CLAUDE.md` on purpose.
+Where: `AGENTS.md:69`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source

@@ -34,7 +34,7 @@ export default tseslint.config(
       ],
       "@typescript-eslint/consistent-type-imports": ["error", { fixStyle: "inline-type-imports" }],
       // Components never call fetch directly — every request goes through a hook in
-      // src/lib/hooks/ (client/CLAUDE.md, "Conventions").
+      // src/lib/hooks/ (client/AGENTS.md, "Conventions").
       "no-restricted-globals": [
         "error",
         { name: "fetch", message: "Use apiFetch or a hook from src/lib/hooks/ instead." },

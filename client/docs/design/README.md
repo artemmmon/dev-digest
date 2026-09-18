@@ -23,7 +23,7 @@ lessons). **Reference, not code**: never copy from it into `src/`.
    design kit: `primitives.jsx` → `primitives/`, `kit2.jsx` → `kit/`, `charts.jsx` →
    `charts/`, `chrome.jsx` → `shell/`, `icons.jsx` → `icons.tsx`, and
    `components2.jsx` → the standalone kit components. Missing piece → add it to the kit.
-4. Translate, don't transcribe: follow the conventions in `../../CLAUDE.md` — inline
+4. Translate, don't transcribe: follow the conventions in `../../AGENTS.md` — inline
    style objects move to the component's `styles.ts`, hard-coded strings become
    `messages/en/*.json` keys, mock data becomes a TanStack Query hook.
 
