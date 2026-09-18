@@ -1,20 +1,27 @@
 ---
 name: devdigest-demo
-description: DevDigest-specific conventions for recording demo videos of a lesson — where the scenario and cue files live, which URLs and ids to film, and which controls must never be clicked. Read this before using the demo-scenario or demo-film skills in this repository.
+description: DevDigest-specific conventions for recording demo videos of a lesson — where the scenario and cue files live, which URLs and ids to film, and which controls must never be clicked. Read this before using the screencast-demo-maker plugin's demo-scenario or demo-film skills in this repository.
 ---
 
 # DevDigest demo videos
 
-Project conventions only. The engine is in the personal skills `demo-scenario`
-(writes the shooting script) and `demo-film` (records it).
+Project conventions only. The engine is the `screencast-demo-maker` Claude Code plugin
+(https://github.com/artemmmon/screencast-demo-maker): skills `demo-scenario` (writes the
+shooting script) and `demo-film` (records it), subagent `frame-checker`.
+
+## Prerequisite
+
+If `/screencast-demo-maker:demo-film` is not an available skill, the plugin is not installed.
+Stop and give the user the two commands from `docs/demo-video.md` → "Разове
+налаштування"; do not improvise filming without it.
 
 ## Order
 
 1. If `hw/LNN/demo/` already holds `scenario.md` and `cues.json`, read them. Otherwise
-   write them with `demo-scenario`.
-2. Ask the user to run `/demo-film` — it is user-invoked, an agent cannot start it.
+   write them with `screencast-demo-maker:demo-scenario`.
+2. Ask the user to run `/screencast-demo-maker:demo-film` — it is user-invoked, an agent cannot start it.
    Follow it phase by phase and never record before the user says "go".
-3. Hand contact sheets to the `frame-checker` subagent; never read them here.
+3. Hand contact sheets to the `screencast-demo-maker:frame-checker` subagent; never read them here.
 4. Report what the frames and probes showed. The user judges the voice and the result.
 
 ## Layout
