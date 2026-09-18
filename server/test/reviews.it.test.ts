@@ -4,7 +4,7 @@ import { waitForPrRuns } from './helpers/runs.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
-import { MockLLMProvider, MockEmbedder, MockGitClient } from '../src/adapters/mocks.js';
+import { MockLLMProvider, MockEmbedder, MockGitClient, MockGitHubClient } from '../src/adapters/mocks.js';
 import * as t from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import type { Review } from '@devdigest/shared';
@@ -286,6 +286,86 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     // The replay buffer should contain our log lines as SSE `data:` frames.
     expect(sse.payload).toContain('Starting review');
     expect(sse.payload).toContain('Citation grounding');
+    await app.close();
+  });
+
+  it('run cost: persisted per run, one batch per request, PR list sums the latest batch', async () => {
+    const app = await buildApp({
+      config: config(),
+      db: pg.handle.db,
+      overrides: {
+        embedder: new MockEmbedder(),
+        git: new MockGitClient({ diff: DIFF }),
+        // No PRs from "GitHub": the list serves the persisted PR, no network.
+        github: new MockGitHubClient({ pulls: [] }),
+        // `all: true` also runs seeded (openrouter) and earlier tests' (anthropic)
+        // agents — mock every provider so nothing hits the network.
+        llm: {
+          openai: new MockLLMProvider('openai', { structured: REVIEW_FIXTURE }),
+          anthropic: new MockLLMProvider('anthropic', { structured: REVIEW_FIXTURE }),
+          openrouter: new MockLLMProvider('openai', { structured: REVIEW_FIXTURE }),
+        },
+      },
+    });
+    const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const createAgent = async (name: string) =>
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/agents',
+          payload: { name, provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+        })
+      ).json();
+    const a1 = await createAgent('Cost A');
+
+    // Batch 1: a single agent.
+    await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: a1.id } });
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+    // Batch 2: every enabled agent in one request.
+    const batch2 = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { all: true } })
+    ).json();
+    expect(batch2.runs.length).toBeGreaterThanOrEqual(2);
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: batch2.runs.length + 1 });
+
+    const rows = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.prId, pr.id));
+    for (const r of rows) {
+      expect(r.status).toBe('done');
+      expect(r.costUsd).toBeGreaterThan(0);
+    }
+    const batch2Ids = new Set(batch2.runs.map((r: { run_id: string }) => r.run_id));
+    const batch2Rows = rows.filter((r) => batch2Ids.has(r.id));
+    const batch1Row = rows.find((r) => !batch2Ids.has(r.id))!;
+    expect(new Set(batch2Rows.map((r) => r.batchId)).size).toBe(1);
+    expect(batch2Rows[0]!.batchId).not.toBeNull();
+    expect(batch1Row.batchId).not.toBeNull();
+    expect(batch1Row.batchId).not.toBe(batch2Rows[0]!.batchId);
+
+    // Timeline + trace carry the per-run cost.
+    const runs = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/runs` })).json();
+    for (const r of runs) {
+      expect(r.cost_usd).toBe(rows.find((row) => row.id === r.run_id)!.costUsd);
+    }
+    const trace = (await app.inject({ method: 'GET', url: `/runs/${batch1Row.id}/trace` })).json();
+    expect(trace.stats.cost_usd).toBe(batch1Row.costUsd);
+
+    // PR list: only the latest batch (2 runs) is summed.
+    const pulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const listed = pulls.find((p: { id: string }) => p.id === pr.id);
+    const batch2Cost = batch2Rows.reduce((sum, r) => sum + r.costUsd!, 0);
+    expect(listed.cost_usd).toBeCloseTo(batch2Cost, 10);
+
+    // PR list: the whole latest ROUND is summed, not just its newest review — each
+    // run in batch 2 keeps one grounded CRITICAL, and batch 1's is excluded.
+    expect(batch2Rows.length).toBeGreaterThan(1);
+    expect(listed.findings_by_severity).toEqual({
+      CRITICAL: batch2Rows.length,
+      WARNING: 0,
+      SUGGESTION: 0,
+    });
+    // SCORE is the worst of the round (every agent scores 65 on this fixture).
+    expect(listed.score).toBe(65);
+
     await app.close();
   });
 

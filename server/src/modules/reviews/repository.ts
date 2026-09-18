@@ -1,5 +1,5 @@
 import type { Db } from '../../db/client.js';
-import * as t from '../../db/schema.js';
+import type * as t from '../../db/schema.js';
 import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
 
 /**
@@ -60,7 +60,7 @@ export class ReviewRepository {
   }
 
   /** Reviews for a PR (newest first), each with its findings. */
-  reviewsForPull(prId: string): Promise<{ review: ReviewRow; findings: FindingRow[] }[]> {
+  reviewsForPull(prId: string): Promise<{ review: ReviewRow; findings: FindingRow[]; batchId: string | null }[]> {
     return reviewRepo.reviewsForPull(this.db, prId);
   }
 
@@ -144,6 +144,8 @@ export class ReviewRepository {
     prId: string;
     provider: string | null;
     model: string | null;
+    /** Shared by every run started from one review request. */
+    batchId: string | null;
   }): Promise<string> {
     return runRepo.createAgentRun(this.db, values);
   }
@@ -155,6 +157,8 @@ export class ReviewRepository {
       durationMs: number;
       tokensIn: number;
       tokensOut: number;
+      /** LLM cost in USD; null when unknown (failed run, unpriced model). */
+      costUsd?: number | null;
       findingsCount: number;
       grounding: string;
       /** Review score (0-100); null on failed/cancelled runs. */

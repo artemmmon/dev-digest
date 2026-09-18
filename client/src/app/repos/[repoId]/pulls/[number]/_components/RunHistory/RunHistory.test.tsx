@@ -7,8 +7,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary } from "@devdigest/shared";
+import type { FindingsBySeverity, RunSummary } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
+import common from "../../../../../../../../messages/en/common.json";
 import { RunHistory } from "./RunHistory";
 
 afterEach(cleanup);
@@ -25,6 +26,7 @@ function run(o: Partial<RunSummary>): RunSummary {
     duration_ms: 1000,
     tokens_in: 100,
     tokens_out: 50,
+    cost_usd: null,
     findings_count: 0,
     grounding: "0/0 passed",
     ran_at: "2026-06-11T18:44:34.000Z",
@@ -34,10 +36,10 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[]) {
+function renderRuns(runs: RunSummary[], severityByRun?: Map<string, FindingsBySeverity>) {
   return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} />
+    <NextIntlClientProvider locale="en" messages={{ prReview: messages, common }}>
+      <RunHistory runs={runs} severityByRun={severityByRun} onOpenTrace={() => {}} />
     </NextIntlClientProvider>,
   );
 }
@@ -71,5 +73,49 @@ describe("RunHistory — outcome badge", () => {
   it("a running run reads 'running'", () => {
     renderRuns([run({ status: "running", score: null, blockers: null })]);
     expect(screen.getByText("running")).toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — run cost", () => {
+  it("a done run shows total tokens and cost; a failed run shows no cost line", () => {
+    renderRuns([
+      run({ run_id: "ok", status: "done", tokens_in: 9000, tokens_out: 119, cost_usd: 0.0013, score: 90, blockers: 0 }),
+      run({ run_id: "bad", status: "failed", error: "429 quota", tokens_in: 0, tokens_out: 0, cost_usd: null }),
+    ]);
+    expect(screen.getByText("9,119 tok · $0.0013")).toBeInTheDocument();
+    expect(screen.getAllByText(/tok ·/)).toHaveLength(1);
+  });
+
+  it("a done run persisted before cost tracking shows '—' instead of $0.00", () => {
+    renderRuns([run({ status: "done", tokens_in: 100, tokens_out: 50, cost_usd: null, score: 90, blockers: 0 })]);
+    expect(screen.getByText("150 tok · —")).toBeInTheDocument();
+    expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — severity breakdown", () => {
+  it("shows the run's severity counts on its tile", () => {
+    renderRuns(
+      [run({ run_id: "run-1", status: "done", findings_count: 3, blockers: 1, score: 61 })],
+      new Map([["run-1", { CRITICAL: 1, WARNING: 2, SUGGESTION: 0 }]]),
+    );
+    expect(screen.getByLabelText("1 Critical")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 Warning")).toBeInTheDocument();
+    // Only severities that occur get an icon.
+    expect(screen.queryByLabelText(/Suggestion/)).toBeNull();
+  });
+
+  it("stays inert: the counts are display-only, never a button", () => {
+    renderRuns(
+      [run({ run_id: "run-1", status: "done", findings_count: 1, blockers: 1, score: 61 })],
+      new Map([["run-1", { CRITICAL: 1, WARNING: 0, SUGGESTION: 0 }]]),
+    );
+    const counts = screen.getByLabelText("1 Critical");
+    expect(counts.closest("button")).toBeNull();
+  });
+
+  it("renders nothing extra for a run without a breakdown", () => {
+    renderRuns([run({ run_id: "run-1", status: "done", findings_count: 0, blockers: 0, score: 95 })]);
+    expect(screen.queryByLabelText(/Critical/)).toBeNull();
   });
 });

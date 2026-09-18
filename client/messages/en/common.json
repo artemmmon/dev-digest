@@ -13,6 +13,14 @@
     "empty": "Nothing here yet",
     "error": "Something went wrong"
   },
+  "cost": {
+    "tokensAndCost": "{tokens, number} tok · {cost}"
+  },
+  "severity": {
+    "CRITICAL": "Critical",
+    "WARNING": "Warning",
+    "SUGGESTION": "Suggestion"
+  },
   "repoNotFound": {
     "title": "No repo selected",
     "body": "This repository isn't in your workspace — it may have been removed, or the link is stale. Add a repo or pick another from the switcher to get started.",

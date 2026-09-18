@@ -1,5 +1,5 @@
 import { type Repo } from '@devdigest/shared';
-import * as t from '../../db/schema.js';
+import type * as t from '../../db/schema.js';
 import { AppError } from '../../platform/errors.js';
 import {
   GITHUB_URL_REGEX,

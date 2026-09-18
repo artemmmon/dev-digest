@@ -48,11 +48,18 @@ export function usePrRuns(prId: string | null | undefined) {
 }
 
 // ---- Persisted reviews + findings for a PR ----
-export function usePrReviews(prId: string | null | undefined) {
+/**
+ * `enabled: false` keeps the fetch lazy — the PR list only loads a row's findings
+ * when its FINDINGS cell is hovered.
+ */
+export function usePrReviews(
+  prId: string | null | undefined,
+  opts?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["reviews", prId],
     queryFn: () => api.get<ReviewRecord[]>(`/pulls/${prId}/reviews`),
-    enabled: !!prId,
+    enabled: !!prId && (opts?.enabled ?? true),
   });
 }
 

@@ -12,9 +12,11 @@ import {
   EvalRun,
   MemoryItem,
   RunTrace,
+  RunStats,
   Settings,
   Repo,
   PrDetail,
+  PrMeta,
 } from '@devdigest/shared';
 
 /**
@@ -166,6 +168,13 @@ describe('AI contracts parse fixtures', () => {
       log: [{ t: '00.00', kind: 'info', msg: 'started' }],
     });
     expect(trace.tool_calls).toHaveLength(1);
+    expect(trace.stats.cost_usd).toBeUndefined();
+  });
+
+  it('RunTrace stats carry cost_usd (number or null)', () => {
+    const base = { duration_ms: 1, tokens_in: 1, tokens_out: 1, findings: 0, grounding: '0/0 passed' };
+    expect(RunStats.parse({ ...base, cost_usd: 0.06 }).cost_usd).toBe(0.06);
+    expect(RunStats.parse({ ...base, cost_usd: null }).cost_usd).toBeNull();
   });
 });
 
@@ -206,5 +215,26 @@ describe('platform DTOs', () => {
         commits: [],
       }),
     ).not.toThrow();
+  });
+
+  it('PrMeta carries the list-only findings_by_severity breakdown', () => {
+    const base = {
+      number: 482,
+      title: 't',
+      author: 'a',
+      branch: 'b',
+      base: 'main',
+      head_sha: 'sha',
+      additions: 1,
+      deletions: 0,
+      files_count: 1,
+      status: 'open' as const,
+    };
+    expect(PrMeta.parse(base).findings_by_severity).toBeUndefined();
+    expect(PrMeta.parse({ ...base, findings_by_severity: null }).findings_by_severity).toBeNull();
+    expect(
+      PrMeta.parse({ ...base, findings_by_severity: { CRITICAL: 2, WARNING: 1, SUGGESTION: 0 } })
+        .findings_by_severity,
+    ).toEqual({ CRITICAL: 2, WARNING: 1, SUGGESTION: 0 });
   });
 });

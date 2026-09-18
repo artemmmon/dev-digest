@@ -21,6 +21,9 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
+    // The one legitimate `fetch` in the app — this function IS the seam every
+    // hook goes through (client/CLAUDE.md, "Conventions").
+    // eslint-disable-next-line no-restricted-globals
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {

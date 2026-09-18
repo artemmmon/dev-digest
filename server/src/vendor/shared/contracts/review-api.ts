@@ -25,6 +25,9 @@ export const ReviewRecord = z.object({
   pr_id: z.string(),
   agent_id: z.string().nullable(),
   run_id: z.string().nullable(),
+  // Review round this belongs to = `agent_runs.batch_id` of its run: every agent
+  // started by one click on Run Review shares it. Null for unbatched/seeded rows.
+  batch_id: z.string().nullish(),
   agent_name: z.string().nullish(),
   kind: z.enum(['summary', 'review']),
   verdict: Verdict.nullable(),

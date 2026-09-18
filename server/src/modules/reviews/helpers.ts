@@ -20,6 +20,8 @@ export interface ReviewDto {
   pr_id: string;
   agent_id: string | null;
   run_id: string | null;
+  /** `agent_runs.batch_id` of this review's run — the review round it belongs to. */
+  batch_id?: string | null;
   agent_name?: string | null;
   kind: 'summary' | 'review';
   verdict: string | null;
@@ -56,12 +58,14 @@ export function reviewToDto(
   review: ReviewRow,
   findings: FindingRow[],
   agentName?: string | null,
+  batchId?: string | null,
 ): ReviewDto {
   return {
     id: review.id,
     pr_id: review.prId,
     agent_id: review.agentId,
     run_id: review.runId,
+    batch_id: batchId ?? null,
     agent_name: agentName ?? null,
     kind: review.kind as 'summary' | 'review',
     verdict: review.verdict,

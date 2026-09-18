@@ -1,0 +1,12 @@
+# Docs — reviewer-core
+
+Stable reference for `reviewer-core` that doesn't fit the README: architecture notes,
+design decisions, how-tos. The README stays the entry point for humans; these
+are the deep dives.
+
+- Decisions: `NNNN-short-title.md` — context, decision, consequences.
+- Guides/notes: `kebab-case-topic.md`.
+
+## Index
+<!-- one line per doc: - [title](file.md) — when to read it -->
+- [Usage and cost](usage-and-cost.md) — before touching token counting, pricing or a new provider

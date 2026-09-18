@@ -54,11 +54,11 @@ export async function insertFindings(
   return rows;
 }
 
-/** Reviews for a PR (newest first), each with its findings. */
+/** Reviews for a PR (newest first), each with its findings and review round. */
 export async function reviewsForPull(
   db: Db,
   prId: string,
-): Promise<{ review: ReviewRow; findings: FindingRow[] }[]> {
+): Promise<{ review: ReviewRow; findings: FindingRow[]; batchId: string | null }[]> {
   const reviews = await db
     .select()
     .from(t.reviews)
@@ -67,9 +67,21 @@ export async function reviewsForPull(
   if (reviews.length === 0) return [];
   const ids = reviews.map((r) => r.id);
   const findings = await db.select().from(t.findings).where(inArray(t.findings.reviewId, ids));
+
+  // `reviews.run_id` is a soft link (no FK), so the batch is resolved separately.
+  const runIds = reviews.map((r) => r.runId).filter((id): id is string => !!id);
+  const runs = runIds.length
+    ? await db
+        .select({ id: t.agentRuns.id, batchId: t.agentRuns.batchId })
+        .from(t.agentRuns)
+        .where(inArray(t.agentRuns.id, runIds))
+    : [];
+  const batchOfRun = new Map(runs.map((r) => [r.id, r.batchId]));
+
   return reviews.map((review) => ({
     review,
     findings: findings.filter((f) => f.reviewId === review.id),
+    batchId: (review.runId ? batchOfRun.get(review.runId) : null) ?? null,
   }));
 }
 
