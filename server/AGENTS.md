@@ -42,8 +42,7 @@ Naming is in `../AGENTS.md`; what follows is the shape of the code.
   never in `AppConfig`, never in the DB.
 - Tests: a test importing `test/helpers/pg.ts` **must** be named `*.it.test.ts`.
   Stub the outside world with `adapters/mocks.ts`; no real keys or network.
-- Import review logic from `@devdigest/reviewer-core`, not from the re-export shims
-  `platform/{grounding,prompt,structured}.ts`.
+- Import review logic from `@devdigest/reviewer-core`.
 
 ## Gotchas
 - No seed → API fails: `LocalNoAuthProvider` looks up user `you@local` + workspace `default`.
@@ -52,7 +51,6 @@ Naming is in `../AGENTS.md`; what follows is the shape of the code.
   not only `instanceof` (see `app.ts` error handler).
 - Job queue and `RunBus` (SSE) are in-memory: a single API instance is assumed,
   reviews run fire-and-forget, stale runs are reaped on boot.
-- `platform/model-router.ts` is dead code — don't build on it.
 
 ## Documentation
 - `README.md` — env vars, API map, request/DI flow, what goes into the review prompt

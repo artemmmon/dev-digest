@@ -81,7 +81,7 @@ export class RepoService {
       } catch {
         // No handler registered or transient enqueue failure — clone has
         // already succeeded, so we don't fail the job for an index-followup
-        // miss. The user can hit POST /repos/:id/reindex to retry.
+        // miss. The user can hit POST /repos/:id/resync to retry.
       }
     }
   }

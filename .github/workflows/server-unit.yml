@@ -57,8 +57,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The server type-checks reviewer-core's RAW source: tsconfig aliases
-      # @devdigest/reviewer-core → ../reviewer-core/src, and platform/structured.ts
-      # re-exports from it. That source imports `openai`/`zod`, so without
+      # @devdigest/reviewer-core → ../reviewer-core/src, and the LLM adapters
+      # import from it. That source imports `openai`/`zod`, so without
       # reviewer-core's deps installed, tsc fails with TS2307 → cascading
       # unknown→T errors. reviewer-core uses npm (see reviewer-core.yml).
       - name: Install reviewer-core deps
