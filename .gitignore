@@ -30,3 +30,7 @@ temp/
 # Claude Design export copy (1.8 MB of base64, recopied by scripts/unpack-design.mjs);
 # the unpacked sources next to it are committed
 client/docs/design/design.html
+
+# Rendered demo videos: large binaries, rebuildable from hw/**/demo/ with the demo-film skill
+hw/**/*.mp4
+.DS_Store

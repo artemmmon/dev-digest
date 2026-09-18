@@ -56,6 +56,14 @@ reads "file '…' not present in diff" (vs the line-range reason). When a run re
 the issue itself — it may only have hallucinated the path.
 Where: `reviewer-core/src/grounding.ts:52-84`.
 
+### 2026-09-17 — The PR-list COST is rounded for display, so it never matches the stored sum
+`formatCost` uses adaptive precision: a stored `0.01259424466` renders as `$0.013`, not `$0.0126`.
+Anything quoting the cost outside the UI (a demo narration, a test, a doc) has to quote the
+rendered string or the raw number, not mix them. The same trap sits one level up: `COST`, `SCORE`
+and `FINDINGS` in the list describe the latest review *round*, while the severity pills on a single
+run card describe that one agent — two different numbers with the same shape.
+Where: `client/src/lib/format-cost.ts:1`, `server/docs/0001-latest-review-is-a-batch.md:1`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
@@ -73,6 +81,12 @@ already resolves every identifier. The client keeps it on and declares globals f
 root config files instead, because `next.config.mjs` is plain JS.
 Where: `server/eslint.config.mjs:25`, `client/eslint.config.mjs:26` (the globals block).
 
+### 2026-09-17 — Demo videos are recorded by a skill, not by hand
+`/demo-film` (personal skill) drives an isolated VS Code, the staged Terminal and Chrome to
+record `hw/LNN/demo-LNN.mp4` from `hw/LNN/demo/{cues.json,scenes.mjs,config.json}`; repo-specific
+rules (URLs, the seeded second repo to keep off camera, controls that must never be clicked) live
+in the project skill. Filming needs a second display and the app stack up.
+Where: `.claude/skills/devdigest-demo/SKILL.md:1`, `hw/L01/demo/scenes.mjs:1`.
 
 ## Recurring Errors & Fixes
 
