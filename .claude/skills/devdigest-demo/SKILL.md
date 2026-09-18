@@ -8,6 +8,15 @@ description: DevDigest-specific conventions for recording demo videos of a lesso
 Project conventions only. The engine is in the personal skills `demo-scenario`
 (writes the shooting script) and `demo-film` (records it).
 
+## Order
+
+1. If `hw/LNN/demo/` already holds `scenario.md` and `cues.json`, read them. Otherwise
+   write them with `demo-scenario`.
+2. Ask the user to run `/demo-film` — it is user-invoked, an agent cannot start it.
+   Follow it phase by phase and never record before the user says "go".
+3. Hand contact sheets to the `frame-checker` subagent; never read them here.
+4. Report what the frames and probes showed. The user judges the voice and the result.
+
 ## Layout
 
 | What | Where |
