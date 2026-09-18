@@ -27,6 +27,14 @@ costs full price and persists zero findings. Exclude vendored/fixture paths from
 diff before blaming the model. Seen on PR #1 (`0/2 passed`, run `0d14f36c`).
 Where: `client/docs/design/src/data.jsx`, `reviewer-core/src/grounding.ts:61`.
 
+### 2026-09-19 — Supersedes "Docs drift from code"
+The README items (three reviewers, OpenRouter key, `down -v` warning) and the `skip-worktree`
+claim in TESTING.md are fixed. The `agent-runner` mentions are intentional forward references
+to lesson L06 — leave them; the `server/docker-compose.yml` duplicate of the root compose file
+is gone. To catch new drift, re-read README claims against `server/src/db/seed.ts` and
+`.env.example` after every lesson merge.
+Where: `README.md:73`, `.gitignore:5`.
+
 ## Codebase Patterns
 
 ### 2026-09-15 — `vendor/shared` copies have diverged
