@@ -79,6 +79,28 @@ enabling it means rewriting starter code, not fixing a violation you introduced.
 Where: `eslint.config.mjs:33`, `src/modules/pulls/routes.ts:3`.
 
 
+### 2026-09-18 — Layer rules live in the onion-architecture skill, with a known-violations baseline
+The 2026-09-17 entry left layer rules out of eslint because starter code breaks them. They now
+run as dependency-cruiser from the skill; `known-violations.json` (40 entries) hides existing
+debt, so only new violations fail. Rejected: eslint `no-restricted-imports` has no baseline, so
+it would fail on day one. To move it into CI later, point `depcruise` at the same config + baseline.
+Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:57`.
+
+### 2026-09-18 — dependency-cruiser quirks when writing rules for this package
+`octokit` is ESM-only and stays unresolved (path = bare `octokit`), so package rules must match
+`(^|node_modules/)pkg(/|$)`. Nested quantifiers such as `(\.pnpm/[^/]+/)?` fail with "unsafe regular
+expression". `depcruise src/modules/x` follows imports into other modules and reports their
+violations too; to scope a report, run on `src` and grep the path.
+Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:27`.
+
+### 2026-09-18 — Supersedes "Layer rules live in the onion-architecture skill, with a known-violations baseline"
+Still true: the rules live in the skill, not in eslint/CI. What changed: the baseline now has 45
+entries, not 40. Application code is now fail-closed. `application-allowed-packages` allows only
+zod, graphology, p-queue and `crypto`/`path`/`util`, so `fs/promises` and `os` in `repo-intel` were
+added to the baseline as debt. An eval found the previous SDK list let an unlisted `@slack/web-api`
+import through. A new pure library must be added to `APPLICATION_PKGS`.
+Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:47`, rule at `:76`.
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — Local dev DB is ahead of this branch's migrations
@@ -133,3 +155,8 @@ Added `PrMeta.findings_by_severity` (mirrored into `client/src/vendor/shared`) a
 module + one extra IN-query in the route, no schema change.
 Where: `src/modules/pulls/findings.ts:70` (`severityByPr`), spec `../specs/02-findings-severity.md`.
 
+### 2026-09-18 — onion-architecture skill
+Added `.claude/skills/onion-architecture/`. It maps Onion rings onto `routes`, `service` and
+`repository`, gives practices per tool and code patterns, and ships a runnable depcruise
+check. The two Tool & Library entries above came from this work.
+Where: `../.claude/skills/onion-architecture/SKILL.md:18`.

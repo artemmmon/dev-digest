@@ -28,6 +28,8 @@ pnpm db:seed                                      # idempotent; API needs it (se
 
 ## Conventions
 Naming is in `../AGENTS.md`; what follows is the shape of the code.
+- Layering (which ring a file is in, which way imports point, the depcruise check):
+  the `onion-architecture` skill.
 - New module: `modules/<name>/routes.ts` default-exports a Fastify plugin, layered
   routes → service → repository; add one import + one `register` in `modules/index.ts`.
   Look in `src/db/schema/` first — the table most likely exists.
