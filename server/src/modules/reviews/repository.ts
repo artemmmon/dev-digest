@@ -87,6 +87,11 @@ export class ReviewRepository {
     return runRepo.deleteAgentRun(this.db, workspaceId, runId);
   }
 
+  /** A run's status in the workspace; `undefined` when the run doesn't exist there. */
+  runStatus(workspaceId: string, runId: string): Promise<string | null | undefined> {
+    return runRepo.runStatus(this.db, workspaceId, runId);
+  }
+
   /** Mark a still-running run as cancelled (no-op if it already finished). */
   cancelRunIfRunning(runId: string): Promise<boolean> {
     return runRepo.cancelRunIfRunning(this.db, runId);

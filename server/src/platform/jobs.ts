@@ -96,6 +96,10 @@ export class JobRunner {
         throw err;
       }
     }) as Promise<void>;
+    // Callers fire-and-forget; the failure is already persisted above. Without a
+    // handler attached here, a failed job is an unhandled rejection and Node 22
+    // exits the process. Callers that await `done` still see the rejection.
+    done.catch(() => {});
 
     return { id: jobId, done };
   }

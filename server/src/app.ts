@@ -158,8 +158,16 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     }
     app.log.error(err);
     const e = err as { statusCode?: number; message?: string };
-    reply.status(e.statusCode ?? 500).send({
-      error: { code: 'internal_error', message: e.message ?? 'Internal error' },
+    const status = e.statusCode ?? 500;
+    // A 5xx here is an unmapped failure (Postgres, driver, a bug): its message can
+    // carry SQL, paths or connection strings. It is logged above; the client only
+    // gets it in development. Fastify's own 4xx (body too large, bad JSON) pass through.
+    const exposeMessage = status < 500 || config.nodeEnv === 'development';
+    reply.status(status).send({
+      error: {
+        code: 'internal_error',
+        message: (exposeMessage && e.message) || 'Internal error',
+      },
     });
   });
 

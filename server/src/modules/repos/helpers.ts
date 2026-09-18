@@ -15,11 +15,21 @@ import {
 /** Parse `owner`/`name` from a GitHub URL (https or ssh form). */
 export function parseRepoUrl(url: string): { owner: string; name: string } {
   // https://github.com/owner/repo(.git)  |  git@github.com:owner/repo.git
-  const match = url.match(GITHUB_URL_REGEX);
-  if (!match?.[1] || !match[2]) {
+  const match = url.trim().match(GITHUB_URL_REGEX);
+  const owner = match?.[1];
+  const name = match?.[2];
+  if (!owner || !name || /^\.+$/.test(name)) {
     throw new AppError('invalid_repo_url', `Could not parse owner/repo from '${url}'`, 400);
   }
-  return { owner: match[1], name: match[2] };
+  return { owner, name };
+}
+
+/**
+ * Canonical https clone URL for a GitHub repo. The clone job always clones this,
+ * never the raw user input, so only github.com is ever fetched.
+ */
+export function githubCloneUrl(owner: string, name: string): string {
+  return `https://${GITHUB_HTTPS_HOST}/${owner}/${name}.git`;
 }
 
 /**

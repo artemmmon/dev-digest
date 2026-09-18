@@ -68,6 +68,15 @@ worst/sum across the round: `latestBatchByPr` in `pulls/cost.ts` +
 Where: `src/modules/pulls/findings.ts:39` (`latestRoundReviewIds`),
 `src/modules/pulls/routes.ts:151`, `src/modules/reviews/repository/review.repo.ts:75`.
 
+### 2026-09-18 — A repo URL is a filesystem boundary, not just input
+`parseRepoUrl` output becomes `<cloneDir>/<owner>/<name>`, and `SimpleGitClient.clone()` deletes a
+destination that has no `.git`. The old unanchored regex let `https://github.com/../x` through, i.e.
+an `rm -rf` of a sibling of the clone dir, and cloned the raw user URL (any host). Now three layers:
+`RepoInput` regex (both contract copies), the anchored `GITHUB_URL_REGEX`, and `insideDir()` in the
+adapter. The clone job rebuilds the URL with `githubCloneUrl(owner, name)` and ignores `payload.url`.
+Where: `src/adapters/git/simple-git.ts:140`, `src/modules/repos/constants.ts:21`.
+
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -119,6 +128,21 @@ Apply the new SQL with `ADD COLUMN IF NOT EXISTS`, then `INSERT INTO drizzle.__d
 last applied `created_at`.
 Where: `src/db/migrations/meta/_journal.json:79`, `src/db/migrations/0010_colossal_shaman.sql:1`.
 
+### 2026-09-18 — Supersedes "Failed background job may crash the process (unverified)"
+Verified, then fixed: `test/jobs.test.ts` saw the `done` rejection reach `unhandledRejection` for a
+fire-and-forget `enqueue()`. `enqueue` now attaches `done.catch(() => {})` — the failure is already
+persisted as `status='failed'`, and a caller that awaits `done` still gets the rejection.
+Where: `src/platform/jobs.ts:102`.
+
+### 2026-09-18 — Supersedes "`RunBus.complete()` doesn't release buffers"
+`complete()` now drops a run's buffer, seq and completed flag after `COMPLETED_RETENTION_MS` (5 min).
+The flip side: a late SSE subscriber to a run the bus forgot would wait forever, so
+`ReviewService.runStream()` checks `agent_runs` first — unknown run → 404, finished and not on the
+bus → the stream closes at once (the persisted trace has the log). Tests inject a fresh bus via
+`ContainerOverrides.runBus`.
+Where: `src/platform/sse.ts:90`, `src/modules/reviews/service.ts:80`.
+
+
 ## Open Questions
 
 ### 2026-09-15 — Failed background job may crash the process (unverified)
@@ -160,3 +184,9 @@ Added `.claude/skills/onion-architecture/`. It maps Onion rings onto `routes`, `
 `repository`, gives practices per tool and code patterns, and ships a runnable depcruise
 check. The two Tool & Library entries above came from this work.
 Where: `../.claude/skills/onion-architecture/SKILL.md:18`.
+
+### 2026-09-18 — Phase 1 of the skills audit (security and crash fixes)
+Repo URL hardening, job rejection fix, `API_HOST` (default `localhost`) and Postgres on
+`127.0.0.1`, 5xx messages hidden outside development, test-connection saves a key only after it
+passes, SSE 404 + RunBus retention. Plan: `~/.claude/plans/sunny-squishing-token.md`.
+Where: `src/server.ts:29`.

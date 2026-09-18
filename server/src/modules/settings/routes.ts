@@ -73,26 +73,28 @@ export default async function settingsRoutes(appBase: FastifyInstance) {
     },
     async (req): Promise<ConnTestResult> => {
     const { provider, key } = req.body;
+    if (key && !container.secrets.set) {
+      return { provider, ok: false, message: 'Secrets backend is read-only' };
+    }
+    let message: string;
     try {
-      // If the UI supplied a key, persist it (BYO key) before testing so the
-      // test reflects — and the rest of the app can use — the new value.
-      if (key) {
-        if (!container.secrets.set) {
-          return { provider, ok: false, message: 'Secrets backend is read-only' };
-        }
-        await container.secrets.set(SECRET_KEY_BY_PROVIDER[provider], key);
-        container.invalidateSecretCaches();
-      }
+      // A key from the UI (BYO key) is tested with a throwaway client first and
+      // saved only if the test passes, so a typo never replaces a working key.
+      // Without a key, the stored one is tested.
       if (provider === GITHUB_PROVIDER) {
-        const gh = await container.github();
-        const login = await gh.currentLogin();
-        return { provider, ok: true, message: `Connected as @${login}` };
+        const gh = key ? container.githubWithToken(key) : await container.github();
+        message = `Connected as @${await gh.currentLogin()}`;
+      } else {
+        const llm = key ? await container.llmWithKey(provider, key) : await container.llm(provider);
+        message = `OK — ${(await llm.listModels()).length} models available`;
       }
-      const llm = await container.llm(provider);
-      const models = await llm.listModels();
-      return { provider, ok: true, message: `OK — ${models.length} models available` };
     } catch (err) {
       return { provider, ok: false, message: (err as Error).message };
     }
+    if (key && container.secrets.set) {
+      await container.secrets.set(SECRET_KEY_BY_PROVIDER[provider], key);
+      container.invalidateSecretCaches();
+    }
+    return { provider, ok: true, message };
   });
 }

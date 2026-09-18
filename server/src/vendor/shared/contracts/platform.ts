@@ -132,8 +132,14 @@ export const SecretsStatus = z.object({
 export type SecretsStatus = z.infer<typeof SecretsStatus>;
 
 // ---- Repos ----
+/** `https://github.com/<owner>/<repo>[.git][/]` — the only clone source accepted. */
+export const GITHUB_REPO_URL = /^https:\/\/github\.com\/[A-Za-z0-9-]+\/(?!\.+(?:\.git)?\/?$)[A-Za-z0-9_.-]+\/?$/;
+
 export const RepoInput = z.object({
-  url: z.string().url(),
+  url: z
+    .string()
+    .trim()
+    .regex(GITHUB_REPO_URL, 'Expected https://github.com/<owner>/<repo>'),
 });
 export type RepoInput = z.infer<typeof RepoInput>;
 

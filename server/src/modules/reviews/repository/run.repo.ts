@@ -90,6 +90,19 @@ export async function deleteAgentRun(
   return rows.length > 0;
 }
 
+/** A run's status in the workspace; `undefined` when the run doesn't exist there. */
+export async function runStatus(
+  db: Db,
+  workspaceId: string,
+  runId: string,
+): Promise<string | null | undefined> {
+  const [row] = await db
+    .select({ status: t.agentRuns.status })
+    .from(t.agentRuns)
+    .where(and(eq(t.agentRuns.id, runId), eq(t.agentRuns.workspaceId, workspaceId)));
+  return row ? row.status : undefined;
+}
+
 /** Mark a still-running run as cancelled (no-op if it already finished). */
 export async function cancelRunIfRunning(db: Db, runId: string): Promise<boolean> {
   const rows = await db

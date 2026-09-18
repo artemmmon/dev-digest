@@ -49,15 +49,17 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     '/runs/:id/events',
     { schema: { params: IdParams }, config: { rateLimit: false } },
     async (req, reply) => {
-    await getContext(container, req);
+    const { workspaceId } = await getContext(container, req);
     const runId = req.params.id;
+    const { live } = await service.runStream(workspaceId, runId);
 
     reply.sse(
       (async function* () {
         // Bridge the in-memory RunBus to an async iterator the SSE plugin drains.
         const queue: RunEvent[] = [];
         let resolve: (() => void) | null = null;
-        let done = false;
+        // Nothing will ever be published for a finished run the bus has dropped.
+        let done = !live;
 
         const unsubscribe = container.runBus.subscribe(runId, (e) => {
           queue.push(e);

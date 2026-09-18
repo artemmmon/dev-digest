@@ -72,6 +72,17 @@ export class ReviewService {
     return this.repo.listRunsForPull(workspaceId, prId);
   }
 
+  /**
+   * Whether an SSE subscriber can expect live events for this run. Throws 404
+   * for a run outside the workspace. A finished run the bus no longer holds
+   * (restart, retention expired) has nothing left to stream — the trace has it.
+   */
+  async runStream(workspaceId: string, runId: string): Promise<{ live: boolean }> {
+    const status = await this.repo.runStatus(workspaceId, runId);
+    if (status === undefined) throw new NotFoundError('Run not found');
+    return { live: status === 'running' || this.container.runBus.knows(runId) };
+  }
+
   /** Delete one run from the history (+ its trace). */
   async deleteRun(workspaceId: string, runId: string): Promise<boolean> {
     return this.repo.deleteAgentRun(workspaceId, runId);

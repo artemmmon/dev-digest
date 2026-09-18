@@ -1,5 +1,5 @@
 import { simpleGit, type SimpleGit } from 'simple-git';
-import { join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { mkdir, readFile, access, rm } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type {
@@ -11,6 +11,7 @@ import type {
   GitCommit,
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './diff-parser.js';
+import { ValidationError } from '../../platform/errors.js';
 
 /**
  * Depth fetched by `sync()`. Deeper than the shallow clone (CLONE_DEPTH=1) so the
@@ -35,7 +36,7 @@ export class SimpleGitClient implements GitClient {
   }
 
   clonePathFor(repo: RepoRef): string {
-    return join(this.cloneDir, repo.owner, repo.name);
+    return insideDir(this.cloneDir, repo.owner, repo.name);
   }
 
   private git(repo: RepoRef): SimpleGit {
@@ -53,7 +54,7 @@ export class SimpleGitClient implements GitClient {
 
   async clone(repo: RepoRef, url: string, opts?: CloneOptions): Promise<{ path: string }> {
     const dest = this.clonePathFor(repo);
-    await mkdir(join(this.cloneDir, repo.owner), { recursive: true });
+    await mkdir(dirname(dest), { recursive: true });
     if (await this.exists(join(dest, '.git'))) {
       // already cloned → fetch latest
       await simpleGit(dest).fetch();
@@ -127,8 +128,22 @@ export class SimpleGitClient implements GitClient {
   }
 
   async readFile(repo: RepoRef, path: string): Promise<string> {
-    return readFile(join(this.clonePathFor(repo), path), 'utf8');
+    return readFile(insideDir(this.clonePathFor(repo), path), 'utf8');
   }
+}
+
+/**
+ * Join `segments` onto `base` and refuse any result outside `base`. Clone paths
+ * are built from user-supplied owner/name and file paths from diffs, and `clone()`
+ * deletes a stale destination — a `..` must never reach the filesystem.
+ */
+function insideDir(base: string, ...segments: string[]): string {
+  const root = resolve(base);
+  const target = resolve(root, ...segments);
+  if (target === root || !target.startsWith(root + sep)) {
+    throw new ValidationError(`Path escapes ${base}: ${segments.join('/')}`);
+  }
+  return target;
 }
 
 function parseBlamePorcelain(raw: string): BlameLine[] {

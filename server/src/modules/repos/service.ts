@@ -2,7 +2,7 @@ import type { Container } from '../../platform/container.js';
 import { type Repo } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
 import { RepoRepository } from './repository.js';
-import { parseRepoUrl, withGitHubToken, toRepoDto } from './helpers.js';
+import { parseRepoUrl, githubCloneUrl, withGitHubToken, toRepoDto } from './helpers.js';
 import {
   CLONE_JOB_KIND,
   CLONE_DEPTH,
@@ -49,7 +49,10 @@ export class RepoService {
   }
 
   async runCloneJob(payload: CloneJobPayload): Promise<void> {
-    const { repoId, owner, name, url } = payload;
+    const { repoId, owner, name } = payload;
+    // Rebuild from owner/name instead of trusting `payload.url`: jobs queued
+    // before the URL check existed may still carry a raw user URL.
+    const url = githubCloneUrl(owner, name);
     const token = await this.container.secrets.get(GITHUB_TOKEN_SECRET);
     const cloneUrl = token ? withGitHubToken(url, token) : url;
     const { path } = await this.container.git.clone({ owner, name }, cloneUrl, {
@@ -99,7 +102,7 @@ export class RepoService {
       repoId: row.id,
       owner,
       name,
-      url,
+      url: githubCloneUrl(owner, name),
     } satisfies CloneJobPayload);
 
     return { repo: toRepoDto(row), created: true };
@@ -118,7 +121,7 @@ export class RepoService {
       repoId: repo.id,
       owner: repo.owner,
       name: repo.name,
-      url: `https://github.com/${repo.fullName}.git`,
+      url: githubCloneUrl(repo.owner, repo.name),
     } satisfies CloneJobPayload);
     // T2.2 — also enqueue an incremental refresh. The two queue positions are
     // independent (p-queue doesn't FIFO across kinds), but `runIncremental` is

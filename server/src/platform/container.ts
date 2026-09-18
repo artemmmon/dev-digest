@@ -48,6 +48,8 @@ export interface ContainerOverrides {
   llm?: Partial<Record<'openai' | 'anthropic' | 'openrouter', LLMProvider>>;
   /** repo-intel facade (T1.1+) — tests inject mock RepoIntel implementations. */
   repoIntel?: RepoIntel;
+  /** Run-event bus; defaults to the process-wide one. Tests inject a fresh bus. */
+  runBus?: RunBus;
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
@@ -82,7 +84,7 @@ export class Container {
     this.db = db;
     this.secrets = overrides.secrets ?? new LocalSecretsProvider(config.secretsPath);
     this.auth = overrides.auth ?? new LocalNoAuthProvider(db);
-    this.runBus = runBus;
+    this.runBus = overrides.runBus ?? runBus;
     this.jobs = new JobRunner(db);
   }
 
@@ -159,6 +161,19 @@ export class Container {
     return this._github;
   }
 
+  /**
+   * Throwaway clients built from an explicit key — not cached, nothing persisted.
+   * test-connection checks a candidate key with these before saving it, so a typo
+   * never replaces a working key.
+   */
+  githubWithToken(token: string): GitHubClient {
+    return this.overrides.github ?? new OctokitGitHubClient(token);
+  }
+
+  async llmWithKey(id: 'openai' | 'anthropic' | 'openrouter', key: string): Promise<LLMProvider> {
+    return this.overrides.llm?.[id] ?? this.buildLlm(id, key);
+  }
+
   /** Resolve an LLM provider by id; constructs from the secret key, cached. */
   async llm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     const injected = this.overrides.llm?.[id];
@@ -170,9 +185,12 @@ export class Container {
     return provider;
   }
 
-  private async buildLlm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
+  private async buildLlm(
+    id: 'openai' | 'anthropic' | 'openrouter',
+    explicitKey?: string,
+  ): Promise<LLMProvider> {
     if (id === 'openai') {
-      const key = await this.secrets.get('OPENAI_API_KEY');
+      const key = explicitKey ?? (await this.secrets.get('OPENAI_API_KEY'));
       if (!key) throw new ConfigError('OPENAI_API_KEY is not configured');
       return new OpenAIProvider(key);
     }
@@ -180,14 +198,14 @@ export class Container {
       // Single OpenRouter provider lives in reviewer-core (shared with the CI
       // runner); inject the PriceBook so cost attribution uses LIVE OpenRouter
       // prices (with the static table as a fallback) rather than a hardcoded one.
-      const key = await this.secrets.get('OPENROUTER_API_KEY');
+      const key = explicitKey ?? (await this.secrets.get('OPENROUTER_API_KEY'));
       if (!key) throw new ConfigError('OPENROUTER_API_KEY is not configured');
       return new OpenRouterProvider(key, {
         estimateCost: (model, tokensIn, tokensOut) =>
           this.priceBook.estimate(model, tokensIn, tokensOut),
       });
     }
-    const key = await this.secrets.get('ANTHROPIC_API_KEY');
+    const key = explicitKey ?? (await this.secrets.get('ANTHROPIC_API_KEY'));
     if (!key) throw new ConfigError('ANTHROPIC_API_KEY is not configured');
     return new AnthropicProvider(key);
   }

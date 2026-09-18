@@ -3,6 +3,7 @@ import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
 import { waitForPrRuns } from './helpers/runs.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
+import { RunBus } from '../src/platform/sse.js';
 import { seed } from '../src/db/seed.js';
 import { MockLLMProvider, MockEmbedder, MockGitClient, MockGitHubClient } from '../src/adapters/mocks.js';
 import * as t from '../src/db/schema.js';
@@ -287,6 +288,45 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     expect(sse.payload).toContain('Starting review');
     expect(sse.payload).toContain('Citation grounding');
     await app.close();
+  });
+
+  it('SSE: an unknown run is 404, not a stream that never ends', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/runs/00000000-0000-0000-0000-000000000000/events',
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('SSE: a finished run the bus no longer holds ends the stream at once', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'SseGoneAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+    const body = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    await app.close();
+
+    // Same DB, empty bus — as after an API restart or once retention expired.
+    const restarted = await buildApp({
+      config: config(),
+      db: pg.handle.db,
+      overrides: { runBus: new RunBus() },
+    });
+    const sse = await restarted.inject({ method: 'GET', url: `/runs/${body.runs[0].run_id}/events` });
+    expect(sse.statusCode).toBe(200);
+    // Closed straight away: only the plugin's `retry:` preamble, no event frames.
+    // (Before, inject() never returned — the stream waited for events forever.)
+    expect(sse.payload).not.toContain('data:');
+    await restarted.close();
   });
 
   it('run cost: persisted per run, one batch per request, PR list sums the latest batch', async () => {
