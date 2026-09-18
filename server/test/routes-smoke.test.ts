@@ -132,4 +132,15 @@ describe('routes (no DB)', () => {
     expect(res.json().error).toEqual({ code: 'internal_error', message: 'Internal error' });
     await app.close();
   });
+
+  it('POST /pulls/:id/review without a body is a 400 asking for agentId or all, not a validation error', async () => {
+    const app = await buildApp({ config });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/pulls/00000000-0000-0000-0000-000000000000/review',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('invalid_run_request');
+    await app.close();
+  });
 });

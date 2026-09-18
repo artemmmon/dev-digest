@@ -2,36 +2,16 @@
  * Pure helpers for the review service (side-effect free; operate purely on
  * their arguments — no DB / network / `this`).
  */
-import type { Finding } from '@devdigest/shared';
+import type { Finding, FindingRecord, ReviewRecord } from '@devdigest/shared';
 import type { FindingRow, PullRow, ReviewRow } from './ports.js';
 
 // reduceReviews + sliceDiff live in @devdigest/reviewer-core (pure engine logic
 // shared with the CI runner); re-exported here for backward-compatible imports.
 export { reduceReviews, sliceDiff } from '@devdigest/reviewer-core';
 
-export interface ReviewDtoFinding extends Finding {
-  review_id: string;
-  accepted_at: string | null;
-  dismissed_at: string | null;
-}
-
-export interface ReviewDto {
-  id: string;
-  pr_id: string;
-  agent_id: string | null;
-  run_id: string | null;
-  /** `agent_runs.batch_id` of this review's run — the review round it belongs to. */
-  batch_id?: string | null;
-  agent_name?: string | null;
-  kind: 'summary' | 'review';
-  verdict: string | null;
-  summary: string | null;
-  score: number | null;
-  model: string | null;
-  grounding?: string | null;
-  created_at: string;
-  findings: ReviewDtoFinding[];
-}
+/** The wire shapes are the shared contracts: the response schemas validate what these return. */
+export type ReviewDtoFinding = FindingRecord;
+export type ReviewDto = ReviewRecord;
 
 export function findingRowToDto(row: FindingRow): ReviewDtoFinding {
   return {
@@ -68,7 +48,8 @@ export function reviewToDto(
     batch_id: batchId ?? null,
     agent_name: agentName ?? null,
     kind: review.kind as 'summary' | 'review',
-    verdict: review.verdict,
+    // the reviews_verdict_ck CHECK keeps this to the Verdict values
+    verdict: review.verdict as ReviewDto['verdict'],
     summary: review.summary,
     score: review.score,
     model: review.model,
