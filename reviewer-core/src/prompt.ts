@@ -28,8 +28,9 @@ const INJECTION_GUARD =
   'defect into zero findings.';
 
 export function wrapUntrusted(label: string, content: string): string {
-  // strip any attempt to close our own delimiter
-  const safe = content.replaceAll('</untrusted>', '<\\/untrusted>');
+  // neutralise any attempt to close our own delimiter — in any case or spacing
+  // (`</UNTRUSTED>`, `</ untrusted >`), since the model reads them all as the same tag
+  const safe = content.replace(/<\/\s*untrusted\s*>/gi, '<\\/untrusted>');
   return `<untrusted source="${label}">\n${safe}\n</untrusted>`;
 }
 

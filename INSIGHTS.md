@@ -72,6 +72,15 @@ same file. Edit `AGENTS.md` only — an editor that "saves as copy" silently for
 is on macOS and wanted one file. `hw/L01/**` and older entries still say `CLAUDE.md` on purpose.
 Where: `AGENTS.md:69`.
 
+### 2026-09-18 — Supersedes "Grounding gate 1 is an exact string match on the diff's file path"
+`groundFindings` now resolves the model's `file` before the line check: exact, then normalised
+(`./`, `/`, `a/`, `b/`, `\`), then a unique whole-segment suffix match either way. It never guesses
+between two candidates, and the line range must still intersect a hunk. Rewrites show up in the trace
+as `grounding matched "…": 'x' → 'y'` (`GroundingResult.remapped`). A path with a different middle
+(`src/server/cost.ts` for `server/src/modules/pulls/cost.ts`) is still dropped.
+Where: `reviewer-core/src/grounding.ts:41`.
+
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source

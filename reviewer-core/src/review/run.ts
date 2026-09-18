@@ -199,6 +199,9 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
   for (const d of ground.dropped) {
     emit('info', `grounding dropped "${d.finding.title}": ${d.reason}`);
   }
+  for (const r of ground.remapped) {
+    emit('info', `grounding matched "${r.title}": '${r.from}' → '${r.to}'`);
+  }
   emit('result', `Citation grounding: ${grounding}`);
 
   // Score is derived from the findings that SURVIVED grounding (not the model's
