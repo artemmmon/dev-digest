@@ -18,12 +18,24 @@ export function RunStatus({
 }) {
   const t = useTranslations("prReview");
   const { events, running } = useRunEvents(runIds);
-  const wasRunning = React.useRef(false);
 
+  // Fire onDone once per running → idle transition of the streams. Reading the
+  // callback through a ref keeps a parent's fresh arrow (new identity every
+  // render) from re-firing it — which used to re-invalidate the PR queries on
+  // every re-render after the first completion.
+  const onDoneRef = React.useRef(onDone);
   React.useEffect(() => {
-    if (running) wasRunning.current = true;
-    if (!running && wasRunning.current) onDone?.();
-  }, [running, onDone]);
+    onDoneRef.current = onDone;
+  });
+  const wasRunning = React.useRef(false);
+  React.useEffect(() => {
+    if (running) {
+      wasRunning.current = true;
+    } else if (wasRunning.current) {
+      wasRunning.current = false;
+      onDoneRef.current?.();
+    }
+  }, [running]);
 
   if (runIds.length === 0) return null;
 

@@ -171,10 +171,15 @@ export function useFindingAction() {
  * Subscribe to a run's SSE event stream. Returns the accumulated RunEvents and a
  * `running` flag (true until the stream closes). Live status for the
  * RunReviewDropdown / Live Log. Multiple runIds are subscribed in parallel.
+ *
+ * `notifyErrors` toasts runtime `error` events; turn it off for a second
+ * subscriber to the same run (the trace drawer) so one failure toasts once.
  */
-export function useRunEvents(runIds: string[]) {
+export function useRunEvents(runIds: string[], { notifyErrors = true } = {}) {
   const [events, setEvents] = React.useState<RunEvent[]>([]);
-  const [running, setRunning] = React.useState(false);
+  // Start as running when there is something to stream, so the first render
+  // doesn't report "finished" before the effect opens the streams.
+  const [running, setRunning] = React.useState(runIds.length > 0);
   const key = runIds.join(",");
 
   React.useEffect(() => {
@@ -193,7 +198,7 @@ export function useRunEvents(runIds: string[]) {
           // Runtime agent failures arrive as SSE `error` events (not as a
           // mutation/query error), so the global error toast never sees them —
           // surface them here so the user gets a notification without a reload.
-          if (parsed.kind === "error" && parsed.msg) notify.error(parsed.msg);
+          if (notifyErrors && parsed.kind === "error" && parsed.msg) notify.error(parsed.msg);
         } catch {
           /* ignore non-JSON keepalive frames (and dataless native error events) */
         }

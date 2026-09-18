@@ -8,7 +8,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Button, Icon, IconBtn, Kbd, TextInput, FormField } from "@devdigest/ui";
 import { useAddRepo } from "@/lib/hooks";
-import { ApiError } from "@/lib/api";
+import { addRepoErrorMessage } from "./helpers";
 
 export function AddRepoView() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export function AddRepoView() {
       const repo = await addRepo.mutateAsync(repoUrl.trim());
       router.push(`/repos/${repo.id}/pulls`);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not add repository");
+      setError(addRepoErrorMessage(e, "Could not add repository"));
     }
   };
 

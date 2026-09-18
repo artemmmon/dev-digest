@@ -41,6 +41,13 @@ flows target the pills by exactly that name.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/SeverityFilterPills/SeverityFilterPills.tsx:42`,
 `e2e/specs/04-pr-findings.flow.json`.
 
+### 2026-09-18 — Every failed mutation toasts globally; forms opt out with `meta.silent`
+`MutationCache.onError` toasts all mutation errors, so a component that also shows the error (inline
+or its own `notify.error`) doubles it. Set `meta: { silent: true }` on a mutation whose screen shows
+the error inline (e.g. `useAddRepo`); otherwise don't toast locally at all.
+Where: `src/lib/providers.tsx:45`.
+
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -56,6 +63,13 @@ Automatic source detection picks up any non-gitignored file, so the design expor
 `docs/design` (JSX + bundled HTML) added 31 files / ~800 class candidates (oxide `Scanner`:
 3761 vs 2973). Non-source text files under `client/` need an `@source not "<path>"` line.
 Where: `src/app/globals.css:9` (`@source not "../../docs"`).
+
+### 2026-09-18 — `pnpm build` breaks a running `pnpm dev`
+Both write `client/.next`. After a build, the dev server answers every page with 500 and logs
+`Cannot find module './vendor-chunks/…'`. Stop `next dev`, `rm -rf .next`, start it again. To check a
+build while dev runs, don't — or run it from a separate worktree.
+Where: `package.json:7`.
+
 
 ## Recurring Errors & Fixes
 
@@ -96,4 +110,3 @@ in the `FindingsPanel` toolbar, and the FINDINGS list column with a lazy hover p
 Counts are taken over the post-"hide low confidence" set so a pill's number always equals
 the number of cards under it.
 Where: `src/lib/severity-counts.ts:21` (`countBySeverity`), spec `../specs/02-findings-severity.md`.
-

@@ -7,7 +7,8 @@
 
 import React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Skeleton, ErrorState } from "@devdigest/ui";
+import { Skeleton, ErrorState, EmptyState } from "@devdigest/ui";
+import { useTranslations } from "next-intl";
 import { AppShell } from "../../../../../components/app-shell";
 import { RepoNotFound } from "@/components/repo-not-found";
 import { PrDetailHeader } from "./_components/PrDetailHeader";
@@ -24,6 +25,7 @@ import { githubPrUrl } from "../../../../../lib/github-urls";
 import type { FindingRecord } from "@devdigest/shared";
 
 export default function PRDetailPage() {
+  const t = useTranslations("prReview");
   const params = useParams<{ repoId: string; number: string }>();
   const search = useSearchParams();
   const router = useRouter();
@@ -65,7 +67,7 @@ export default function PRDetailPage() {
     else sp.set(key, val);
     router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
   };
-  const setTab = (t: string) => setParam("tab", t);
+  const setTab = (next: string) => setParam("tab", next);
 
   // Reviews come newest-first; each is its own run (grouped into accordions).
   const runs = reviews ?? [];
@@ -103,6 +105,24 @@ export default function PRDetailPage() {
           <Skeleton height={16} width={300} />
           <Skeleton height={200} />
         </div>
+      </AppShell>
+    );
+  }
+
+  // The number isn't in the repo's PR list (or the row vanished): a stale link,
+  // not a failure — Retry could never succeed, so offer the way back instead.
+  const prMissing =
+    (pulls !== undefined && prId == null) || (error instanceof ApiError && error.status === 404);
+  if (prMissing) {
+    return (
+      <AppShell crumb={crumb}>
+        <EmptyState
+          icon="GitPullRequest"
+          title={t("notFound.title")}
+          body={t("notFound.body", { number })}
+          cta={t("notFound.cta")}
+          onCta={() => router.push(`/repos/${repoId}/pulls`)}
+        />
       </AppShell>
     );
   }
@@ -177,6 +197,7 @@ export default function PRDetailPage() {
           prNumber={pr.number}
           findings={runs.find((r) => r.run_id === traceRunId)?.findings ?? []}
           agentName={runs.find((r) => r.run_id === traceRunId)?.agent_name ?? null}
+          running={liveRunIds.includes(traceRunId)}
           onClose={() => setParam("trace", null)}
         />
       )}

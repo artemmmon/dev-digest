@@ -37,6 +37,8 @@ Naming is in `../AGENTS.md`; what follows is the shape of the code.
   When a contract changes on the server, mirror it here.
 - `messages/en/` already has namespaces for future lessons (eval, blast, memory…) —
   unused until the lesson lands; don't delete them.
+- `pnpm build` and `pnpm dev` share `.next`: building while dev runs makes every page 500
+  (`Cannot find module './vendor-chunks/…'`). Stop dev, `rm -rf .next`, restart.
 
 ## Documentation
 - `README.md` — UI route map and which API endpoints each page uses

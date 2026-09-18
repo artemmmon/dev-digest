@@ -5,7 +5,8 @@
 
 import React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Button, Dropdown, ErrorState, Skeleton, Icon, Badge } from "@devdigest/ui";
+import { Button, Dropdown, EmptyState, ErrorState, Skeleton, Icon, Badge } from "@devdigest/ui";
+import { useTranslations } from "next-intl";
 import { AppShell } from "../../../components/app-shell";
 import { AgentCard } from "../_components/AgentCard";
 import { AgentEditor } from "./_components/AgentEditor";
@@ -15,6 +16,7 @@ import { ApiError } from "../../../lib/api";
 const VALID_TABS = ["config"];
 
 export default function AgentEditorPage() {
+  const t = useTranslations("agents");
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const router = useRouter();
@@ -25,9 +27,9 @@ export default function AgentEditorPage() {
   const update = useUpdateAgent();
 
   const tab = VALID_TABS.includes(search.get("tab") ?? "") ? search.get("tab")! : "config";
-  const setTab = (t: string) => {
+  const setTab = (next: string) => {
     const sp = new URLSearchParams(search.toString());
-    sp.set("tab", t);
+    sp.set("tab", next);
     router.replace(`/agents/${id}?${sp.toString()}`);
   };
 
@@ -37,7 +39,23 @@ export default function AgentEditorPage() {
     { label: agent?.name ?? "Agent" },
   ];
 
-  if (isError || (!isLoading && !agent)) {
+  const agentMissing =
+    (error instanceof ApiError && error.status === 404) || (!isLoading && !isError && !agent);
+  if (agentMissing) {
+    return (
+      <AppShell crumb={crumb}>
+        <EmptyState
+          icon="Cpu"
+          title={t("notFound.title")}
+          body={t("notFound.body")}
+          cta={t("notFound.cta")}
+          onCta={() => router.push("/agents")}
+        />
+      </AppShell>
+    );
+  }
+
+  if (isError) {
     return (
       <AppShell crumb={crumb}>
         <ErrorState

@@ -136,5 +136,10 @@
   "empty": {
     "title": "No findings yet",
     "body": "Run a review to generate findings. Use Run Review ▾ above (run all enabled agents or a specific one)."
+  },
+  "notFound": {
+    "title": "Pull request not found",
+    "body": "PR #{number} isn't in this repository's list. It may have been removed, or the link is stale.",
+    "cta": "Back to pull requests"
   }
 }

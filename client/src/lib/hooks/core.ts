@@ -76,6 +76,8 @@ export function useAddRepo() {
   return useMutation({
     mutationFn: (url: string) => api.post<Repo>("/repos", { url }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["repos"] }),
+    // The add-repo form shows the error inline under the URL field.
+    meta: { silent: true },
   });
 }
 

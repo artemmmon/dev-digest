@@ -43,7 +43,10 @@ export default function RunTraceDrawer({
 }: RunTraceDrawerProps) {
   const t = useTranslations("runs");
   const [tab, setTab] = React.useState<string>(running ? "log" : "trace");
-  const { events, running: liveRunning } = useRunEvents(running ? [runId] : []);
+  // RunStatus on the Findings tab already toasts this run's errors.
+  const { events, running: liveRunning } = useRunEvents(running ? [runId] : [], {
+    notifyErrors: false,
+  });
   // Load the persisted trace once we're not (or no longer) running.
   const stillRunning = running && liveRunning;
   const { data: trace, isLoading } = useRunTrace(runId, !stillRunning);

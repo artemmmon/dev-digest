@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useRepos } from "../lib/hooks";
 import { AppShell } from "../components/app-shell";
 import { PageContainer } from "../components/page-shell";
-import { EmptyState, Button, Skeleton } from "@devdigest/ui";
+import { useTranslations } from "next-intl";
+import { EmptyState, ErrorState, Button, Skeleton } from "@devdigest/ui";
 
 export default function HomePage() {
+  const t = useTranslations("common");
   const router = useRouter();
-  const { data: repos, isLoading, isError } = useRepos();
+  const { data: repos, isLoading, isError, refetch } = useRepos();
 
   React.useEffect(() => {
     if (repos && repos.length > 0) {
@@ -27,7 +29,15 @@ export default function HomePage() {
             <Skeleton height={48} />
             <Skeleton height={48} />
           </div>
-        ) : isError || !repos || repos.length === 0 ? (
+        ) : isError ? (
+          // API down ≠ "no repositories": telling the user to add a repo here
+          // would send them to a form that can't work either.
+          <ErrorState
+            title={t("loadFailed.title")}
+            body={t("loadFailed.body")}
+            onRetry={() => refetch()}
+          />
+        ) : !repos || repos.length === 0 ? (
           <EmptyState
             icon="GitBranch"
             title="No repositories yet"
