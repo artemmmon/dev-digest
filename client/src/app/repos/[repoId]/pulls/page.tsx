@@ -1,9 +1,9 @@
 /* PR list — /repos/:repoId/pulls. Ported from screen_dashboard.jsx; fetches
-   GET /repos/:id/pulls (F1). Filters/sort live in query (?status&sort). */
+   GET /repos/:id/pulls (F1). Filter and sort live in the URL (?status&sort). */
 "use client";
 
 import React from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Skeleton,
@@ -12,6 +12,7 @@ import {
   AutoTriggerStatus,
 } from "@devdigest/ui";
 import { usePageCrumb } from "@/components/app-shell";
+import { useSearchParamState } from "@/lib/use-search-param-state";
 import { RepoNotFound } from "@/components/repo-not-found";
 import { usePulls, useRefreshRepo } from "@/lib/hooks";
 import { useActiveRepo, useRepoNotFound } from "@/lib/repo-context";
@@ -28,23 +29,17 @@ export default function PullsPage() {
   const t = useTranslations("prReview");
   const params = useParams<{ repoId: string }>();
   const repoId = params.repoId;
-  const search = useSearchParams();
-  const router = useRouter();
   const { activeRepo } = useActiveRepo();
   const repoNotFound = useRepoNotFound(repoId);
   const { data: pulls, isLoading, isError, error, refetch } = usePulls(repoId);
   const refresh = useRefreshRepo();
 
-  // Default to "needs review" — the most actionable filter on open.
-  const status = search.get("status") ?? "needs_review";
-  const setStatus = (k: string) => {
-    const sp = new URLSearchParams(search.toString());
-    sp.set("status", k); // always explicit so "all" sticks over the needs_review default
-    router.replace(`/repos/${repoId}/pulls?${sp.toString()}`);
-  };
-
+  // Filter and sort live in the URL (?status&sort), so a view can be linked and survives reload.
+  // Default status: "needs review" — the most actionable filter on open. Setting a status always
+  // writes it, so "all" sticks over that default.
+  const [status, setStatus] = useSearchParamState("status", "needs_review");
+  const [sort, setSort] = useSearchParamState("sort", "newest");
   const [query, setQuery] = React.useState("");
-  const [sort, setSort] = React.useState("newest");
 
   const q = query.trim().toLowerCase();
   const filtered = (pulls ?? [])

@@ -34,23 +34,28 @@ swapped for mocks in tests.
 flowchart LR
   REQ["HTTP request"] --> MW["plugins (registered before modules)<br/>helmet · cors · rate-limit · SSE"]
   MW --> VAL["route zod schema<br/>params/body validation"]
-  VAL --> MOD["feature module plugin<br/>modules/&lt;name&gt;/routes.ts"]
-  MOD --> SVC["service<br/>(e.g. ReviewService)"]
-  SVC --> DI{"DI container<br/>platform/container.ts"}
-  DI --> ADP["adapters (ports)<br/>llm · github · git · astgrep · tokenizer · secrets"]
-  ADP -->|"prod"| EXT["LLM (OpenAI/Anthropic) · GitHub · git · pgvector"]
+  VAL --> RT["routes.ts (thin)<br/>schema → getContext → one service call"]
+  RT --> SVC["service<br/>(e.g. ReviewService)"]
+  SVC -->|"ports (constructor)"| REPO["repository<br/>Drizzle → Postgres"]
+  SVC -->|"ports (constructor)"| ADP["adapters<br/>llm · github · git · astgrep · fs · tokenizer · secrets"]
+  CT{"platform/container.ts<br/>composition root"} -. "builds the deps of" .-> RT
+  ADP -->|"prod"| EXT["LLM (OpenAI/Anthropic/OpenRouter) · GitHub · git · pgvector"]
   ADP -->|"tests"| MOCK["src/adapters/mocks.ts<br/>MockLLMProvider · MockGitClient · …"]
-  SVC --> DB[("Drizzle → Postgres")]
   SVC -. "run traces" .-> SSE["SSE stream → client"]
   VAL -. "invalid" .-> ERR["error handler (structured envelope)<br/>validation → 422 · AppError → status<br/>response serialization → 500"]
   SVC -. "throws" .-> ERR
 ```
 
+- **Layering** follows the Onion rules in `.claude/skills/onion-architecture` and is checked by
+  `pnpm arch` (also in CI): services see ports (`modules/<m>/ports.ts`), never the DB, an SDK
+  or the `Container`; repositories and adapters implement the ports; only `container.ts` knows
+  every ring. Worked examples: `modules/pulls/`, `modules/repos/`, `modules/settings/`.
 - **Plugins register before modules** so the encapsulated module plugins inherit
   them (helmet, cors, rate-limit, SSE) and the shared error handler.
 - **Validation is schema-first.** Each route declares zod `params`/`body` schemas
   (`fastify-type-provider-zod`); invalid input is rejected with a `422` **before**
-  the handler runs — handlers no longer hand-roll `Schema.parse(req.body)`.
+  the handler runs — handlers never hand-roll `Schema.parse(req.body)`. Most routes also declare
+  a zod `response` schema, so a handler returning the wrong shape fails loudly (500) in tests.
 - **Rate limiting:** a global 120/min limit (disabled under `NODE_ENV=test`), with
   tighter per-route caps on expensive endpoints (e.g. `POST /pulls/:id/review`);
   SSE and `/health*` are exempt.

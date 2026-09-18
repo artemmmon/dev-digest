@@ -70,7 +70,7 @@ Each package has its own README with deeper diagrams:
 - **Add repository** — paste a repo URL; the server clones and indexes it.
 - **Import pull requests** — pull open PRs and their diff, commits, body, and linked issue.
 - **View diff** — GitHub-like diff in the browser.
-- **Agents** — two built-in reviewers (General + Security); create/edit your own (model + system prompt).
+- **Agents** — three built-in reviewers (General, Security, Performance); create/edit your own (model + system prompt).
 - **Run a review** — single-pass analysis returning structured findings (severity + score), with the grounding gate and repo-map context working from the start.
 
 ## What you build in the course
@@ -110,8 +110,10 @@ Postgres keeps running (`docker compose down` to stop it).
 
 Flags: `--no-seed` · `--no-client` · `--db-only` · `--help`.
 
-> Add your keys in `server/.env` (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`,
-> `GITHUB_TOKEN`) or via the Settings UI at runtime.
+> Add your keys in `server/.env` (`OPENROUTER_API_KEY` — the default provider —
+> or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, plus `GITHUB_TOKEN`) or via the Settings
+> UI at runtime. The API listens on `localhost` only (`API_HOST=0.0.0.0` to expose it;
+> it has no auth).
 
 ## Manual steps (what the script does)
 
@@ -157,5 +159,6 @@ Postgres); everything else is hermetic. The browser e2e flows live in
   host port in `docker-compose.yml`.
 - **`vector` type errors** — the pgvector extension is enabled by migration `0000`;
   make sure migrations ran against the Dockerized DB, not a different one.
-- **Reset everything** — `docker compose down -v` drops the volume, then re-run
-  `./scripts/dev.sh`.
+- **Reset everything** — only if you really want to lose the data: `docker compose down -v`
+  drops the `devdigest_pgdata` volume **with every repo and review you imported**; then
+  re-run `./scripts/dev.sh`. To just stop Postgres, use `docker compose down` (no `-v`).
