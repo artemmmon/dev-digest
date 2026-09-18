@@ -1,5 +1,5 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
-import type { Db } from '../../db/client.js';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import type { DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { DEFAULT_AGENT_DESCRIPTION, INITIAL_AGENT_VERSION } from './constants.js';
@@ -49,7 +49,12 @@ export interface LinkedSkillRow {
 }
 
 export class AgentsRepository {
-  constructor(private db: Db) {}
+  constructor(private db: DbOrTx) {}
+
+  /** Run `work` against a copy of this repository bound to one transaction. */
+  private inTransaction<T>(work: (repo: AgentsRepository) => Promise<T>): Promise<T> {
+    return this.db.transaction((tx) => work(new AgentsRepository(tx)));
+  }
 
   async list(workspaceId: string): Promise<AgentRow[]> {
     return this.db.select().from(t.agents).where(eq(t.agents.workspaceId, workspaceId));
@@ -70,6 +75,26 @@ export class AgentsRepository {
     return row;
   }
 
+  /** The subset of `skillIds` that exist in the workspace. */
+  async skillIdsInWorkspace(workspaceId: string, skillIds: string[]): Promise<Set<string>> {
+    if (skillIds.length === 0) return new Set();
+    const rows = await this.db
+      .select({ id: t.skills.id })
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), inArray(t.skills.id, skillIds)));
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** id → name for the given agents in the workspace, in one query. */
+  async namesByIds(workspaceId: string, ids: string[]): Promise<Map<string, string>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: t.agents.id, name: t.agents.name })
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), inArray(t.agents.id, ids)));
+    return new Map(rows.map((r) => [r.id, r.name]));
+  }
+
   /** Delete an agent (scoped to workspace). Versions/skill-links cascade;
    *  agent_runs keep their history with agent_id set null. Returns false if
    *  no such agent existed in the workspace. */
@@ -83,6 +108,11 @@ export class AgentsRepository {
 
   /** Insert an agent AND record version 1 in agent_versions (immutable snapshot). */
   async insert(values: InsertAgent): Promise<AgentRow> {
+    // One unit, so an agent never exists without its version-1 snapshot.
+    return this.inTransaction((repo) => repo.insertWithSnapshot(values));
+  }
+
+  private async insertWithSnapshot(values: InsertAgent): Promise<AgentRow> {
     const [row] = await this.db
       .insert(t.agents)
       .values({
@@ -114,7 +144,22 @@ export class AgentsRepository {
     id: string,
     patch: UpdateAgent,
   ): Promise<AgentRow | undefined> {
-    const existing = await this.getById(workspaceId, id);
+    // Read → bump → snapshot is one unit, and the row lock serialises concurrent
+    // saves: without it two edits both write version N+1 and one snapshot is
+    // silently dropped by onConflictDoNothing.
+    return this.inTransaction((repo) => repo.updateLocked(workspaceId, id, patch));
+  }
+
+  private async updateLocked(
+    workspaceId: string,
+    id: string,
+    patch: UpdateAgent,
+  ): Promise<AgentRow | undefined> {
+    const [existing] = await this.db
+      .select()
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
+      .for('update');
     if (!existing) return undefined;
 
     // A config-affecting change (anything except just toggling enabled) bumps version.
@@ -227,10 +272,13 @@ export class AgentsRepository {
    * the list are unlinked.
    */
   async setSkills(agentId: string, skillIds: string[]): Promise<void> {
-    await this.db.delete(t.agentSkills).where(eq(t.agentSkills.agentId, agentId));
-    if (skillIds.length === 0) return;
-    await this.db
-      .insert(t.agentSkills)
-      .values(skillIds.map((skillId, i) => ({ agentId, skillId, order: i })));
+    // Delete + insert as one unit: a failed insert must not leave the agent with no skills.
+    await this.db.transaction(async (tx) => {
+      await tx.delete(t.agentSkills).where(eq(t.agentSkills.agentId, agentId));
+      if (skillIds.length === 0) return;
+      await tx
+        .insert(t.agentSkills)
+        .values(skillIds.map((skillId, i) => ({ agentId, skillId, order: i })));
+    });
   }
 }

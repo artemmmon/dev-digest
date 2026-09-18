@@ -54,6 +54,8 @@ import {
 } from './constants.js';
 import { runFullIndex, type IndexPayload } from './pipeline/full.js';
 import { runIncremental } from './pipeline/incremental.js';
+import { repoJobKey } from '../_shared/jobs.js';
+import { NotFoundError } from '../../platform/errors.js';
 
 /**
  * GLOBALS allowlist — common JS/TS builtins + runtime that appear as bare
@@ -170,15 +172,37 @@ export class RepoIntelService implements RepoIntel {
    * `Promise<void>`. Status/progress is observable via `repo_index_state`.
    */
   registerIndexJobHandlers(): void {
-    this.container.jobs.register(INDEX_JOB_KIND, async (payload) => {
-      await this.indexRepo((payload as IndexPayload).repoId);
-    });
-    this.container.jobs.register(REFRESH_JOB_KIND, async (payload) => {
-      await this.refreshIndex((payload as IndexPayload).repoId);
-    });
-    this.container.jobs.register(RESYNC_JOB_KIND, async (payload) => {
-      await this.resyncRepo((payload as IndexPayload).repoId);
-    });
+    // Same key as the clone job: an index/resync never runs while that repo's
+    // clone is being fetched or replaced, nor two indexes of one repo at once.
+    const serial = { serializeBy: repoJobKey };
+    this.container.jobs.register(
+      INDEX_JOB_KIND,
+      async (payload) => {
+        await this.indexRepo((payload as IndexPayload).repoId);
+      },
+      serial,
+    );
+    this.container.jobs.register(
+      REFRESH_JOB_KIND,
+      async (payload) => {
+        await this.refreshIndex((payload as IndexPayload).repoId);
+      },
+      serial,
+    );
+    this.container.jobs.register(
+      RESYNC_JOB_KIND,
+      async (payload) => {
+        await this.resyncRepo((payload as IndexPayload).repoId);
+      },
+      serial,
+    );
+  }
+
+  /** 404 unless the repo belongs to the workspace — call before any per-repo read or job. */
+  async requireRepo(workspaceId: string, repoId: string): Promise<void> {
+    if (!(await this.repo.repoInWorkspace(workspaceId, repoId))) {
+      throw new NotFoundError('Repo not found');
+    }
   }
 
   /**

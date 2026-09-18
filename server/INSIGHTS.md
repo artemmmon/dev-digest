@@ -76,6 +76,28 @@ an `rm -rf` of a sibling of the clone dir, and cloned the raw user URL (any host
 adapter. The clone job rebuilds the URL with `githubCloneUrl(owner, name)` and ignores `payload.url`.
 Where: `src/adapters/git/simple-git.ts:140`, `src/modules/repos/constants.ts:21`.
 
+### 2026-09-18 — Transactions: build the repository on `tx`
+A repository typed on `DbOrTx` (pool or open transaction) runs unchanged inside `db.transaction`:
+`this.db.transaction((tx) => work(new AgentsRepository(tx)))`. Not hypothetical: before the row lock,
+three concurrent `PUT /agents/:id` produced versions `[2, 2, 3]` and dropped a snapshot
+(`onConflictDoNothing`). Read-then-write paths lock with `.for('update')` inside the transaction.
+Where: `src/db/client.ts:15`, `src/modules/agents/repository.ts:162`.
+
+### 2026-09-18 — GitHub auth for git: a per-command header, never the remote URL
+`SimpleGitClient` sends the PAT as `-c http.https://github.com/.extraheader=AUTHORIZATION: basic …`
+(the same form `actions/checkout` uses) on clone/fetch only. Clones made before this kept the token
+in `origin`; `scrubOrigin()` strips it on the next clone/fetch/sync, so an old clone is clean after
+one Refresh. Private-repo fetches depend on the token being in Settings, not in the clone.
+Where: `src/adapters/git/simple-git.ts:90`.
+
+### 2026-09-18 — Jobs on one repo are serialised by `repoJobKey`
+Clone, index, refresh and resync all register with `{ serializeBy: repoJobKey }` (`repo:<repoId>`),
+so a Refresh can't re-clone a directory the indexer is reading. A timed-out attempt aborts
+`ctx.signal` and holds the key until the handler settles, at most `ABORT_GRACE_MS` (30 s) — the
+repo-intel pipeline ignores the signal today, so its overlap is bounded, not impossible. A job
+waiting for its key holds a p-queue slot.
+Where: `src/platform/jobs.ts:31`, `src/modules/_shared/jobs.ts:1`.
+
 
 ## Tool & Library Notes
 
@@ -110,6 +132,13 @@ added to the baseline as debt. An eval found the previous SDK list let an unlist
 import through. A new pure library must be added to `APPLICATION_PKGS`.
 Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:47`, rule at `:76`.
 
+### 2026-09-18 — Batched upsert in Drizzle: `excluded.<column>` and one row per key
+`onConflictDoUpdate` with `set` values written as the sql template `excluded.title` updates each row from its own
+VALUES tuple. Postgres rejects a batch that hits the same conflict key twice ("cannot affect row a
+second time"), so dedupe by the key first — GitHub's paginated PR list can repeat a PR.
+Where: `src/modules/pulls/repository.ts:50`.
+
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — Local dev DB is ahead of this branch's migrations
@@ -141,6 +170,15 @@ The flip side: a late SSE subscriber to a run the bus forgot would wait forever,
 bus → the stream closes at once (the persisted trace has the log). Tests inject a fresh bus via
 `ContainerOverrides.runBus`.
 Where: `src/platform/sse.ts:90`, `src/modules/reviews/service.ts:80`.
+
+### 2026-09-18 — Reconciling a new migration with the ahead-of-branch local DB
+The local volume already had several objects of `0011_low_stark_industries` with identical definitions
+(`findings_review_idx`, `agent_runs_status_ck`, …) from the integration branch, and `db:migrate` runs
+a file in one transaction, so the first "already exists" rolls it all back. What worked: feed the
+file to `psql -v ON_ERROR_ROLLBACK=on` (savepoint per statement) inside BEGIN/COMMIT together with
+the `__drizzle_migrations` insert (hash = `shasum -a 256`, created_at = journal `when`), after checking
+that every "already exists" object has the same definition. `pnpm db:migrate` is then a no-op.
+Where: `src/db/migrations/0011_low_stark_industries.sql:1`.
 
 
 ## Open Questions
@@ -190,3 +228,9 @@ Repo URL hardening, job rejection fix, `API_HOST` (default `localhost`) and Post
 `127.0.0.1`, 5xx messages hidden outside development, test-connection saves a key only after it
 passes, SSE 404 + RunBus retention. Plan: `~/.claude/plans/sunny-squishing-token.md`.
 Where: `src/server.ts:29`.
+
+### 2026-09-18 — Phase 2 of the skills audit (data integrity)
+Indexes/CHECKs/FKs (migration 0011), transactions (agents, PR refresh, repo-intel replace*), batched
+PR/settings upserts and agent-name lookup, JobRunner abort + per-repo serialisation + shutdown, git
+token via header, GitHub errors → AppError, workspace scoping for runs/skills/repo-intel.
+Where: `src/platform/jobs.ts:1`.

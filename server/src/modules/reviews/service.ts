@@ -94,10 +94,13 @@ export class ReviewService {
    * so cancel also works for ORPHANED runs (whose background process died on a
    * server restart) where signalling alone would do nothing.
    */
-  async cancelRun(runId: string): Promise<void> {
+  async cancelRun(workspaceId: string, runId: string): Promise<void> {
+    // Unknown (or other workspace's) run → 404, before touching the bus.
+    const status = await this.repo.runStatus(workspaceId, runId);
+    if (status === undefined) throw new NotFoundError('Run not found');
     this.publish(runId, 'info', 'Cancellation requested — stopping…');
     this.container.runBus.cancel(runId);
-    await this.repo.cancelRunIfRunning(runId);
+    await this.repo.cancelRunIfRunning(workspaceId, runId);
     this.container.runBus.complete(runId);
   }
 
@@ -176,19 +179,14 @@ export class ReviewService {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const rows = await this.repo.reviewsForPull(prId);
-    const names = new Map<string, string>();
-    for (const { review } of rows) {
-      if (review.agentId && !names.has(review.agentId)) {
-        const a = await this.agents.getById(workspaceId, review.agentId);
-        if (a) names.set(review.agentId, a.name);
-      }
-    }
+    const agentIds = [...new Set(rows.flatMap(({ review }) => review.agentId ?? []))];
+    const names = await this.agents.namesByIds(workspaceId, agentIds);
     return rows.map(({ review, findings, batchId }) =>
       reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null, batchId),
     );
   }
 
-  async getRunTrace(runId: string): Promise<RunTrace | undefined> {
-    return this.repo.getRunTrace(runId);
+  async getRunTrace(workspaceId: string, runId: string): Promise<RunTrace | undefined> {
+    return this.repo.getRunTrace(workspaceId, runId);
   }
 }

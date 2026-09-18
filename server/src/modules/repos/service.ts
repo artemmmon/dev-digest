@@ -2,11 +2,11 @@ import type { Container } from '../../platform/container.js';
 import { type Repo } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
 import { RepoRepository } from './repository.js';
-import { parseRepoUrl, githubCloneUrl, withGitHubToken, toRepoDto } from './helpers.js';
+import { parseRepoUrl, githubCloneUrl, toRepoDto } from './helpers.js';
+import { repoJobKey } from '../_shared/jobs.js';
 import {
   CLONE_JOB_KIND,
   CLONE_DEPTH,
-  GITHUB_TOKEN_SECRET,
 } from './constants.js';
 import {
   INDEX_JOB_KIND,
@@ -43,20 +43,25 @@ export class RepoService {
    * then persists the resulting path + last_polled_at.
    */
   registerCloneJobHandler(): void {
-    this.container.jobs.register(CLONE_JOB_KIND, async (payload) => {
-      await this.runCloneJob(payload as CloneJobPayload);
-    });
+    this.container.jobs.register(
+      CLONE_JOB_KIND,
+      async (payload, { signal }) => {
+        await this.runCloneJob(payload as CloneJobPayload, signal);
+      },
+      // one git operation per clone directory at a time (clone vs refresh vs index)
+      { serializeBy: repoJobKey },
+    );
   }
 
-  async runCloneJob(payload: CloneJobPayload): Promise<void> {
+  async runCloneJob(payload: CloneJobPayload, signal?: AbortSignal): Promise<void> {
     const { repoId, owner, name } = payload;
     // Rebuild from owner/name instead of trusting `payload.url`: jobs queued
-    // before the URL check existed may still carry a raw user URL.
+    // before the URL check existed may still carry a raw user URL. The git
+    // adapter adds the GitHub token itself (per command, never stored).
     const url = githubCloneUrl(owner, name);
-    const token = await this.container.secrets.get(GITHUB_TOKEN_SECRET);
-    const cloneUrl = token ? withGitHubToken(url, token) : url;
-    const { path } = await this.container.git.clone({ owner, name }, cloneUrl, {
+    const { path } = await this.container.git.clone({ owner, name }, url, {
       depth: CLONE_DEPTH,
+      signal,
     });
     await this.repo.updateClonePath(repoId, path);
 

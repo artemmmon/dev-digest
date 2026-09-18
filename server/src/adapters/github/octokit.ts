@@ -13,8 +13,28 @@ import type {
   IssueMeta,
 } from '@devdigest/shared';
 import { withRetry, withTimeout } from '../../platform/resilience.js';
+import { AppError, ExternalServiceError } from '../../platform/errors.js';
 
 const TIMEOUT = 30_000;
+
+/**
+ * Octokit/network failure → AppError. GitHub's own message is kept (it says
+ * what is wrong: "Bad credentials", "line must be part of the diff"); the
+ * status decides the code, and anything upstream-side becomes a 502.
+ */
+function toAppError(what: string, err: unknown): AppError {
+  if (err instanceof AppError) return err;
+  const status = (err as { status?: unknown }).status;
+  const reason = err instanceof Error ? err.message : String(err);
+  const message = `GitHub couldn't ${what}: ${reason}`;
+  const details = typeof status === 'number' ? { status } : undefined;
+  if (status === 404) return new AppError('github_not_found', message, 404, details);
+  if (status === 422) return new AppError('github_rejected', message, 422, details);
+  if (status === 401 || status === 403) {
+    return new AppError('github_auth_failed', message, 502, details);
+  }
+  return new ExternalServiceError(message, details);
+}
 
 function mapStatus(state: string, merged: boolean | undefined): PrStatus {
   if (merged) return 'merged';
@@ -33,94 +53,97 @@ export class OctokitGitHubClient implements GitHubClient {
     this.octokit = new Octokit({ auth: token });
   }
 
+  /**
+   * Every REST call goes through here: timeout, retry on 429/5xx (on the raw
+   * Octokit error, so the status is still visible), then translation into an
+   * AppError — Octokit's RequestError never leaves this adapter.
+   */
+  private async call<T>(what: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await withRetry(() => withTimeout(fn(), TIMEOUT));
+    } catch (err) {
+      throw toAppError(what, err);
+    }
+  }
+
   async listPullRequests(repo: RepoRef): Promise<PrMeta[]> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          // Fetch open + recently merged/closed (most-recently-updated first) so
-          // the list shows which PRs are merged vs still open — not just open.
-          const res = await this.octokit.rest.pulls.list({
-            owner: repo.owner,
-            repo: repo.name,
-            state: 'all',
-            sort: 'updated',
-            direction: 'desc',
-            per_page: 50,
-          });
-          return res.data.map((pr) => ({
-            number: pr.number,
-            title: pr.title,
-            author: pr.user?.login ?? 'unknown',
-            branch: pr.head.ref,
-            base: pr.base.ref,
-            head_sha: pr.head.sha,
-            additions: 0,
-            deletions: 0,
-            files_count: 0, // not present on the list payload; populated by getPullRequest
-            status: mapStatus(pr.state, Boolean(pr.merged_at)) as PrStatus,
-            opened_at: pr.created_at,
-            updated_at: pr.updated_at,
-          }));
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('list pull requests', async () => {
+      // Fetch open + recently merged/closed (most-recently-updated first) so
+      // the list shows which PRs are merged vs still open — not just open.
+      const res = await this.octokit.rest.pulls.list({
+        owner: repo.owner,
+        repo: repo.name,
+        state: 'all',
+        sort: 'updated',
+        direction: 'desc',
+        per_page: 50,
+      });
+      return res.data.map((pr) => ({
+        number: pr.number,
+        title: pr.title,
+        author: pr.user?.login ?? 'unknown',
+        branch: pr.head.ref,
+        base: pr.base.ref,
+        head_sha: pr.head.sha,
+        additions: 0,
+        deletions: 0,
+        files_count: 0, // not present on the list payload; populated by getPullRequest
+        status: mapStatus(pr.state, Boolean(pr.merged_at)) as PrStatus,
+        opened_at: pr.created_at,
+        updated_at: pr.updated_at,
+      }));
+    });
   }
 
   async getPullRequest(repo: RepoRef, n: number): Promise<PrDetail> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          const { data: pr } = await this.octokit.rest.pulls.get({
-            owner: repo.owner,
-            repo: repo.name,
-            pull_number: n,
-          });
-          const { data: files } = await this.octokit.rest.pulls.listFiles({
-            owner: repo.owner,
-            repo: repo.name,
-            pull_number: n,
-            per_page: 100,
-          });
-          const { data: commits } = await this.octokit.rest.pulls.listCommits({
-            owner: repo.owner,
-            repo: repo.name,
-            pull_number: n,
-            per_page: 100,
-          });
-          const linkedIssue = await this.resolveLinkedIssue(repo, pr.body ?? '');
-          return {
-            number: pr.number,
-            title: pr.title,
-            author: pr.user?.login ?? 'unknown',
-            branch: pr.head.ref,
-            base: pr.base.ref,
-            head_sha: pr.head.sha,
-            additions: pr.additions,
-            deletions: pr.deletions,
-            files_count: pr.changed_files,
-            status: mapStatus(pr.state, Boolean(pr.merged_at)) as PrStatus,
-            opened_at: pr.created_at,
-            updated_at: pr.updated_at,
-            body: pr.body,
-            files: files.map((f) => ({
-              path: f.filename,
-              additions: f.additions,
-              deletions: f.deletions,
-              patch: f.patch,
-            })),
-            commits: commits.map((c) => ({
-              sha: c.sha,
-              message: c.commit.message,
-              author: c.commit.author?.name ?? c.author?.login ?? 'unknown',
-              committed_at: c.commit.author?.date,
-            })),
-            linked_issue: linkedIssue,
-          };
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('load the pull request', async () => {
+      const { data: pr } = await this.octokit.rest.pulls.get({
+        owner: repo.owner,
+        repo: repo.name,
+        pull_number: n,
+      });
+      const { data: files } = await this.octokit.rest.pulls.listFiles({
+        owner: repo.owner,
+        repo: repo.name,
+        pull_number: n,
+        per_page: 100,
+      });
+      const { data: commits } = await this.octokit.rest.pulls.listCommits({
+        owner: repo.owner,
+        repo: repo.name,
+        pull_number: n,
+        per_page: 100,
+      });
+      const linkedIssue = await this.resolveLinkedIssue(repo, pr.body ?? '');
+      return {
+        number: pr.number,
+        title: pr.title,
+        author: pr.user?.login ?? 'unknown',
+        branch: pr.head.ref,
+        base: pr.base.ref,
+        head_sha: pr.head.sha,
+        additions: pr.additions,
+        deletions: pr.deletions,
+        files_count: pr.changed_files,
+        status: mapStatus(pr.state, Boolean(pr.merged_at)) as PrStatus,
+        opened_at: pr.created_at,
+        updated_at: pr.updated_at,
+        body: pr.body,
+        files: files.map((f) => ({
+          path: f.filename,
+          additions: f.additions,
+          deletions: f.deletions,
+          patch: f.patch,
+        })),
+        commits: commits.map((c) => ({
+          sha: c.sha,
+          message: c.commit.message,
+          author: c.commit.author?.name ?? c.author?.login ?? 'unknown',
+          committed_at: c.commit.author?.date,
+        })),
+        linked_issue: linkedIssue,
+      };
+    });
   }
 
   /** linked issue via regex on PR body (#123 / closes #123). */
@@ -139,26 +162,21 @@ export class OctokitGitHubClient implements GitHubClient {
     n: number,
     review: GitHubReviewPayload,
   ): Promise<{ id: string }> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          const res = await this.octokit.rest.pulls.createReview({
-            owner: repo.owner,
-            repo: repo.name,
-            pull_number: n,
-            body: review.body,
-            event: review.event,
-            comments: review.comments?.map((c) => ({
-              path: c.path,
-              line: c.line,
-              body: c.body,
-            })),
-          });
-          return { id: String(res.data.id) };
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('post the review', async () => {
+      const res = await this.octokit.rest.pulls.createReview({
+        owner: repo.owner,
+        repo: repo.name,
+        pull_number: n,
+        body: review.body,
+        event: review.event,
+        comments: review.comments?.map((c) => ({
+          path: c.path,
+          line: c.line,
+          body: c.body,
+        })),
+      });
+      return { id: String(res.data.id) };
+    });
   }
 
   /** Shape an Octokit review-comment payload into our DTO. */
@@ -191,20 +209,15 @@ export class OctokitGitHubClient implements GitHubClient {
   }
 
   async listReviewComments(repo: RepoRef, n: number): Promise<PrReviewComment[]> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          const res = await this.octokit.rest.pulls.listReviewComments({
-            owner: repo.owner,
-            repo: repo.name,
-            pull_number: n,
-            per_page: 100,
-          });
-          return res.data.map((c) => this.mapReviewComment(c));
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('list review comments', async () => {
+      const res = await this.octokit.rest.pulls.listReviewComments({
+        owner: repo.owner,
+        repo: repo.name,
+        pull_number: n,
+        per_page: 100,
+      });
+      return res.data.map((c) => this.mapReviewComment(c));
+    });
   }
 
   async createReviewComment(
@@ -212,148 +225,125 @@ export class OctokitGitHubClient implements GitHubClient {
     n: number,
     input: CreateReviewCommentInput,
   ): Promise<PrReviewComment> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          if (input.inReplyTo != null) {
-            const res = await this.octokit.rest.pulls.createReplyForReviewComment({
-              owner: repo.owner,
-              repo: repo.name,
-              pull_number: n,
-              comment_id: input.inReplyTo,
-              body: input.body,
-            });
-            return this.mapReviewComment(res.data);
-          }
-          const res = await this.octokit.rest.pulls.createReviewComment({
-            owner: repo.owner,
-            repo: repo.name,
-            pull_number: n,
-            commit_id: input.commitId,
-            path: input.path,
-            line: input.line,
-            side: input.side ?? 'RIGHT',
-            body: input.body,
-          });
-          return this.mapReviewComment(res.data);
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('post the comment', async () => {
+      if (input.inReplyTo != null) {
+        const res = await this.octokit.rest.pulls.createReplyForReviewComment({
+          owner: repo.owner,
+          repo: repo.name,
+          pull_number: n,
+          comment_id: input.inReplyTo,
+          body: input.body,
+        });
+        return this.mapReviewComment(res.data);
+      }
+      const res = await this.octokit.rest.pulls.createReviewComment({
+        owner: repo.owner,
+        repo: repo.name,
+        pull_number: n,
+        commit_id: input.commitId,
+        path: input.path,
+        line: input.line,
+        side: input.side ?? 'RIGHT',
+        body: input.body,
+      });
+      return this.mapReviewComment(res.data);
+    });
   }
 
   async openPullRequest(repo: RepoRef, payload: OpenPrPayload): Promise<{ url: string }> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          const res = await this.octokit.rest.pulls.create({
-            owner: repo.owner,
-            repo: repo.name,
-            title: payload.title,
-            head: payload.head,
-            base: payload.base,
-            body: payload.body,
-          });
-          return { url: res.data.html_url };
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('open the pull request', async () => {
+      const res = await this.octokit.rest.pulls.create({
+        owner: repo.owner,
+        repo: repo.name,
+        title: payload.title,
+        head: payload.head,
+        base: payload.base,
+        body: payload.body,
+      });
+      return { url: res.data.html_url };
+    });
   }
 
   async commitFiles(
     repo: RepoRef,
     payload: CommitFilesPayload,
   ): Promise<{ branch: string }> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          const owner = repo.owner;
-          const name = repo.name;
-          const g = this.octokit.rest.git;
+    return this.call('commit files', async () => {
+      const owner = repo.owner;
+      const name = repo.name;
+      const g = this.octokit.rest.git;
 
-          // Parent commit: the target branch if it already exists, else the base.
-          let parentSha: string;
-          let branchExists = false;
-          try {
-            const ref = await g.getRef({ owner, repo: name, ref: `heads/${payload.branch}` });
-            parentSha = ref.data.object.sha;
-            branchExists = true;
-          } catch {
-            const baseRef = await g.getRef({ owner, repo: name, ref: `heads/${payload.base}` });
-            parentSha = baseRef.data.object.sha;
-          }
+      // Parent commit: the target branch if it already exists, else the base.
+      let parentSha: string;
+      let branchExists = false;
+      try {
+        const ref = await g.getRef({ owner, repo: name, ref: `heads/${payload.branch}` });
+        parentSha = ref.data.object.sha;
+        branchExists = true;
+      } catch {
+        const baseRef = await g.getRef({ owner, repo: name, ref: `heads/${payload.base}` });
+        parentSha = baseRef.data.object.sha;
+      }
 
-          // New tree layered on the parent's tree (so unrelated files are kept).
-          const parentCommit = await g.getCommit({ owner, repo: name, commit_sha: parentSha });
-          const tree = await g.createTree({
-            owner,
-            repo: name,
-            base_tree: parentCommit.data.tree.sha,
-            tree: payload.files.map((f) => ({
-              path: f.path,
-              mode: '100644',
-              type: 'blob',
-              content: f.contents,
-            })),
-          });
+      // New tree layered on the parent's tree (so unrelated files are kept).
+      const parentCommit = await g.getCommit({ owner, repo: name, commit_sha: parentSha });
+      const tree = await g.createTree({
+        owner,
+        repo: name,
+        base_tree: parentCommit.data.tree.sha,
+        tree: payload.files.map((f) => ({
+          path: f.path,
+          mode: '100644',
+          type: 'blob',
+          content: f.contents,
+        })),
+      });
 
-          const commit = await g.createCommit({
-            owner,
-            repo: name,
-            message: payload.message,
-            tree: tree.data.sha,
-            parents: [parentSha],
-          });
+      const commit = await g.createCommit({
+        owner,
+        repo: name,
+        message: payload.message,
+        tree: tree.data.sha,
+        parents: [parentSha],
+      });
 
-          if (branchExists) {
-            await g.updateRef({
-              owner,
-              repo: name,
-              ref: `heads/${payload.branch}`,
-              sha: commit.data.sha,
-              force: true,
-            });
-          } else {
-            await g.createRef({
-              owner,
-              repo: name,
-              ref: `refs/heads/${payload.branch}`,
-              sha: commit.data.sha,
-            });
-          }
-          return { branch: payload.branch };
-        })(),
-        TIMEOUT,
-      ),
-    );
+      if (branchExists) {
+        await g.updateRef({
+          owner,
+          repo: name,
+          ref: `heads/${payload.branch}`,
+          sha: commit.data.sha,
+          force: true,
+        });
+      } else {
+        await g.createRef({
+          owner,
+          repo: name,
+          ref: `refs/heads/${payload.branch}`,
+          sha: commit.data.sha,
+        });
+      }
+      return { branch: payload.branch };
+    });
   }
 
   async findOpenPr(repo: RepoRef, branch: string): Promise<{ url: string } | null> {
-    return withRetry(() =>
-      withTimeout(
-        (async () => {
-          const res = await this.octokit.rest.pulls.list({
-            owner: repo.owner,
-            repo: repo.name,
-            state: 'open',
-            head: `${repo.owner}:${branch}`,
-            per_page: 1,
-          });
-          const pr = res.data[0];
-          return pr ? { url: pr.html_url } : null;
-        })(),
-        TIMEOUT,
-      ),
-    );
+    return this.call('find the open pull request', async () => {
+      const res = await this.octokit.rest.pulls.list({
+        owner: repo.owner,
+        repo: repo.name,
+        state: 'open',
+        head: `${repo.owner}:${branch}`,
+        per_page: 1,
+      });
+      const pr = res.data[0];
+      return pr ? { url: pr.html_url } : null;
+    });
   }
 
   async getIssue(repo: RepoRef, n: number): Promise<IssueMeta> {
-    const res = await withRetry(() =>
-      withTimeout(
-        this.octokit.rest.issues.get({ owner: repo.owner, repo: repo.name, issue_number: n }),
-        TIMEOUT,
-      ),
+    const res = await this.call('load the issue', () =>
+      this.octokit.rest.issues.get({ owner: repo.owner, repo: repo.name, issue_number: n }),
     );
     return {
       number: res.data.number,
@@ -364,9 +354,7 @@ export class OctokitGitHubClient implements GitHubClient {
   }
 
   async currentLogin(): Promise<string> {
-    const res = await withRetry(() =>
-      withTimeout(this.octokit.rest.users.getAuthenticated(), TIMEOUT),
-    );
+    const res = await this.call('check the token', () => this.octokit.rest.users.getAuthenticated());
     return res.data.login;
   }
 }

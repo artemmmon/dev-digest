@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   SettingsUpdate,
   ConnTestRequest,
@@ -48,21 +48,22 @@ export default async function settingsRoutes(appBase: FastifyInstance) {
 
   app.put('/settings', { schema: { body: SettingsUpdate } }, async (req) => {
     const { workspaceId, userId } = await getContext(container, req);
-    const body = req.body;
-    for (const [key, value] of Object.entries(body)) {
+    const rows = Object.entries(req.body).map(([key, value]) => ({ workspaceId, userId, key, value }));
+    // One statement for all keys: either every pref is saved or none is.
+    if (rows.length > 0) {
       await container.db
         .insert(t.settings)
-        .values({ workspaceId, userId, key, value })
+        .values(rows)
         .onConflictDoUpdate({
           target: [t.settings.workspaceId, t.settings.userId, t.settings.key],
-          set: { value },
+          set: { value: sql`excluded.value` },
         });
     }
-    const rows = await container.db
+    const saved = await container.db
       .select()
       .from(t.settings)
       .where(eq(t.settings.workspaceId, workspaceId));
-    return rowsToSettings(rows);
+    return rowsToSettings(saved);
   });
 
   app.post(

@@ -177,8 +177,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     await app.register(plugin);
   }
 
-  // Close the db handle we created on shutdown.
-  if (handle) app.addHook('onClose', async () => handle.close());
+  // One hook, so the order is fixed: stop background jobs (they still write to
+  // the DB while failing) and only then close the db handle we created.
+  app.addHook('onClose', async () => {
+    await container.jobs.shutdown();
+    if (handle) await handle.close();
+  });
 
   return app;
 }

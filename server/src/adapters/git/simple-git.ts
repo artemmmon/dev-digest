@@ -20,12 +20,23 @@ import { ValidationError } from '../../platform/errors.js';
  */
 const RESYNC_FETCH_DEPTH = 50;
 
+/** Username GitHub expects with a PAT over https basic auth. */
+const GIT_TOKEN_USERNAME = 'x-access-token';
+
 /**
  * GitClient over simple-git. Repos clone to
  * `<cloneDir>/<owner>/<repo>`. We NEVER execute repo code — only git ops.
+ *
+ * Auth: when `getToken` yields a GitHub PAT, every network op (clone, fetch)
+ * sends it as an `http.extraheader` passed with `-c` for that one command. It is
+ * never written into the clone's `.git/config` — a token in the remote URL
+ * outlives a key rotation and leaks into git's error messages.
  */
 export class SimpleGitClient implements GitClient {
-  constructor(private cloneDir: string) {
+  constructor(
+    private cloneDir: string,
+    private getToken: () => Promise<string | undefined> = async () => undefined,
+  ) {
     // Force non-interactive auth so an unauthenticated/private clone fails in
     // ~1s with a clear error instead of hanging on a credential prompt until the
     // job timeout. Set on process.env (inherited by git subprocesses) rather
@@ -43,6 +54,46 @@ export class SimpleGitClient implements GitClient {
     return simpleGit(this.clonePathFor(repo));
   }
 
+  /** A client for a command that talks to the remote: auth header + abort. */
+  private async networkGit(
+    baseDir: string,
+    signal?: AbortSignal,
+  ): Promise<{ git: SimpleGit; token: string | undefined }> {
+    const token = await this.getToken();
+    const basic = token && Buffer.from(`${GIT_TOKEN_USERNAME}:${token}`).toString('base64');
+    const git = simpleGit({
+      baseDir,
+      config: basic ? [`http.https://github.com/.extraheader=AUTHORIZATION: basic ${basic}`] : [],
+      ...(signal ? { abort: signal } : {}),
+    });
+    return { git, token };
+  }
+
+  /**
+   * Run a network op; strip the token from any error it throws (git echoes URLs,
+   * and clones made before header auth still carry the token in `origin`).
+   */
+  private async remote<T>(
+    baseDir: string,
+    signal: AbortSignal | undefined,
+    op: (git: SimpleGit) => Promise<T>,
+  ): Promise<T> {
+    const { git, token } = await this.networkGit(baseDir, signal);
+    try {
+      return await op(git);
+    } catch (err) {
+      throw redactToken(err, token);
+    }
+  }
+
+  /** Drop credentials an older clone stored in its `origin` URL (pre header auth). */
+  private async scrubOrigin(dir: string): Promise<void> {
+    const g = simpleGit(dir);
+    const current = (await g.remote(['get-url', 'origin']))?.trim();
+    const clean = current && withoutCredentials(current);
+    if (clean && clean !== current) await g.remote(['set-url', 'origin', clean]);
+  }
+
   private async exists(path: string): Promise<boolean> {
     try {
       await access(path, constants.F_OK);
@@ -57,7 +108,8 @@ export class SimpleGitClient implements GitClient {
     await mkdir(dirname(dest), { recursive: true });
     if (await this.exists(join(dest, '.git'))) {
       // already cloned → fetch latest
-      await simpleGit(dest).fetch();
+      await this.scrubOrigin(dest);
+      await this.remote(dest, opts?.signal, (g) => g.fetch());
       return { path: dest };
     }
     // A prior clone may have timed out mid-write, leaving a partial dir without
@@ -66,13 +118,17 @@ export class SimpleGitClient implements GitClient {
     const args: string[] = [];
     if (opts?.depth) args.push('--depth', String(opts.depth));
     if (opts?.branch) args.push('--branch', opts.branch);
-    await simpleGit(this.cloneDir).clone(url, dest, args);
+    await this.remote(this.cloneDir, opts?.signal, (g) =>
+      g.clone(withoutCredentials(url), dest, args),
+    );
     return { path: dest };
   }
 
   async fetchPullHead(repo: RepoRef, n: number): Promise<void> {
     // Fetch the PR head ref into a local ref (GitHub exposes pull/<n>/head).
-    await this.git(repo).fetch(['origin', `pull/${n}/head:pr-${n}`]);
+    const dir = this.clonePathFor(repo);
+    await this.scrubOrigin(dir);
+    await this.remote(dir, undefined, (g) => g.fetch(['origin', `pull/${n}/head:pr-${n}`]));
   }
 
   async sync(repo: RepoRef, branch: string): Promise<{ head: string }> {
@@ -82,8 +138,12 @@ export class SimpleGitClient implements GitClient {
     // Fetch a bounded depth (> the shallow CLONE_DEPTH) so the prior indexed sha
     // is usually reachable for an incremental diff; the indexer falls back to a
     // full reindex when it isn't.
+    const dir = this.clonePathFor(repo);
+    await this.scrubOrigin(dir);
+    await this.remote(dir, undefined, (g) =>
+      g.fetch(['origin', branch, '--depth', String(RESYNC_FETCH_DEPTH)]),
+    );
     const g = this.git(repo);
-    await g.fetch(['origin', branch, '--depth', String(RESYNC_FETCH_DEPTH)]);
     await g.reset(['--hard', `origin/${branch}`]);
     return { head: (await g.revparse(['HEAD'])).trim() };
   }
@@ -130,6 +190,30 @@ export class SimpleGitClient implements GitClient {
   async readFile(repo: RepoRef, path: string): Promise<string> {
     return readFile(insideDir(this.clonePathFor(repo), path), 'utf8');
   }
+}
+
+/** `url` without any `user:password@` part (non-URL forms such as scp-style ssh pass through). */
+function withoutCredentials(url: string): string {
+  try {
+    const u = new URL(url);
+    if (!u.username && !u.password) return url;
+    u.username = '';
+    u.password = '';
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** Replace the token (raw and inside a basic-auth header) in an error's message. */
+function redactToken(err: unknown, token: string | undefined): unknown {
+  if (!token || !(err instanceof Error)) return err;
+  const basic = Buffer.from(`${GIT_TOKEN_USERNAME}:${token}`).toString('base64');
+  const message = err.message.replaceAll(token, '***').replaceAll(basic, '***');
+  if (message === err.message) return err;
+  const clean = new Error(message);
+  clean.name = err.name;
+  return clean;
 }
 
 /**

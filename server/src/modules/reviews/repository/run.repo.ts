@@ -69,20 +69,15 @@ export async function listRunsForPull(
 }
 
 /**
- * Delete one agent run (+ its trace via FK cascade) AND the review it produced.
- * Workspace-scoped. `reviews.run_id` has no FK to `agent_runs`, so the review
- * (and its findings, which DO cascade from `reviews`) must be removed explicitly
- * here — otherwise deleting a run from the timeline leaves its findings orphaned
- * in the Review Runs list below.
+ * Delete one agent run. Workspace-scoped. FK cascades take its trace and the
+ * review it produced (`reviews.run_id`), and through the review its findings —
+ * one statement, so the timeline and the Review Runs list can't disagree.
  */
 export async function deleteAgentRun(
   db: Db,
   workspaceId: string,
   runId: string,
 ): Promise<boolean> {
-  await db
-    .delete(t.reviews)
-    .where(and(eq(t.reviews.runId, runId), eq(t.reviews.workspaceId, workspaceId)));
   const rows = await db
     .delete(t.agentRuns)
     .where(and(eq(t.agentRuns.id, runId), eq(t.agentRuns.workspaceId, workspaceId)))
@@ -104,11 +99,21 @@ export async function runStatus(
 }
 
 /** Mark a still-running run as cancelled (no-op if it already finished). */
-export async function cancelRunIfRunning(db: Db, runId: string): Promise<boolean> {
+export async function cancelRunIfRunning(
+  db: Db,
+  workspaceId: string,
+  runId: string,
+): Promise<boolean> {
   const rows = await db
     .update(t.agentRuns)
     .set({ status: 'cancelled' })
-    .where(and(eq(t.agentRuns.id, runId), eq(t.agentRuns.status, 'running')))
+    .where(
+      and(
+        eq(t.agentRuns.id, runId),
+        eq(t.agentRuns.workspaceId, workspaceId),
+        eq(t.agentRuns.status, 'running'),
+      ),
+    )
     .returning({ id: t.agentRuns.id });
   return rows.length > 0;
 }
@@ -200,7 +205,15 @@ export async function saveRunTrace(db: Db, runId: string, trace: RunTrace): Prom
     .onConflictDoUpdate({ target: t.runTraces.runId, set: { trace } });
 }
 
-export async function getRunTrace(db: Db, runId: string): Promise<RunTrace | undefined> {
-  const [row] = await db.select().from(t.runTraces).where(eq(t.runTraces.runId, runId));
+export async function getRunTrace(
+  db: Db,
+  workspaceId: string,
+  runId: string,
+): Promise<RunTrace | undefined> {
+  const [row] = await db
+    .select({ trace: t.runTraces.trace })
+    .from(t.runTraces)
+    .innerJoin(t.agentRuns, eq(t.agentRuns.id, t.runTraces.runId))
+    .where(and(eq(t.runTraces.runId, runId), eq(t.agentRuns.workspaceId, workspaceId)));
   return row ? (row.trace as RunTrace) : undefined;
 }

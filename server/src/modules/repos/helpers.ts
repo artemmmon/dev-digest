@@ -3,7 +3,6 @@ import type * as t from '../../db/schema.js';
 import { AppError } from '../../platform/errors.js';
 import {
   GITHUB_URL_REGEX,
-  GIT_TOKEN_USERNAME,
   GITHUB_HTTPS_HOST,
 } from './constants.js';
 
@@ -30,24 +29,6 @@ export function parseRepoUrl(url: string): { owner: string; name: string } {
  */
 export function githubCloneUrl(owner: string, name: string): string {
   return `https://${GITHUB_HTTPS_HOST}/${owner}/${name}.git`;
-}
-
-/**
- * Embed a token into an https github.com URL so private clones authenticate
- * non-interactively. SSH/non-GitHub URLs are left untouched.
- */
-export function withGitHubToken(url: string, token: string): string {
-  try {
-    const u = new URL(url);
-    if (u.protocol === 'https:' && u.hostname === GITHUB_HTTPS_HOST) {
-      u.username = GIT_TOKEN_USERNAME;
-      u.password = token;
-      return u.toString();
-    }
-  } catch {
-    /* non-URL (e.g. git@github.com:...) — leave as-is */
-  }
-  return url;
 }
 
 /** Map a persisted repo row to the API `Repo` DTO. */
