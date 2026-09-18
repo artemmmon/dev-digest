@@ -99,20 +99,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/modules/settings/feature-models.ts",
-    "to": "node_modules/.pnpm/drizzle-orm@0.38.4_postgres@3.4.9/node_modules/drizzle-orm/index.cjs",
-    "unresolvedTo": "drizzle-orm",
-    "dependencyTypes": [
-      "npm",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-allowed-packages"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/modules/repo-intel/pipeline/full.ts",
     "to": "src/adapters/astgrep/index.ts",
     "unresolvedTo": "../../../adapters/astgrep/index.js",
@@ -292,20 +278,6 @@
     "dependencyTypes": [
       "local",
       "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-no-outer-ring"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/settings/feature-models.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
       "import"
     ],
     "rule": {
@@ -512,62 +484,6 @@
     "rule": {
       "severity": "error",
       "name": "no-cross-module-internals"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/settings/routes.ts",
-    "to": "node_modules/.pnpm/drizzle-orm@0.38.4_postgres@3.4.9/node_modules/drizzle-orm/index.cjs",
-    "unresolvedTo": "drizzle-orm",
-    "dependencyTypes": [
-      "npm",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-persistence"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/settings/routes.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-persistence"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/workspace/routes.ts",
-    "to": "node_modules/.pnpm/drizzle-orm@0.38.4_postgres@3.4.9/node_modules/drizzle-orm/index.cjs",
-    "unresolvedTo": "drizzle-orm",
-    "dependencyTypes": [
-      "npm",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-persistence"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/workspace/routes.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-persistence"
     }
   },
   {

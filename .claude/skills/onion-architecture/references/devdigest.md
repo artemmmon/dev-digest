@@ -72,13 +72,13 @@ Copy its style; never let it import `server/src` except via `@devdigest/shared`.
 
 ## 5. Known debt (baseline: `assets/known-violations.json`)
 
-Do not copy these patterns. The Check in `SKILL.md` ignores exactly these, so any new
+Do not copy these patterns. Worked examples of the target shape: `modules/pulls/` and
+`modules/settings/` (ports → repository → service → thin routes). The Check in `SKILL.md` ignores exactly these, so any new
 violation fails. When you touch one of these files, move it inward:
 
 | Where | Violation | Fix direction |
 |---|---|---|
-| `modules/{settings,workspace}/routes.ts` | Drizzle + `db/schema` in the handler | extract `service.ts` + `repository.ts` — `modules/pulls/` is the worked example (ports → repository → service → thin routes) |
-| `modules/settings/feature-models.ts` | queries the DB from a helper | move query to a repository |
+| `modules/settings/feature-models.ts` | takes the whole `Container` (reads prefs via `container.settingsRepo`) | take a `SettingsStore` port |
 | `reviews/service.ts`, `reviews/run-executor.ts` | `db/rows` (`AgentRow`) / `db/schema` types | map rows to domain types in the repository |
 | `reviews/diff-loader.ts` | `db/schema` + concrete `adapters/git/diff-parser` | diff parsing is pure → move to core/helper, or put behind `GitClient` |
 | `repos/helpers.ts` | `db/schema` types | take domain types |
