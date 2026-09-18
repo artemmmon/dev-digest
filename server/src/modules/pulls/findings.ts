@@ -15,22 +15,8 @@ import { rollupSeverities } from './status.js';
  * newest review alone is the round.
  */
 
-export interface ReviewRow {
-  prId: string;
-  id: string;
-  runId: string | null;
-}
-
-export interface RunRow {
-  prId: string | null;
-  id: string;
-  batchId: string | null;
-}
-
-export interface FindingSeverityRow {
-  reviewId: string;
-  severity: string;
-}
+import type { FindingSeverityRow, ReviewRow, RunRow } from './ports.js';
+export type { FindingSeverityRow, ReviewRow, RunRow };
 
 /**
  * Review ids making up each PR's latest round. Both row sets MUST be newest-first;

@@ -77,7 +77,7 @@ violation fails. When you touch one of these files, move it inward:
 
 | Where | Violation | Fix direction |
 |---|---|---|
-| `modules/{pulls,settings,polling,workspace}/routes.ts` | Drizzle + `db/schema` in the handler; pulls also calls `container.github()` | extract `service.ts` + `repository.ts` (see patterns.md → before/after) |
+| `modules/{settings,workspace}/routes.ts` | Drizzle + `db/schema` in the handler | extract `service.ts` + `repository.ts` — `modules/pulls/` is the worked example (ports → repository → service → thin routes) |
 | `modules/settings/feature-models.ts` | queries the DB from a helper | move query to a repository |
 | `reviews/service.ts`, `reviews/run-executor.ts` | `db/rows` (`AgentRow`) / `db/schema` types | map rows to domain types in the repository |
 | `reviews/diff-loader.ts` | `db/schema` + concrete `adapters/git/diff-parser` | diff parsing is pure → move to core/helper, or put behind `GitClient` |

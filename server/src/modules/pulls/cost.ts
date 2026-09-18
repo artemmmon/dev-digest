@@ -5,11 +5,8 @@
  * The list shows the cost of each PR's LATEST batch: the batch of its newest run.
  */
 
-export interface BatchCostRow {
-  prId: string | null;
-  batchId: string | null;
-  costUsd: number | null;
-}
+import type { BatchCostRow } from './ports.js';
+export type { BatchCostRow };
 
 /**
  * Sum of known `costUsd` in each PR's latest batch. `rows` MUST be newest-first.

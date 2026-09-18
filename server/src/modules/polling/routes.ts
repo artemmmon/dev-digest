@@ -1,10 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { and, eq } from 'drizzle-orm';
-import * as t from '../../db/schema.js';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
-import { NotFoundError } from '../../platform/errors.js';
+import { PullsService } from '../pulls/index.js';
 
 /**
  * F1 — polling module. MANUAL refresh that ONLY syncs the PR list
@@ -16,23 +14,15 @@ import { NotFoundError } from '../../platform/errors.js';
 export default async function pollingRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
+  const pulls = new PullsService({
+    pulls: container.pullsRepo,
+    github: () => container.github(),
+    log: app.log,
+  });
 
   app.post('/repos/:id/poll', { schema: { params: IdParams } }, async (req) => {
     const { workspaceId } = await getContext(container, req);
-    const [repo] = await container.db
-      .select()
-      .from(t.repos)
-      .where(and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.id, req.params.id)));
-    if (!repo) throw new NotFoundError('Repo not found');
-
-    const gh = await container.github();
-    const pulls = await gh.listPullRequests({ owner: repo.owner, name: repo.name });
-    const synced = await container.pullsRepo.upsertFromGitHub(workspaceId, repo.id, pulls);
-    await container.db
-      .update(t.repos)
-      .set({ lastPolledAt: new Date() })
-      .where(eq(t.repos.id, repo.id));
-
+    const { synced } = await pulls.poll(workspaceId, req.params.id);
     // NOTE: no review is triggered here — manual trigger only.
     return { synced, reviewTriggered: false };
   });
