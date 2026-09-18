@@ -1,0 +1,54 @@
+{
+  "name": "Agent editor opens from the agents list",
+  "description": "From /agents, open the seeded Security Reviewer and confirm the editor route loads its Config tab (Configuration section, System prompt field). Exercises the card \u2192 /agents/:id navigation, the useAgent fetch and the AgentEditor Config tab. Read-only: nothing is saved.",
+  "steps": [
+    {
+      "cmd": [
+        "open",
+        "{BASE}/agents"
+      ],
+      "label": "load the agents page"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Security Reviewer"
+      ],
+      "label": "seeded agent card is visible"
+    },
+    {
+      "cmd": [
+        "find",
+        "text",
+        "Security Reviewer",
+        "click"
+      ],
+      "label": "open the agent"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--url",
+        "/agents/"
+      ],
+      "label": "navigate to the editor route"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Configuration"
+      ],
+      "label": "the Config tab renders its section"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "System prompt"
+      ],
+      "label": "the system prompt field renders"
+    }
+  ]
+}

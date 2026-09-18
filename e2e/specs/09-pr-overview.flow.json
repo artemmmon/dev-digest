@@ -1,0 +1,54 @@
+{
+  "name": "PR detail Overview tab shows the description",
+  "description": "Opens PR #482 (default tab: Overview) and confirms the seeded PR description renders under its Description heading. Exercises the tab default from the query string and the OverviewTab. Read-only seeded data.",
+  "steps": [
+    {
+      "cmd": [
+        "open",
+        "{BASE}/"
+      ],
+      "label": "load the app root"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--url",
+        "/pulls"
+      ],
+      "label": "land on the PR list"
+    },
+    {
+      "cmd": [
+        "find",
+        "text",
+        "Add rate limiting to public API endpoints",
+        "click"
+      ],
+      "label": "open the PR row"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--url",
+        "/pulls/482"
+      ],
+      "label": "navigate to the PR detail route"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Description"
+      ],
+      "label": "the Overview tab shows its Description section"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "to prevent abuse from unauthenticated clients"
+      ],
+      "label": "the seeded PR body renders"
+    }
+  ]
+}
