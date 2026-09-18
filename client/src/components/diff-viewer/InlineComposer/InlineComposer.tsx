@@ -42,7 +42,13 @@ export function InlineComposer({
     }
   };
   return (
+    // Keyboard shortcuts for the whole composer (Esc closes, ⌘/Ctrl+Enter posts),
+    // caught as they bubble up from the textarea and buttons inside — delegation,
+    // not a widget of its own, so the group needs no focus or role beyond `group`.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
+      role="group"
+      aria-label={t("diffViewer.composerLabel")}
       style={cs.thread}
       onKeyDown={(e) => {
         if (e.key === "Escape") onClose();

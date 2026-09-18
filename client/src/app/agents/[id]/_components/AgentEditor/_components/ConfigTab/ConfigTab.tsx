@@ -115,6 +115,8 @@ export function ConfigTab({ agent }: { agent: Agent }) {
       </FormField>
       <FormField label={t("config.repoIntel")} hint={t("config.repoIntelHint")}>
         <label style={s.enabledLabel}>
+          {/* the FormField shows the text; this gives the switch its accessible name */}
+          <span className="sr-only">{t("config.repoIntel")}</span>
           <Toggle on={repoIntel} onChange={setRepoIntel} size={16} />
         </label>
       </FormField>

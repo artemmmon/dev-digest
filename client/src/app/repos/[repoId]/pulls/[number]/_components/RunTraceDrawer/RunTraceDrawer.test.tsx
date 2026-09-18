@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import { screen, cleanup } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { RunTrace } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/runs.json"; // apps/web/messages/en/runs.json
+import { renderWithIntl } from "@/test/render";
 
 // Mock the trace hooks so the drawer renders without a query client / SSE.
 const TRACE: RunTrace = {
@@ -30,17 +30,17 @@ import RunTraceDrawer from "./RunTraceDrawer";
 
 afterEach(cleanup);
 
-function renderWithIntl(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ runs: messages }}>
-      <div data-theme="dark">{ui}</div>
-    </NextIntlClientProvider>,
+function renderDrawer() {
+  return renderWithIntl(
+    <div data-theme="dark">
+      <RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />
+    </div>,
   );
 }
 
 describe("A5 Run Trace drawer (smoke)", () => {
   it("renders the trace tabs and stats", () => {
-    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
+    renderDrawer();
     expect(screen.getByText("Configuration")).toBeInTheDocument();
     expect(screen.getByText("Stats")).toBeInTheDocument();
     expect(screen.getByText("2/2 passed")).toBeInTheDocument();
@@ -49,9 +49,10 @@ describe("A5 Run Trace drawer (smoke)", () => {
     expect(screen.getByText("Tool calls")).toBeInTheDocument();
   });
 
-  it("switches to the live log tab", () => {
-    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
-    fireEvent.click(screen.getByText("log"));
+  it("switches to the live log tab", async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByText("log"));
     // LiveLogStream renders its filter input
     expect(screen.getByPlaceholderText("Filter log…")).toBeInTheDocument();
   });

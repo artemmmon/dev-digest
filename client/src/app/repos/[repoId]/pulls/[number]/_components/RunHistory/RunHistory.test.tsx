@@ -5,11 +5,9 @@
  * and shows the review score ring.
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import { screen, cleanup } from "@testing-library/react";
 import type { FindingsBySeverity, RunSummary } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/prReview.json";
-import common from "../../../../../../../../messages/en/common.json";
+import { renderWithIntl } from "@/test/render";
 import { RunHistory } from "./RunHistory";
 
 afterEach(cleanup);
@@ -37,10 +35,8 @@ function run(o: Partial<RunSummary>): RunSummary {
 }
 
 function renderRuns(runs: RunSummary[], severityByRun?: Map<string, FindingsBySeverity>) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview: messages, common }}>
-      <RunHistory runs={runs} severityByRun={severityByRun} onOpenTrace={() => {}} />
-    </NextIntlClientProvider>,
+  return renderWithIntl(
+    <RunHistory runs={runs} severityByRun={severityByRun} onOpenTrace={() => {}} />,
   );
 }
 

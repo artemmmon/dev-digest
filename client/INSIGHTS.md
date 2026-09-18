@@ -47,6 +47,18 @@ or its own `notify.error`) doubles it. Set `meta: { silent: true }` on a mutatio
 the error inline (e.g. `useAddRepo`); otherwise don't toast locally at all.
 Where: `src/lib/providers.tsx:45`.
 
+### 2026-09-18 — jsx-a11y is on, with a per-file baseline for the clickable-div debt
+The three click/keyboard rules are errors except in the files listed under "Known a11y debt", where
+they warn. Fixing a file (real `<button>`/`<Link>`) means deleting it from that list, so the rule
+guards it from then on. Don't add new files to the list.
+Where: `eslint.config.mjs:36`.
+
+### 2026-09-18 — `renderWithIntl` mounts providers, so `container.firstChild` is not the component
+The shared test helper wraps the UI in QueryClient, next-intl (all namespaces) and the toast host,
+which renders its own element. "Renders nothing" assertions must query for the component's
+content (`queryByPlaceholderText`, `queryByRole`), not check `container.firstChild`.
+Where: `src/test/render.tsx:13`.
+
 
 ## Tool & Library Notes
 
@@ -69,6 +81,13 @@ Both write `client/.next`. After a build, the dev server answers every page with
 `Cannot find module './vendor-chunks/…'`. Stop `next dev`, `rm -rf .next`, start it again. To check a
 build while dev runs, don't — or run it from a separate worktree.
 Where: `package.json:7`.
+
+### 2026-09-18 — Local pnpm 12, CI pnpm 10: check the lockfile before pushing
+`pnpm add` here runs pnpm 12 (corepack); CI installs with pnpm 10 `--frozen-lockfile`. Both write
+`lockfileVersion: '9.0'`, but prove it before a push: copy `package.json` + `pnpm-lock.yaml` to a
+temp dir and run `npx pnpm@10 install --frozen-lockfile --lockfile-only`. Running pnpm 10 in
+`client/` itself fails — `node_modules` is linked from pnpm 12's store (v11).
+Where: `pnpm-lock.yaml:1`.
 
 
 ## Recurring Errors & Fixes

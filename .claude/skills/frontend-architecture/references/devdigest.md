@@ -56,7 +56,9 @@ component's own folder; wire-contract fields stay `snake_case`, props and locals
 2. **`export *` barrel in `src/lib/hooks/index.ts`.** The sources warn against aggregator
    barrels [S49][S50]; the per-component `index.ts` files are thin named re-exports and fit
    the middle ground in [boundaries-and-naming.md](boundaries-and-naming.md).
-3. **No boundary linting.** Cross-route imports are not enforced; `eslint-plugin-boundaries`
-   [S48] could encode "routes don't import each other's `_components/`".
+3. **Partial boundary linting.** `no-restricted-imports` in `client/eslint.config.mjs` stops
+   shared code (`components/`, `lib/`, `i18n/`) importing `src/app`. "Routes don't import each
+   other's `_components/`" is not enforced — it needs path resolution (`eslint-plugin-boundaries`
+   [S48]); no violation exists today.
 4. **Client-rendered pages.** Deliberate for now; if server rendering is ever wanted, follow
    the prefetch + `HydrationBoundary` pattern [S37].
