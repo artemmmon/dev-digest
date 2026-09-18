@@ -7,11 +7,13 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button, Icon, IconBtn, Kbd, TextInput, FormField } from "@devdigest/ui";
 import { useAddRepo } from "@/lib/hooks";
 import { addRepoErrorMessage } from "./helpers";
 
 export function AddRepoView() {
+  const t = useTranslations("addRepo");
   const router = useRouter();
   const [repoUrl, setRepoUrl] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -35,7 +37,7 @@ export function AddRepoView() {
       const repo = await addRepo.mutateAsync(repoUrl.trim());
       router.push(`/repos/${repo.id}/pulls`);
     } catch (e) {
-      setError(addRepoErrorMessage(e, "Could not add repository"));
+      setError(addRepoErrorMessage(e, t("failed")));
     }
   };
 
@@ -72,25 +74,26 @@ export function AddRepoView() {
         }}
       >
         <div style={{ position: "absolute", top: 16, right: 16 }}>
-          <IconBtn icon="X" label="Close" onClick={close} />
+          <IconBtn icon="X" label={t("close")} onClick={close} />
         </div>
 
-        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>Add a repository</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{t("title")}</h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 8, marginBottom: 28, lineHeight: 1.5 }}>
-          Paste a GitHub repository URL — DevDigest clones it locally and imports open PRs.
-          API keys aren’t needed here; set them once in{" "}
-          <Link href="/settings/api-keys" style={{ color: "var(--accent-text)" }}>
-            Settings → API Keys
-          </Link>
-          .
+          {t.rich("intro", {
+            settingsLink: (chunks) => (
+              <Link href="/settings/api-keys" style={{ color: "var(--accent-text)" }}>
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
 
-        <FormField label="Repository URL" hint="e.g. https://github.com/acme/payments-api">
+        <FormField label={t("urlLabel")} hint={t("urlHint")}>
           <TextInput
             value={repoUrl}
             onChange={setRepoUrl}
             mono
-            placeholder="https://github.com/owner/repo"
+            placeholder={t("urlPlaceholder")}
             onKeyDown={(e) => {
               if (e.key === "Enter") submit();
             }}
@@ -117,7 +120,7 @@ export function AddRepoView() {
 
         <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 24 }}>
           <Button kind="ghost" size="md" onClick={close}>
-            Cancel
+            {t("cancel")}
           </Button>
           <div style={{ flex: 1 }} />
           <Button
@@ -127,13 +130,14 @@ export function AddRepoView() {
             onClick={submit}
             disabled={!repoUrl.trim() || addRepo.isPending}
           >
-            {addRepo.isPending ? "Cloning…" : "Add repository"}
+            {addRepo.isPending ? t("cloning") : t("submit")}
           </Button>
         </div>
       </div>
 
       <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 24, display: "inline-flex", gap: 8, alignItems: "center" }}>
-        <Icon.Lock size={12} /> API keys live in Settings · <Kbd>esc</Kbd> to close
+        <Icon.Lock size={12} />
+        {t.rich("footer", { key: (chunks) => <Kbd>{chunks}</Kbd> })}
       </p>
     </div>
   );

@@ -3,6 +3,7 @@
 
 import React from "react";
 import { Icon } from "@devdigest/ui";
+import { unstyledButton } from "@/lib/interactive";
 import { s } from "../../styles";
 
 export function TraceSection({
@@ -14,6 +15,7 @@ export function TraceSection({
 }: {
   icon: "Settings" | "Gauge" | "FileText" | "Wrench" | "Code" | "AlertOctagon";
   title: string;
+  /** Non-interactive content (a badge): the whole header is one button. */
   right?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
@@ -22,12 +24,17 @@ export function TraceSection({
   const I = Icon[icon];
   return (
     <div style={s.section}>
-      <div onClick={() => setOpen((o) => !o)} style={s.sectionHead}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ ...unstyledButton, ...s.sectionHead, width: "100%" }}
+      >
         <I size={15} style={s.sectionIcon} />
         <span style={s.sectionTitle}>{title}</span>
         {right}
         <Icon.ChevronDown size={15} style={s.chevron(open)} />
-      </div>
+      </button>
       {open && <div style={s.sectionBody}>{children}</div>}
     </div>
   );

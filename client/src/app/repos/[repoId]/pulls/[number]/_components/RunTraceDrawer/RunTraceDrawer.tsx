@@ -1,8 +1,7 @@
 /* RunTraceDrawer — A5 Run Trace + Live Log drawer (720px). Ported from
    screen_trace.jsx. Tabs: Trace (Configuration / Stats / Prompt assembly /
    Tool calls / Raw output) and Live log (SSE via useRunEvents → LiveLogStream,
-   which has client-side Filter-input search). Default export so the PR-detail
-   page (A2) can mount it from the run-status area. */
+   which has client-side Filter-input search). Mounted by the PR-detail page. */
 "use client";
 
 import React from "react";
@@ -33,7 +32,7 @@ export interface RunTraceDrawerProps {
  * over SSE (useRunEvents). The Trace tab loads the persisted single-document
  * RunTrace (useRunTrace) once the run completes (or for historical runs).
  */
-export default function RunTraceDrawer({
+export function RunTraceDrawer({
   runId,
   agentName,
   prNumber,
@@ -43,10 +42,8 @@ export default function RunTraceDrawer({
 }: RunTraceDrawerProps) {
   const t = useTranslations("runs");
   const [tab, setTab] = React.useState<string>(running ? "log" : "trace");
-  // RunStatus on the Findings tab already toasts this run's errors.
-  const { events, running: liveRunning } = useRunEvents(running ? [runId] : [], {
-    notifyErrors: false,
-  });
+  // (RunStatus on the Findings tab is the one that toasts this run's errors.)
+  const { events, running: liveRunning } = useRunEvents(running ? [runId] : []);
   // Load the persisted trace once we're not (or no longer) running.
   const stillRunning = running && liveRunning;
   const { data: trace, isLoading } = useRunTrace(runId, !stillRunning);

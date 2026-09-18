@@ -19,14 +19,14 @@ const TRACE: RunTrace = {
   ],
 };
 
-vi.mock("../../../../../../../lib/hooks/trace", () => ({
+vi.mock("@/lib/hooks/trace", () => ({
   useRunTrace: () => ({ data: TRACE, isLoading: false }),
 }));
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
+vi.mock("@/lib/hooks/reviews", () => ({
   useRunEvents: () => ({ events: [], running: false }),
 }));
 
-import RunTraceDrawer from "./RunTraceDrawer";
+import { RunTraceDrawer } from "./RunTraceDrawer";
 
 afterEach(cleanup);
 

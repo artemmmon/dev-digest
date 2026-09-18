@@ -51,7 +51,7 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     },
   );
 
-  // ---- SSE: live run events (replay buffer first, then live; ends on done) -
+  // ---- SSE: live run events (replay buffer first, then live; ends with an `done` event) -
   // No rate limit: SSE is one long-lived connection, not burst traffic.
   app.get(
     '/runs/:id/events',
@@ -60,6 +60,8 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     const { workspaceId } = await getContext(container, req);
     const runId = req.params.id;
     const { live } = await service.runStream(workspaceId, runId);
+    // A reconnecting EventSource sends the id of the last event it got: replay only what it missed.
+    const lastSeq = Number(req.headers['last-event-id']) || 0;
 
     reply.sse(
       (async function* () {
@@ -70,6 +72,7 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
         let done = !live;
 
         const unsubscribe = container.runBus.subscribe(runId, (e) => {
+          if (e.seq <= lastSeq) return;
           queue.push(e);
           resolve?.();
         });
@@ -93,6 +96,9 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
               data: JSON.stringify(e),
             };
           }
+          // Terminal marker: without it a closed stream looks like a dropped connection
+          // and the browser reconnects (and replays) forever.
+          yield { event: 'done', data: '{}' };
         } finally {
           unsubscribe();
           offDone();

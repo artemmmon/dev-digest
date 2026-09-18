@@ -114,7 +114,8 @@
   "timeline": {
     "goToReview": "Jump to this run’s findings below",
     "openTrace": "Open run trace & logs",
-    "deleteRun": "Delete run"
+    "deleteRun": "Delete run",
+    "deleteConfirm": "Delete this run from history? (its logs are removed too)"
   },
   "sections": {
     "liveRun": "Live review",
@@ -141,5 +142,31 @@
     "title": "Pull request not found",
     "body": "PR #{number} isn't in this repository's list. It may have been removed, or the link is stale.",
     "cta": "Back to pull requests"
+  },
+  "reviewRun": {
+    "agentFallback": "Agent",
+    "findings": "{count, plural, one {# finding} other {# findings}}",
+    "blockers": "{count, plural, one {# blocker} other {# blockers}}",
+    "delete": "Delete this review run",
+    "deleteConfirm": "Delete this \"{agent}\" review run and its findings?",
+    "verdict": {
+      "request_changes": "request changes",
+      "approve": "approve",
+      "comment": "comment"
+    }
+  },
+  "detail": {
+    "loadFailedTitle": "Couldn't load this pull request",
+    "loadFailedBody": "PR #{number} could not be loaded."
+  },
+  "header": {
+    "overview": "Overview",
+    "agentRuns": "Agent runs",
+    "filesChanged": "Files changed",
+    "closedBanner": "This PR is already {status} — running a review is informational and won't affect the merged code.",
+    "viewOnGithub": "View on GitHub"
+  },
+  "overview": {
+    "description": "Description"
   }
 }

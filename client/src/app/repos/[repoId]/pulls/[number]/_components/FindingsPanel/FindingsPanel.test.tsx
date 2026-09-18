@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { FindingRecord } from "@devdigest/shared";
 import { renderWithIntl } from "@/test/render";
 
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
+vi.mock("@/lib/hooks/reviews", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 

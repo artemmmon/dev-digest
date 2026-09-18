@@ -14,9 +14,11 @@ pnpm build
 ```
 
 ## Where things live
-- `src/app/**/page.tsx` — routes; pages stay thin
+- `src/app/**/page.tsx` — routes; pages stay thin. The app shell (sidebar, palette) is mounted once
+  by `ShellFrame` in the root layout; a page sets its breadcrumb with `usePageCrumb(...)`
 - `src/app/**/_components/<Name>/` — feature components (see conventions)
-- `src/lib/hooks/*` — every TanStack Query hook; `src/lib/api.ts` — `apiFetch`
+- `src/lib/hooks/*` — every TanStack Query hook; `src/lib/query-keys.ts` — every query key
+  (hierarchical, never a string literal); `src/lib/api.ts` — `apiFetch`; `src/config/env.ts` — env
 - `src/components/` — cross-cutting chrome (app-shell, diff-viewer, page-shell…)
 - `src/vendor/ui/` — vendored UI kit (`@devdigest/ui`)
 - `src/vendor/shared/` — **copy** of the Zod contracts (`@devdigest/shared`)
@@ -29,6 +31,9 @@ Naming is in `../AGENTS.md`; what follows is the shape of the code.
   `<Name>.test.tsx`, nested `_components/`.
 - Components never call `fetch` directly — add or reuse a hook in `src/lib/hooks/`.
 - No hardcoded UI text: add keys to `messages/en/<feature>.json`, read via `useTranslations`.
+- Clickable rows/headers: a real `<button>`/`<Link>` inside, `rowClickProps` only widens the mouse
+  target (`src/lib/interactive.ts`); never a bare `<div onClick>` (jsx-a11y fails lint).
+- Tests render through `renderWithIntl` (`src/test/render.tsx`) and use `userEvent`.
 - Reach for `@devdigest/ui` primitives before writing new ones.
 - Import alias `@/*` → `src/*`.
 

@@ -287,6 +287,18 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     // The replay buffer should contain our log lines as SSE `data:` frames.
     expect(sse.payload).toContain('Starting review');
     expect(sse.payload).toContain('Citation grounding');
+    // the stream ends with an explicit terminal event
+    expect(sse.payload.trimEnd().endsWith('event: done\ndata: {}')).toBe(true);
+
+    // a reconnect with Last-Event-ID replays only what the client missed
+    const seqs = [...sse.payload.matchAll(/^id: (\d+)$/gm)].map((m) => Number(m[1]));
+    const last = seqs.at(-1)!;
+    const resumed = await app.inject({
+      method: 'GET',
+      url: `/runs/${runId}/events`,
+      headers: { 'last-event-id': String(last - 1) },
+    });
+    expect([...resumed.payload.matchAll(/^id: (\d+)$/gm)].map((m) => Number(m[1]))).toEqual([last]);
     await app.close();
   });
 
@@ -323,9 +335,9 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     });
     const sse = await restarted.inject({ method: 'GET', url: `/runs/${body.runs[0].run_id}/events` });
     expect(sse.statusCode).toBe(200);
-    // Closed straight away: only the plugin's `retry:` preamble, no event frames.
+    // Closed straight away with just the terminal event, no log frames.
     // (Before, inject() never returned — the stream waited for events forever.)
-    expect(sse.payload).not.toContain('data:');
+    expect(sse.payload).toBe('retry: 3000\n\nevent: done\ndata: {}\n\n');
     await restarted.close();
   });
 

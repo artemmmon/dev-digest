@@ -15,6 +15,7 @@ import {
   type CommentThread,
   type DiffCommentApi,
 } from "../comments";
+import { unstyledButton } from "@/lib/interactive";
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
@@ -54,7 +55,12 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
 
   return (
     <div style={s.fileCard}>
-      <div onClick={() => setOpen((o) => !o)} style={s.fileHeader}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ ...unstyledButton, ...s.fileHeader, width: "100%" }}
+      >
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
         <Icon.FileText size={14} style={s.fileIcon} />
         <span className="mono" style={s.filePath}>
@@ -72,7 +78,7 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
             {commentCount}
           </span>
         )}
-      </div>
+      </button>
       {open && (
         <div style={s.fileBody}>
           {lines.length === 0 ? (

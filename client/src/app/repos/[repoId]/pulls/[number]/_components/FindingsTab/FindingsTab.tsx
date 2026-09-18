@@ -4,91 +4,74 @@ import React, { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Icon, Badge, Button, SectionLabel, EmptyState } from "@devdigest/ui";
 import { RunStatus } from "../RunStatus";
-import { RunHistory } from "../RunHistory/RunHistory";
-import { ReviewRunAccordion } from "../ReviewRunAccordion";
+import { RunHistory } from "../RunHistory";
+import { ReviewRunAccordion, type ReviewRunHandle } from "../ReviewRunAccordion";
 import { s } from "./styles";
-import type {
-  FindingRecord,
-  FindingsBySeverity,
-  ReviewRecord,
-  RunSummary,
-  PrCommit,
-} from "@devdigest/shared";
+import type { FindingsBySeverity, ReviewRecord, RunSummary, PrCommit } from "@devdigest/shared";
 import { countBySeverity } from "@/lib/severity-counts";
-import type { useCancelRun } from "@/lib/hooks/reviews";
+import { useCancelRun, useDeleteRun } from "@/lib/hooks/reviews";
 
 interface FindingsTabProps {
-  prId: string | null;
+  prId: string;
+  /** Runs the server reports as in flight (their live log streams here). */
   liveRunIds: string[];
-  reviewRunning: boolean;
-  lethalTrifecta: FindingRecord[];
-  runs: ReviewRecord[];
-  prRuns: RunSummary[] | undefined;
-  prCommits: PrCommit[];
-  cancelMutation: ReturnType<typeof useCancelRun>;
+  /** Persisted reviews of the PR, newest first — one per agent run. */
+  reviews: ReviewRecord[];
+  /** Every run of the PR (any status), for the timeline. */
+  history: RunSummary[] | undefined;
+  commits: PrCommit[];
   /** owner/repo + head sha — used to deep-link a finding's file:line to GitHub. */
   repoFullName?: string | null;
   headSha?: string | null;
   onOpenTrace: (id: string) => void;
-  onDelete: (id: string) => void;
-  onRunDone: () => void;
+  /** Called once when the live streams end. */
+  onRunsSettled: () => void;
 }
 
 export function FindingsTab({
   prId,
   liveRunIds,
-  reviewRunning,
-  lethalTrifecta,
-  runs,
-  prRuns,
-  prCommits,
-  cancelMutation,
+  reviews,
+  history,
+  commits,
   repoFullName,
   headSha,
   onOpenTrace,
-  onDelete,
-  onRunDone,
+  onRunsSettled,
 }: FindingsTabProps) {
   const t = useTranslations("prReview");
+  const cancel = useCancelRun(prId);
+  const deleteRun = useDeleteRun(prId);
+  const reviewRunning = liveRunIds.length > 0;
+  const lethalTrifecta = React.useMemo(
+    () => reviews.flatMap((r) => r.findings).filter((f) => f.kind === "lethal_trifecta"),
+    [reviews],
+  );
 
   // Severity tally per timeline run, grouped from the reviews already in the cache —
   // `GET /pulls/:id/runs` carries no breakdown, and no extra request is made for one.
   const severityByRun = React.useMemo(() => {
     const map = new Map<string, FindingsBySeverity>();
-    for (const review of runs) {
+    for (const review of reviews) {
       if (review.run_id) map.set(review.run_id, countBySeverity(review.findings));
     }
     return map;
-  }, [runs]);
+  }, [reviews]);
 
-  const handleCancelAll = useCallback(() => {
-    liveRunIds.forEach((id) => cancelMutation.mutate(id));
-  }, [liveRunIds, cancelMutation]);
-
-  const handleOpenFirstTrace = useCallback(() => {
-    if (liveRunIds[0]) onOpenTrace(liveRunIds[0]);
-  }, [liveRunIds, onOpenTrace]);
-
-  const handleOpenTrace = useCallback(
-    (id: string) => {
-      onOpenTrace(id);
-    },
-    [onOpenTrace],
-  );
+  const handleCancelAll = () => liveRunIds.forEach((id) => cancel.mutate(id));
 
   const handleDelete = useCallback(
     (id: string) => {
-      onDelete(id);
+      if (window.confirm(t("timeline.deleteConfirm"))) deleteRun.mutate(id);
     },
-    [onDelete],
+    [deleteRun, t],
   );
 
-  // Timeline → Review-runs navigation: clicking an agent name in the timeline
-  // opens + scrolls to that run's accordion below. The nonce re-triggers the
-  // scroll even when the same run is clicked twice.
-  const [target, setTarget] = React.useState<{ runId: string; n: number } | null>(null);
+  // Timeline → Review-runs navigation: clicking an agent name in the timeline opens and
+  // scrolls to that run's accordion, which registers a handle here.
+  const accordions = React.useRef(new Map<string, ReviewRunHandle>());
   const handleGoToReview = useCallback((runId: string) => {
-    setTarget((p) => ({ runId, n: (p?.n ?? 0) + 1 }));
+    accordions.current.get(runId)?.reveal();
   }, []);
 
   return (
@@ -103,12 +86,12 @@ export function FindingsTab({
                   kind="danger"
                   size="sm"
                   icon="X"
-                  loading={cancelMutation.isPending}
+                  loading={cancel.isPending}
                   onClick={handleCancelAll}
                 >
                   {t("liveRun.cancel")}
                 </Button>
-                <Button kind="ghost" size="sm" icon="FileText" onClick={handleOpenFirstTrace}>
+                <Button kind="ghost" size="sm" icon="FileText" onClick={() => liveRunIds[0] && onOpenTrace(liveRunIds[0])}>
                   {t("liveRun.openTrace")}
                 </Button>
               </div>
@@ -116,7 +99,7 @@ export function FindingsTab({
           >
             {t("sections.liveRun")}
           </SectionLabel>
-          <RunStatus runIds={liveRunIds} onDone={onRunDone} />
+          <RunStatus runIds={liveRunIds} onDone={onRunsSettled} />
         </div>
       )}
 
@@ -138,7 +121,7 @@ export function FindingsTab({
         </div>
       )}
 
-      {((prRuns && prRuns.length > 0) || prCommits.length > 0) && (
+      {((history && history.length > 0) || commits.length > 0) && (
         <div style={s.timelineSection}>
           <SectionLabel
             icon="Activity"
@@ -147,10 +130,10 @@ export function FindingsTab({
             {t("sections.timeline")}
           </SectionLabel>
           <RunHistory
-            runs={prRuns ?? []}
-            commits={prCommits}
+            runs={history ?? []}
+            commits={commits}
             severityByRun={severityByRun}
-            onOpenTrace={handleOpenTrace}
+            onOpenTrace={onOpenTrace}
             onGoToReview={handleGoToReview}
             onDelete={handleDelete}
           />
@@ -163,26 +146,27 @@ export function FindingsTab({
       >
         {t("sections.reviewRuns")}
       </SectionLabel>
-      {runs.length === 0 ? (
-        reviewRunning || liveRunIds.length > 0 ? null : (
-          <EmptyState
-            icon="Sparkles"
-            title={t("empty.title")}
-            body={t("empty.body")}
-          />
+      {reviews.length === 0 ? (
+        reviewRunning ? null : (
+          <EmptyState icon="Sparkles" title={t("empty.title")} body={t("empty.body")} />
         )
       ) : (
-        prId &&
-        runs.map((review, i) => (
+        reviews.map((review, i) => (
           <ReviewRunAccordion
             key={review.id}
+            ref={(handle) => {
+              const runId = review.run_id;
+              if (!runId || !handle) return;
+              accordions.current.set(runId, handle);
+              return () => {
+                accordions.current.delete(runId);
+              };
+            }}
             review={review}
             prId={prId}
             defaultOpen={i === 0}
             repoFullName={repoFullName}
             headSha={headSha}
-            targetRunId={target?.runId ?? null}
-            targetNonce={target?.n ?? 0}
           />
         ))
       )}

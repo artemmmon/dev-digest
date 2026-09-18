@@ -4,7 +4,7 @@ import { renderWithIntl } from "@/test/render";
 import type { Agent } from "@devdigest/shared";
 
 // Mock the data hooks so the editor renders without a network/query client.
-vi.mock("../../../../../lib/hooks/agents", () => ({
+vi.mock("@/lib/hooks/agents", () => ({
   useUpdateAgent: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false, data: undefined }),
   useProviderModels: () => ({ data: [{ id: "gpt-4.1", provider: "openai" }] }),
 }));

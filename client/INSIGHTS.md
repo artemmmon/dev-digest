@@ -59,6 +59,34 @@ which renders its own element. "Renders nothing" assertions must query for the c
 content (`queryByPlaceholderText`, `queryByRole`), not check `container.firstChild`.
 Where: `src/test/render.tsx:13`.
 
+### 2026-09-19 — The shell lives in the root layout; pages only set the breadcrumb
+`ShellFrame` (root layout) wraps every route except `/onboarding` in `AppShell`, so the sidebar and
+palette survive navigation (verified: the same `<aside>` node after an SPA click). A page calls
+`usePageCrumb([...])` — a layout effect keyed by the crumb's JSON, cleared on unmount — instead of
+wrapping itself in `AppShell`. A new full-screen route goes in `BARE_ROUTES`.
+Where: `src/components/app-shell/ShellFrame.tsx:12`, `src/components/app-shell/crumb.tsx:1`.
+
+### 2026-09-19 — SSE contract: terminal `done` frame, Last-Event-ID resume
+The server ends every run stream with an `event: done` frame and honours `Last-Event-ID`, so
+`useRunEvents` lets EventSource reconnect on a drop (no replay of what it already has) and closes
+only on `done` or when the browser gave up (readyState CLOSED, e.g. 404). Events are deduped by
+`runId:seq`; changing the run ids opens/closes just the difference; `onSettled` fires once when the
+last open stream ends (never on unmount), so callers pass fresh arrows freely.
+Where: `src/lib/hooks/reviews.ts:224`, `../server/src/modules/reviews/routes.ts:101`.
+
+### 2026-09-19 — Invalidate through the key factory; a settled run also refreshes the PR list
+`src/lib/query-keys.ts` is hierarchical: `keys.pr.scope(id)` is a prefix of the PR's detail, reviews,
+runs, active runs and comments. The PR list's COST/SCORE/FINDINGS describe the latest round, so run
+settle/delete invalidates `keys.allPulls()` too. Cancelling a run now invalidates the live section.
+Where: `src/lib/query-keys.ts:1`, `src/lib/hooks/reviews.ts:93`.
+
+### 2026-09-19 — A clickable row = presentational container + a real control inside
+`role="presentation"` + `rowClickProps` widens the mouse target; the `<button aria-expanded>`/`<Link>`
+inside is what keyboards and screen readers use, and clicks on links/buttons/`data-row-ignore`
+areas are left to them (no double toggle). Used by PRRow, FindingCard, PromptBlock, AgentCard;
+plain buttons where the header holds no other control (TraceSection, ToolCallRow, FileCard).
+Where: `src/lib/interactive.ts:1`.
+
 
 ## Tool & Library Notes
 
@@ -88,6 +116,14 @@ Where: `package.json:7`.
 temp dir and run `npx pnpm@10 install --frozen-lockfile --lockfile-only`. Running pnpm 10 in
 `client/` itself fails — `node_modules` is linked from pnpm 12's store (v11).
 Where: `pnpm-lock.yaml:1`.
+
+### 2026-09-19 — `NEXT_DIST_DIR` keeps a build from breaking a running `next dev`
+`next.config.mjs` reads `NEXT_DIST_DIR` (default `.next`), so `NEXT_DIST_DIR=.next-build pnpm build`
+verifies a production build while dev keeps its cache (`scripts/e2e.sh` does the same with
+`.next-e2e`). Next rewrites `tsconfig.json`'s `include` for the alternate dir — `git checkout
+tsconfig.json` afterwards. Also: don't put zod in `src/config/env.ts`; it is in every page bundle
+(+12 kB first-load JS).
+Where: `next.config.mjs:9`, `src/config/env.ts:1`.
 
 
 ## Recurring Errors & Fixes
@@ -129,3 +165,10 @@ in the `FindingsPanel` toolbar, and the FINDINGS list column with a lazy hover p
 Counts are taken over the post-"hide low confidence" set so a pill's number always equals
 the number of cards under it.
 Where: `src/lib/severity-counts.ts:21` (`countBySeverity`), spec `../specs/02-findings-severity.md`.
+
+### 2026-09-19 — Phase 4 (client): architecture, a11y, i18n
+Shell in the layout, query-key factory + invalidation fixes, `useRunEvents` rewrite, slimmer
+FindingsTab/page, jsx-a11y baseline removed (all clickable divs fixed), hardcoded strings moved to
+messages (home, addRepo, header, diff, toast…), per-segment titles, env module, deep relative
+imports → `@/`.
+Where: `src/app/layout.tsx:36`.

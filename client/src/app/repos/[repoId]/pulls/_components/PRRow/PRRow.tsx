@@ -2,10 +2,12 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Icon, Avatar, Badge, CircularScore } from "@devdigest/ui";
 import type { PrMeta } from "@/lib/types";
+import { rowClickProps } from "@/lib/interactive";
 import { RunCostBadge } from "@/components/run-cost-badge";
 import { FindingsCell } from "../FindingsCell";
 import { SIZE_COLOR, STATUS_META } from "../../constants";
@@ -28,17 +30,24 @@ export function PRRow({
   const st = STATUS_META[pr.status] ?? STATUS_META.needs_review!;
   const { size, lines } = sizeOf(pr);
   const reviewed = pr.score != null; // null score ⇒ PR has never been reviewed
+  const href = `/repos/${repoId}/pulls/${pr.number}`;
   return (
     <div
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}
-      onClick={() => router.push(`/repos/${repoId}/pulls/${pr.number}`)}
+      // Mouse convenience: the whole row opens the PR. Keyboard, middle-click and
+      // screen readers use the title link below.
+      {...rowClickProps(() => router.push(href))}
       style={s.row(h)}
     >
       <div style={s.rowTitleCell}>
         <Icon.GitPullRequest size={15} style={s.rowIcon(st.c)} />
         <div style={s.rowTitleWrap}>
-          <div style={s.rowTitle(h)}>{pr.title}</div>
+          <div style={s.rowTitle(h)}>
+            <Link href={href} style={{ color: "inherit", textDecoration: "none" }}>
+              {pr.title}
+            </Link>
+          </div>
           <span className="mono" style={s.rowNumber}>
             #{pr.number}
           </span>

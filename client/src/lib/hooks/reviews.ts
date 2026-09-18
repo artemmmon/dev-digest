@@ -1,11 +1,12 @@
 /* hooks/reviews.ts — React Query + SSE hooks for the A2 reviewer.
-   Run a review, stream RunEvents live, act on findings. */
+   Run a review, stream RunEvents live, act on findings. Query keys come from
+   ../query-keys (hierarchical: `keys.pr.scope(id)` covers everything of one PR). */
 "use client";
 
 import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, API_BASE } from "../api";
-import { notify } from "../toast";
+import { keys } from "../query-keys";
 import type {
   FindingActionKind,
   PrReviewComment,
@@ -27,7 +28,7 @@ export interface ActiveRun {
    Survives reloads/devices; polls while anything is running so it self-clears. */
 export function usePrActiveRuns(prId: string | null | undefined) {
   return useQuery({
-    queryKey: ["pr-active-runs", prId],
+    queryKey: keys.pr.activeRuns(prId),
     queryFn: () => api.get<ActiveRun[]>(`/pulls/${prId}/runs/active`),
     enabled: !!prId,
     refetchInterval: (query) => ((query.state.data?.length ?? 0) > 0 ? 4000 : false),
@@ -39,7 +40,7 @@ export function usePrActiveRuns(prId: string | null | undefined) {
    reload (DB-backed). Polls while anything is running so it self-updates. */
 export function usePrRuns(prId: string | null | undefined) {
   return useQuery({
-    queryKey: ["pr-runs", prId],
+    queryKey: keys.pr.runs(prId),
     queryFn: () => api.get<RunSummary[]>(`/pulls/${prId}/runs`),
     enabled: !!prId,
     refetchInterval: (query) =>
@@ -57,10 +58,42 @@ export function usePrReviews(
   opts?: { enabled?: boolean },
 ) {
   return useQuery({
-    queryKey: ["reviews", prId],
+    queryKey: keys.pr.reviews(prId),
     queryFn: () => api.get<ReviewRecord[]>(`/pulls/${prId}/reviews`),
     enabled: !!prId && (opts?.enabled ?? true),
   });
+}
+
+/** Refresh what a run's start or end changes: its PR's run lists and reviews. */
+function invalidateRuns(qc: QueryClient, prId: string | null | undefined) {
+  if (!prId) return;
+  void qc.invalidateQueries({ queryKey: keys.pr.activeRuns(prId) });
+  void qc.invalidateQueries({ queryKey: keys.pr.runs(prId) });
+  void qc.invalidateQueries({ queryKey: keys.pr.reviews(prId) });
+}
+
+/**
+ * Live-run bookkeeping of the PR page: the server-sourced in-flight runs and the
+ * history, plus `onRunsSettled` — call it once when the streams end to refresh the
+ * PR's runs and reviews and the PR list (its COST / SCORE / FINDINGS describe the
+ * latest round, so they change too).
+ */
+export function usePrRunTracking(prId: string | null | undefined) {
+  const qc = useQueryClient();
+  const { data: activeRuns } = usePrActiveRuns(prId);
+  const { data: history } = usePrRuns(prId);
+  const liveRunIds = React.useMemo(() => (activeRuns ?? []).map((r) => r.run_id), [activeRuns]);
+
+  const onRunsStarted = React.useCallback(() => {
+    void qc.invalidateQueries({ queryKey: keys.pr.activeRuns(prId) });
+  }, [qc, prId]);
+
+  const onRunsSettled = React.useCallback(() => {
+    invalidateRuns(qc, prId);
+    void qc.invalidateQueries({ queryKey: keys.allPulls() });
+  }, [qc, prId]);
+
+  return { liveRunIds, history, onRunsStarted, onRunsSettled };
 }
 
 /** Delete one run from the PR's run history (+ its trace). */
@@ -69,18 +102,21 @@ export function useDeleteRun(prId: string | null | undefined) {
   return useMutation({
     mutationFn: (runId: string) => api.del<{ ok: boolean }>(`/runs/${runId}`),
     // Deleting a run also deletes the review it produced (server-side), so drop
-    // both the timeline and the Review Runs list from cache.
+    // the timeline, the Review Runs list and the PR list's rollups from cache.
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["pr-runs", prId] });
-      qc.invalidateQueries({ queryKey: ["reviews", prId] });
+      invalidateRuns(qc, prId);
+      void qc.invalidateQueries({ queryKey: keys.allPulls() });
     },
   });
 }
 
 /** Request cancellation of an in-flight run (takes effect at the next step). */
-export function useCancelRun() {
+export function useCancelRun(prId: string | null | undefined) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (runId: string) => api.post<{ ok: boolean }>(`/runs/${runId}/cancel`),
+    // The run leaves "running" in the DB right away: the live section must follow.
+    onSuccess: () => invalidateRuns(qc, prId),
   });
 }
 
@@ -89,7 +125,10 @@ export function useDeleteReview(prId: string | null | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (reviewId: string) => api.del<{ ok: boolean }>(`/reviews/${reviewId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["reviews", prId] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.pr.reviews(prId) });
+      void qc.invalidateQueries({ queryKey: keys.allPulls() });
+    },
   });
 }
 
@@ -97,7 +136,7 @@ export function useDeleteReview(prId: string | null | undefined) {
 /** Existing GitHub PR review comments, fetched live. */
 export function usePrComments(prId: string | null | undefined) {
   return useQuery({
-    queryKey: ["pr-comments", prId],
+    queryKey: keys.pr.comments(prId),
     queryFn: () => api.get<PrReviewComment[]>(`/pulls/${prId}/comments`),
     enabled: !!prId,
   });
@@ -117,7 +156,7 @@ export function useCreatePrComment(prId: string | null | undefined) {
   return useMutation({
     mutationFn: (input: CreateCommentInput) =>
       api.post<PrReviewComment>(`/pulls/${prId}/comments`, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["pr-comments", prId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.pr.comments(prId) }),
   });
 }
 
@@ -136,9 +175,8 @@ export function useRunReview() {
         ...(agentId ? { agentId } : {}),
         ...(all ? { all } : {}),
       }),
-    onSuccess: (_d, { prId }) => {
-      qc.invalidateQueries({ queryKey: ["reviews", prId] });
-    },
+    // The new runs are "running" already: show them in the live section and the history.
+    onSuccess: (_d, { prId }) => invalidateRuns(qc, prId),
   });
 }
 
@@ -150,79 +188,119 @@ export function useFindingAction() {
       findingId,
       action,
       reply,
-      prId: _prId,
     }: {
       findingId: string;
       action: FindingActionKind;
       reply?: string;
-      prId?: string;
+      prId: string;
     }) =>
       api.post<{ finding: ReviewRecord["findings"][number]; memoryId?: string }>(
         `/findings/${findingId}/${action}`,
         reply ? { reply } : undefined,
       ),
-    onSuccess: (_d, { prId }) => {
-      if (prId) qc.invalidateQueries({ queryKey: ["reviews", prId] });
-    },
+    onSuccess: (_d, { prId }) => qc.invalidateQueries({ queryKey: keys.pr.reviews(prId) }),
   });
 }
 
+export interface RunEventsOptions {
+  /** Called for every new event, once each (never for a replay the hook already saw). */
+  onEvent?: (event: RunEvent) => void;
+  /** Called once when every stream this hook opened has ended (not on unmount). */
+  onSettled?: () => void;
+}
+
+// The server names each SSE frame after the event kind, and closes a finished run's
+// stream with a terminal `done` frame — a stream that ends without it was dropped.
+const EVENT_KINDS = ["info", "tool", "result", "error"] as const;
+
 /**
- * Subscribe to a run's SSE event stream. Returns the accumulated RunEvents and a
- * `running` flag (true until the stream closes). Live status for the
- * RunReviewDropdown / Live Log. Multiple runIds are subscribed in parallel.
- *
- * `notifyErrors` toasts runtime `error` events; turn it off for a second
- * subscriber to the same run (the trace drawer) so one failure toasts once.
+ * Subscribe to the SSE event streams of `runIds`. Returns the accumulated RunEvents
+ * (each `runId:seq` once, even when a reconnect replays it) and `running` — true while
+ * any stream is open. A stream ends on the server's `done` frame or when the browser
+ * gives up on it; a plain network drop is left to EventSource, which reconnects and
+ * resumes from the last event id. Changing `runIds` opens the new streams and closes
+ * the removed ones without touching the rest.
  */
-export function useRunEvents(runIds: string[], { notifyErrors = true } = {}) {
+export function useRunEvents(runIds: string[], options: RunEventsOptions = {}) {
   const [events, setEvents] = React.useState<RunEvent[]>([]);
-  // Start as running when there is something to stream, so the first render
-  // doesn't report "finished" before the effect opens the streams.
-  const [running, setRunning] = React.useState(runIds.length > 0);
-  const key = runIds.join(",");
+  const [openCount, setOpenCount] = React.useState(0);
+
+  // Latest callbacks in refs: a parent passing fresh arrows must not reopen the streams.
+  const handlers = React.useRef(options);
+  React.useEffect(() => {
+    handlers.current = options;
+  });
+
+  const sources = React.useRef(new Map<string, EventSource>());
+  const open = React.useRef(new Set<string>());
+  const finished = React.useRef(new Set<string>());
+  const seen = React.useRef(new Set<string>());
+  const key = [...new Set(runIds)].sort().join(",");
 
   React.useEffect(() => {
-    if (runIds.length === 0) return;
-    setEvents([]);
-    setRunning(true);
-    const sources: EventSource[] = [];
-    let open = runIds.length;
+    const wanted = new Set(key ? key.split(",") : []);
 
-    for (const runId of runIds) {
-      const es = new EventSource(`${API_BASE}/runs/${runId}/events`);
-      const onMsg = (ev: MessageEvent) => {
-        try {
-          const parsed = JSON.parse(ev.data) as RunEvent;
-          setEvents((prev) => [...prev, parsed]);
-          // Runtime agent failures arrive as SSE `error` events (not as a
-          // mutation/query error), so the global error toast never sees them —
-          // surface them here so the user gets a notification without a reload.
-          if (notifyErrors && parsed.kind === "error" && parsed.msg) notify.error(parsed.msg);
-        } catch {
-          /* ignore non-JSON keepalive frames (and dataless native error events) */
-        }
-      };
-      // The server tags events with kind as the SSE `event:` name AND emits them
-      // as default messages too in some clients — listen broadly.
-      es.onmessage = onMsg;
-      for (const kind of ["info", "tool", "result", "error"]) {
-        es.addEventListener(kind, onMsg as EventListener);
-      }
-      es.onerror = () => {
-        es.close();
-        open -= 1;
-        if (open <= 0) setRunning(false);
-      };
-      sources.push(es);
-    }
-
-    return () => {
-      for (const es of sources) es.close();
-      setRunning(false);
+    /** Stop tracking a run's stream; `ended` = the run itself finished (vs. removed/unmounted). */
+    const close = (runId: string, ended: boolean) => {
+      sources.current.get(runId)?.close();
+      sources.current.delete(runId);
+      if (!open.current.delete(runId)) return;
+      if (ended) finished.current.add(runId);
+      setOpenCount(open.current.size);
+      if (ended && open.current.size === 0) handlers.current.onSettled?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    const connect = (runId: string) => {
+      const es = new EventSource(`${API_BASE}/runs/${runId}/events`);
+      const onFrame = (ev: MessageEvent) => {
+        let parsed: RunEvent;
+        try {
+          parsed = JSON.parse(ev.data) as RunEvent;
+        } catch {
+          return; // keepalive / dataless frame
+        }
+        const id = `${parsed.runId}:${parsed.seq}`;
+        if (seen.current.has(id)) return;
+        seen.current.add(id);
+        setEvents((prev) => [...prev, parsed]);
+        handlers.current.onEvent?.(parsed);
+      };
+      // the server also sends events as default messages in some clients — listen broadly
+      es.onmessage = onFrame;
+      for (const kind of EVENT_KINDS) es.addEventListener(kind, onFrame as EventListener);
+      es.addEventListener("done", () => close(runId, true));
+      es.onerror = () => {
+        // CLOSED = the browser gave up (e.g. 404 for a run that no longer exists);
+        // CONNECTING = it is retrying, and will resume from Last-Event-ID.
+        if (es.readyState === EventSource.CLOSED) close(runId, true);
+      };
+      sources.current.set(runId, es);
+      open.current.add(runId);
+    };
+
+    for (const runId of [...sources.current.keys()]) {
+      if (!wanted.has(runId)) close(runId, false);
+    }
+    let added = false;
+    for (const runId of wanted) {
+      if (sources.current.has(runId) || finished.current.has(runId)) continue;
+      connect(runId);
+      added = true;
+    }
+    if (added) setOpenCount(open.current.size);
   }, [key]);
 
-  return { events, running };
+  // Close everything on unmount. (The next mount, e.g. StrictMode's, reopens what is
+  // still wanted: `finished` and `seen` survive, so nothing repeats.)
+  React.useEffect(() => {
+    const streams = sources.current;
+    const openSet = open.current;
+    return () => {
+      for (const es of streams.values()) es.close();
+      streams.clear();
+      openSet.clear();
+    };
+  }, []);
+
+  return { events, running: openCount > 0 };
 }

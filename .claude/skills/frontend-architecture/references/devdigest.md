@@ -52,7 +52,9 @@ component's own folder; wire-contract fields stay `snake_case`, props and locals
 
 1. **Centralised hooks vs per-feature `queryOptions`.** The sources recommend `queryOptions`
    factories colocated with the feature [S33][S34]; DevDigest centralises hooks in
-   `src/lib/hooks/` with inline keys. Keep the current style; propose a migration separately.
+   `src/lib/hooks/`, but every key now comes from one hierarchical factory, `src/lib/query-keys.ts`
+   (`keys.pr.scope(id)` covers a PR's reviews, runs, comments…). Keep hooks central; new keys go
+   in the factory.
 2. **`export *` barrel in `src/lib/hooks/index.ts`.** The sources warn against aggregator
    barrels [S49][S50]; the per-component `index.ts` files are thin named re-exports and fit
    the middle ground in [boundaries-and-naming.md](boundaries-and-naming.md).
