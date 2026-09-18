@@ -90,7 +90,8 @@ violation fails. When you touch one of these files, move it inward:
 | 9 services/helpers → `platform/container.ts` (warn) | whole-Container injection | constructor ports |
 
 The same debt is recorded in `server/INSIGHTS.md` ("Refactoring leftovers", "routes don't
-touch drizzle"). That is why these rules live in this skill, not in `eslint.config.mjs`/CI yet.
+touch drizzle"). That is why the rules run from this skill's config with a baseline (`pnpm arch`, also
+in CI), not from `eslint.config.mjs`.
 
 ## 6. Repo reminders that interact with the rings
 
@@ -106,8 +107,9 @@ touch drizzle"). That is why these rules live in this skill, not in `eslint.conf
 ## 7. Open questions (divergences from the sources)
 
 1. **Where the rules run.** Sources run dependency rules on every commit or in CI, next to ESLint [S23][S24][S25].
-   Here they live in the skill and its baseline, because starter code still violates them
-   (`server/INSIGHTS.md`). Move the same config and baseline into `pnpm lint`/CI once the debt shrinks.
+   Here the config and baseline live in the skill, because starter code still violates them
+   (`server/INSIGHTS.md`); `pnpm arch` runs them in CI (`server-unit.yml`) and fails only on new
+   violations. Fold them into `pnpm lint` once the baseline is empty.
 2. **Repository ports everywhere?** Palermo puts an interface in front of every repository [S1];
    pragmatic guides add ports only where I/O or test substitution needs them [S8][S9].
    Existing repositories are concrete classes. Add ports for new code, and for old code only when you touch it.

@@ -129,7 +129,7 @@ cd ../client && pnpm install && pnpm dev               # web on :3000
 ## Useful scripts
 
 `server/`: `dev` · `build` · `db:migrate` · `db:seed` · `db:generate` · `test` · `typecheck`
-(unit/integration split: `pnpm exec vitest run --exclude '**/*.it.test.ts'` / `pnpm exec vitest run .it.test`)
+(unit/integration split: `pnpm test:unit` / `pnpm test:integration`)
 `client/`: `dev` · `build` · `start` · `test` · `typecheck`
 
 ## Testing & CI

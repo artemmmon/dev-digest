@@ -75,7 +75,7 @@ cycles · both contract copies updated · a touched debt file leaves cleaner.
 
 ## Check
 
-Run from `server/` (dependency-cruiser is already a server dependency):
+Run from `server/` as `pnpm arch` (the same command runs in CI, `server-unit.yml`):
 
 ```bash
 pnpm exec depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --ignore-known ../.claude/skills/onion-architecture/assets/known-violations.json --output-type err

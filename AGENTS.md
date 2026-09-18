@@ -50,8 +50,8 @@ Every package exposes the same three checks: `typecheck` · `lint` · `test`.
 
 ## Cross-package rules
 - Zod contracts are **copied**, not shared: `server/src/vendor/shared` (canonical,
-  also read by reviewer-core) and `client/src/vendor/shared`. The copies already
-  diverge — a contract change must be applied to both.
+  also read by reviewer-core) and `client/src/vendor/shared`, kept byte-identical.
+  Edit the server copy, then `./scripts/shared-contracts.sh sync`; CI runs `check`.
 - Cross-package imports go through tsconfig path aliases (`@devdigest/shared`,
   `@devdigest/reviewer-core`), never relative `../../other-package` paths.
 - CI is path-filtered per package (`.github/workflows/`); `reviewer-core/**`

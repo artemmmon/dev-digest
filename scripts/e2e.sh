@@ -49,7 +49,7 @@ warn() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 command -v docker >/dev/null || { echo "docker not found"; exit 1; }
 command -v pnpm   >/dev/null || { echo "pnpm not found (npm i -g pnpm)"; exit 1; }
 command -v agent-browser >/dev/null || \
-  warn "agent-browser not found — install once: npm i -g agent-browser && agent-browser install"
+  warn "agent-browser not found — install once: npm i -g agent-browser@0.38.1 && agent-browser install"
 
 # --- teardown trap (installed before we start anything) ----------------------
 SERVER_PID=""

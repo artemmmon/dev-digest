@@ -138,9 +138,9 @@ What the reviewer actually sends to the model is assembled in
 The suite splits by filename — `*.it.test.ts` is DB-backed, everything else is
 hermetic:
 
-- **unit** — `pnpm exec vitest run --exclude '**/*.it.test.ts'` — the DB-free
+- **unit** — `pnpm test:unit` — the DB-free
   files. Adapters mocked; no Docker.
-- **integration** — `pnpm exec vitest run .it.test` — the `*.it.test.ts` files.
+- **integration** — `pnpm test:integration` — the `*.it.test.ts` files.
   Each starts a real Postgres via testcontainers (`test/helpers/pg.ts`), builds
   the app, migrates + seeds, and exercises routes end-to-end. They self-skip when
   Docker is absent.

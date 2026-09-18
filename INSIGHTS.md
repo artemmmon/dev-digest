@@ -80,6 +80,13 @@ as `grounding matched "…": 'x' → 'y'` (`GroundingResult.remapped`). A path w
 (`src/server/cost.ts` for `server/src/modules/pulls/cost.ts`) is still dropped.
 Where: `reviewer-core/src/grounding.ts:41`.
 
+### 2026-09-18 — Supersedes "`vendor/shared` copies have diverged"
+The copies are now byte-identical (server → client sync of the 5 drifted files) and
+`./scripts/shared-contracts.sh check` fails CI (`shared-contracts.yml`) on any difference. Edit
+only the server copy, then run `./scripts/shared-contracts.sh sync`. Comment-only drift counts
+too — identical files are what makes the check a plain `diff -r`.
+Where: `scripts/shared-contracts.sh:17`.
+
 
 ## Tool & Library Notes
 
@@ -113,6 +120,13 @@ no DevDigest paths in it — the project skill names the worked example. Plugin 
 namespaced (`/screencast-demo-maker:demo-film`), and an update replaces the plugin folder, so Playwright
 is re-installed by the skill on first use.
 Where: `.claude/skills/devdigest-demo/SKILL.md:1`, `docs/demo-video.md:9`.
+
+### 2026-09-18 — Supersedes "Lint was removed from the starter on purpose, and history is not a source"
+Lint is back: every package has `eslint.config.mjs` and every workflow runs it, and the server's
+onion layering runs in CI as `pnpm arch` (config + baseline stay in the skill). The history note
+still holds — don't restore configs from `c6af1e4^`; the current ones were written fresh.
+Where: `.github/workflows/server-unit.yml:74`.
+
 
 ## Recurring Errors & Fixes
 

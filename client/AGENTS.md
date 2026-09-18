@@ -33,8 +33,8 @@ Naming is in `../AGENTS.md`; what follows is the shape of the code.
 - Import alias `@/*` → `src/*`.
 
 ## Gotchas
-- `src/vendor/shared` diverges from `server/src/vendor/shared` (server is canonical).
-  When a contract changes on the server, mirror it here.
+- `src/vendor/shared` is a byte-identical copy of `server/src/vendor/shared` (server is
+  canonical). Never edit it here: change the server copy, run `../scripts/shared-contracts.sh sync`.
 - `messages/en/` already has namespaces for future lessons (eval, blast, memory…) —
   unused until the lesson lands; don't delete them.
 - `pnpm build` and `pnpm dev` share `.next`: building while dev runs makes every page 500

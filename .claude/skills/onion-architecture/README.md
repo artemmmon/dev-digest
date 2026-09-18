@@ -104,7 +104,7 @@ How the skill resolves the places where sources disagree:
 | DI mechanism | Container library (S15, S2's IoC) vs hand-written composition root (S9) | Keep the hand-written `platform/container.ts`; no second DI system |
 | Transactions | Pass `tx` down through use cases, repositories use `tx ?? db` (S17) vs unit of work (S18's book, later chapters) | Service owns the boundary (S17) through a unit-of-work port, so Drizzle's `tx` type never reaches application code |
 | Repository for simple CRUD | Skip it (S18) vs baseline practice (S19) | Any module that touches the DB gets a repository; routes never query (the starter routes are debt) |
-| Where rules are enforced | Pre-commit / CI (S23, S24, S25) | In the skill with a baseline for now; open question 1 in devdigest.md |
+| Where rules are enforced | Pre-commit / CI (S23, S24, S25) | CI via `pnpm arch`, config + baseline in the skill; open question 1 in devdigest.md |
 
 ## Notes on verification
 

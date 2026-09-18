@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/*.it.test.ts'",
+    "test:integration": "vitest run .it.test",
+    "arch": "depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --ignore-known ../.claude/skills/onion-architecture/assets/known-violations.json --output-type err",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts"

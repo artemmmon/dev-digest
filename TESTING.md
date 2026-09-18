@@ -64,8 +64,9 @@ cd client        && pnpm typecheck && pnpm lint && pnpm test
 cd reviewer-core && npm run typecheck && npm run lint && npm test
 
 # server — the unit/integration split (see note below)
-cd server && pnpm exec vitest run --exclude '**/*.it.test.ts'   # unit, no Docker
-cd server && pnpm exec vitest run .it.test                      # integration, needs Docker
+cd server && pnpm test:unit                                     # unit, no Docker
+cd server && pnpm test:integration                              # integration, needs Docker
+cd server && pnpm arch                                          # onion layering (depcruise)
 cd server && pnpm test                                          # both
 
 # browser e2e (needs the full stack + agent-browser CLI)
@@ -82,23 +83,27 @@ Every package runs two static gates before its tests, both wired into its workfl
 - **`lint`** — `eslint .` against the package's own `eslint.config.mjs` (flat config,
   ESLint 9). The configs are deliberately **not** type-aware: tsc already walks the
   same files in the same lane, so the linter only carries what tsc cannot see —
-  unused code, `any`, import style, and two architectural rules (`client`: no bare
-  `fetch` outside `src/lib/api.ts`; `reviewer-core`: no fs/child_process/network
-  outside `src/llm/`). Vendored and generated trees are ignored: `client/src/vendor`,
-  `client/docs`, `server/src/vendor`, `server/src/db/migrations`, `server/clones`.
+  unused code, `any`, import style, and a few architectural rules (`client`: no bare
+  `fetch` outside `src/lib/api.ts`, shared code never imports `src/app`, Next.js and
+  jsx-a11y rules; `reviewer-core`: no fs/child_process/network outside `src/llm/`).
+  Vendored and generated trees are ignored: `client/src/vendor`, `client/docs`,
+  `server/src/vendor`, `server/src/db/migrations`, `server/clones`.
+- **`arch`** (server only) — `pnpm arch`, the onion layering check (dependency-cruiser
+  with a known-violations baseline, `onion-architecture` skill).
 
 ## Conventions
 
-- **Integration tests end in `*.it.test.ts`.** The unit lane excludes that glob
-  (`vitest run --exclude '**/*.it.test.ts'`); the integration lane selects only
-  it (`vitest run .it.test`). A DB-backed test that imports `test/helpers/pg.ts`
-  must use the `.it.test.ts` suffix.
-- **`server/package.json` is `skip-worktree`** (a local variant diverges from the
-  committed file). CI therefore invokes the split with
-  `pnpm exec vitest run …` rather than relying on committed `test:unit` /
-  `test:integration` scripts.
+- **Integration tests end in `*.it.test.ts`.** The unit lane (`pnpm test:unit`)
+  excludes that glob; the integration lane (`pnpm test:integration`) selects only
+  it. A DB-backed test that imports `test/helpers/pg.ts` must use the `.it.test.ts`
+  suffix.
+- **Contract copies stay identical.** `./scripts/shared-contracts.sh check` runs in
+  CI (`shared-contracts.yml`); after editing `server/src/vendor/shared`, run `sync`.
 - **Hermetic by default.** Reach for `src/adapters/mocks.ts` (MockLLMProvider,
   MockGitClient) rather than real network/keys.
+- **Client component tests** render through `renderWithIntl` (`client/src/test/render.tsx`:
+  the real message catalogue, a QueryClient and the toast host) and drive the UI with
+  `userEvent`, not `fireEvent`.
 - **E2E specs are deterministic batch JSON** (`e2e/specs/*.flow.json`) using
   only `--url` / `--text` / `find` locators — never the AI `chat` command.
 - **CI is path-filtered per package.** Cross-package source aliases are encoded

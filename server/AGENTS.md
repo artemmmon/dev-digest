@@ -9,9 +9,10 @@ itself to `reviewer-core`. Root rules: `../AGENTS.md`.
 pnpm dev                                          # tsx watch, :3001
 pnpm typecheck
 pnpm lint                                         # eslint, not type-aware
-pnpm exec vitest run --exclude '**/*.it.test.ts'  # unit, no Docker
-pnpm exec vitest run .it.test                     # integration, needs Docker
+pnpm test:unit                                    # unit, no Docker
+pnpm test:integration                             # integration (*.it.test.ts), needs Docker
 pnpm test                                         # both
+pnpm arch                                         # onion layering check (depcruise)
 pnpm db:generate                                  # after editing src/db/schema/
 pnpm db:migrate                                   # NOT applied on boot
 pnpm db:seed                                      # idempotent; API needs it (see gotchas)
