@@ -1,8 +1,8 @@
 # reviewer-core — `@devdigest/reviewer-core`
 
 Pure review engine: diff + context → prompt → LLM → structured output → grounding
-gate → `Review`. No DB, GitHub, network or FS; the only side effect is the
-**injected** `LLMProvider`. Consumed by the server as TypeScript source. Root rules: `../AGENTS.md`.
+gate → `Review`. No DB, GitHub or FS; the only side effect is the **injected**
+`LLMProvider` (whose HTTP client is injectable too). Consumed by the server as TypeScript source. Root rules: `../AGENTS.md`.
 
 ## Commands
 Uses **npm**, not pnpm.
@@ -24,7 +24,8 @@ npm run typecheck # this IS the build — the package never emits JS
 
 ## Rules
 - Stay pure: never import from `server/src` except the shared contracts, never add
-  DB / fetch / fs. New side effects come in as injected interfaces.
+  DB / fetch / fs. New side effects come in as injected interfaces. The one exception is
+  `src/llm/` (the OpenRouter/OpenAI HTTP call): its `fetch` is injectable, so tests need no network.
 - Contracts come from `@devdigest/shared` → `../server/src/vendor/shared` (not a copy).
 - Prompt-injection defense is the single `INJECTION_GUARD` rule plus fencing
   untrusted text — do not add keyword/denylist filtering.
