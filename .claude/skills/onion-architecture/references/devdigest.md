@@ -73,19 +73,18 @@ Copy its style; never let it import `server/src` except via `@devdigest/shared`.
 ## 5. Known debt (baseline: `assets/known-violations.json`)
 
 Do not copy these patterns. Worked examples of the target shape: `modules/pulls/` and
-`modules/settings/`, `modules/repos/` (ports → repository → service → thin routes). The Check in `SKILL.md` ignores exactly these, so any new
+`modules/settings/`, `modules/repos/`, `modules/agents/` (ports → repository → service → thin routes). The Check in `SKILL.md` ignores exactly these, so any new
 violation fails. When you touch one of these files, move it inward:
 
 | Where | Violation | Fix direction |
 |---|---|---|
 | `modules/settings/feature-models.ts` | takes the whole `Container` (reads prefs via `container.settingsRepo`) | take a `SettingsStore` port |
-| `reviews/service.ts`, `reviews/run-executor.ts` | `db/rows` (`AgentRow`) / `db/schema` types | map rows to domain types in the repository |
+| `reviews/service.ts`, `reviews/run-executor.ts` | `db/schema` types (the agent row is gone: they use `AgentRecord` from `agents/types.ts`) | map remaining rows to domain types in the repository |
 | `reviews/diff-loader.ts` | `db/schema` + concrete `adapters/git/diff-parser` | diff parsing is pure → move to core/helper, or put behind `GitClient` |
 | `repo-intel/{service,pipeline/*}.ts` | direct `adapters/astgrep`, `adapters/codeindex/extract`, `adapters/tokenizer`; `fs/promises` + `os` for reading clones | parser/tokenizer/file-reader ports injected from the container |
 | `adapters/{astgrep,depgraph}` → `repo-intel/constants.ts` | adapter imports a module | move shared constants to core |
 | `platform/container.ts` ↔ `repo-intel/service.ts` (+ pipeline) | cycle via `import type { Container }` | service takes ports, not `Container` |
-| `agents/helpers.ts` ↔ `agents/repository.ts` | cycle | helper takes domain types; row types stay in repository |
-| 8 services/helpers → `platform/container.ts` (warn) | whole-Container injection | constructor ports |
+| 7 services/helpers → `platform/container.ts` (warn) | whole-Container injection | constructor ports |
 
 The same debt is recorded in `server/INSIGHTS.md` ("Refactoring leftovers", "routes don't
 touch drizzle"). That is why the rules run from this skill's config with a baseline (`pnpm arch`, also

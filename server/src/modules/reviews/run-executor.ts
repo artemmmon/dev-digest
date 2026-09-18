@@ -3,7 +3,7 @@ import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared'
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type * as schema from '../../db/schema.js';
-import type { AgentRow } from '../../db/rows.js';
+import type { AgentRecord, AgentStore } from '../agents/types.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
 import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
@@ -46,7 +46,7 @@ export class ReviewRunExecutor {
   constructor(
     private container: Container,
     private repo: ReviewRepository,
-    private agents: Container['agentsRepo'],
+    private agents: AgentStore,
   ) {}
 
   /**
@@ -58,7 +58,7 @@ export class ReviewRunExecutor {
     workspaceId: string,
     pull: PullRow,
     repo: typeof schema.repos.$inferSelect,
-    jobs: { agent: AgentRow; runId: string }[],
+    jobs: { agent: AgentRecord; runId: string }[],
     logger?: Logger,
   ): Promise<void> {
     // ONE logger fanned out over every queued run: shared pre-work (diff +
@@ -154,7 +154,7 @@ export class ReviewRunExecutor {
     pull: PullRow,
     repo: typeof schema.repos.$inferSelect,
     diff: UnifiedDiff,
-    agent: AgentRow,
+    agent: AgentRecord,
     runId: string,
     parentLog: RunLogger,
   ): Promise<RunOutcome> {
@@ -425,7 +425,7 @@ export class ReviewRunExecutor {
   private traceFromBuffer(
     runId: string,
     pull: PullRow,
-    agent: AgentRow,
+    agent: AgentRecord,
     grounding: string,
     durationMs = 0,
   ): RunTrace {

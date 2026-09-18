@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Container } from '../../platform/container.js';
 import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
-import type { AgentRow } from '../../db/rows.js';
+import type { AgentRecord, AgentStore } from '../agents/types.js';
 import { ReviewRepository } from './repository.js';
 import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
@@ -28,7 +28,7 @@ export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
  */
 export class ReviewService {
   private repo: ReviewRepository;
-  private agents: Container['agentsRepo'];
+  private agents: AgentStore;
   private executor: ReviewRunExecutor;
 
   constructor(private container: Container) {
@@ -47,7 +47,7 @@ export class ReviewService {
   async resolveTargets(
     workspaceId: string,
     opts: { agentId?: string; all?: boolean },
-  ): Promise<AgentRow[]> {
+  ): Promise<AgentRecord[]> {
     if (opts.all) return this.agents.listEnabled(workspaceId);
     if (opts.agentId) {
       const agent = await this.agents.getById(workspaceId, opts.agentId);
@@ -118,7 +118,7 @@ export class ReviewService {
   async runReview(
     workspaceId: string,
     prId: string,
-    targets: AgentRow[],
+    targets: AgentRecord[],
     logger?: Logger,
   ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
     const pull = await this.repo.getPull(workspaceId, prId);
@@ -130,7 +130,7 @@ export class ReviewService {
     // the client persists these in global state and subscribes to the SSE
     // stream. The actual (slow) review runs in the background below.
     const runs: { run_id: string; agent_id: string; agent_name: string }[] = [];
-    const jobs: { agent: AgentRow; runId: string }[] = [];
+    const jobs: { agent: AgentRecord; runId: string }[] = [];
     // One batch per request: the PR list sums the cost of the latest batch.
     const batchId = randomUUID();
     for (const agent of targets) {
