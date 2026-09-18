@@ -1,7 +1,8 @@
 // L01 demo — one function per scene, filmed by the `demo-film` skill's director.
 // Reference implementation: read this before writing scenes for another lesson.
 //
-//   node ~/.claude/skills/demo-film/scripts/director.mjs hw/L01/demo [--dry] [--scenes=s4,s5]
+//   node <screencast-demo-maker plugin>/skills/demo-film/scripts/director.mjs hw/L01/demo [--dry] [--scenes=s4,s5]
+//   (run it through /screencast-demo-maker:demo-film, which knows the plugin's path)
 //
 // Rules that keep the shot honest: never click a mutating control (config.neverClick),
 // and start the narration while the action is still moving, so there is no dead air.

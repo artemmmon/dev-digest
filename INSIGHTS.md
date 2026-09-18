@@ -88,6 +88,15 @@ rules (URLs, the seeded second repo to keep off camera, controls that must never
 in the project skill. Filming needs a second display and the app stack up.
 Where: `.claude/skills/devdigest-demo/SKILL.md:1`, `hw/L01/demo/scenes.mjs:1`.
 
+### 2026-09-18 — The demo engine is a plugin, the repo keeps only its conventions
+`demo-scenario`, `demo-film` and `frame-checker` moved from `~/.claude` into the `screencast-demo-maker`
+plugin (github.com/artemmmon/screencast-demo-maker), so a clone of this repo can install them
+instead of finding a skill that points at files nobody else has. The plugin must stay generic:
+no DevDigest paths in it — the project skill names the worked example. Plugin skills are
+namespaced (`/screencast-demo-maker:demo-film`), and an update replaces the plugin folder, so Playwright
+is re-installed by the skill on first use.
+Where: `.claude/skills/devdigest-demo/SKILL.md:1`, `docs/demo-video.md:9`.
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-17 — `eslint --fix` leaves a whitespace-only line when it drops a disable directive
