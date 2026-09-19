@@ -215,4 +215,17 @@ d('routes (Testcontainers pg)', () => {
     expect((await app.inject({ method: 'DELETE', url: `/reviews/${review!.id}` })).statusCode).toBe(404);
     await app.close();
   });
+
+  // Lives here, not in routes-smoke: the handler resolves the workspace (a DB read) before it
+  // checks the body, so without a database this answers 500 instead of 400.
+  it('POST /pulls/:id/review without a body is a 400 asking for agentId or all, not a validation error', async () => {
+    const app = await makeApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/pulls/00000000-0000-0000-0000-000000000000/review',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('invalid_run_request');
+    await app.close();
+  });
 });

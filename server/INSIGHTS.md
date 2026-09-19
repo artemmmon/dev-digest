@@ -211,6 +211,13 @@ the `__drizzle_migrations` insert (hash = `shasum -a 256`, created_at = journal 
 that every "already exists" object has the same definition. `pnpm db:migrate` is then a no-op.
 Where: `src/db/migrations/0011_low_stark_industries.sql:1`.
 
+### 2026-09-19 — A "no DB" unit test passes locally and fails in CI when the handler reads the DB first
+`POST /pulls/:id/review` calls `getContext` (workspace lookup) before it validates the body, so the test that expects
+400 `invalid_run_request` needs a database. It passed on every dev machine (docker Postgres is up) and answered 500 on the
+`server unit` CI lane (no DB). Reproduce it with `DATABASE_URL=postgres://x:x@127.0.0.1:1/x pnpm test:unit`; a DB-touching
+test belongs in a `*.it.test.ts`, so it moved to `routes.it.test.ts`.
+Where: `test/routes.it.test.ts:221`, `src/modules/reviews/routes.ts:38`.
+
 
 ## Open Questions
 
