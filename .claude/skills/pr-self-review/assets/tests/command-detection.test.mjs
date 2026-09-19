@@ -18,6 +18,10 @@ const gated = [
   'eval "git push"',
   'git commit -m "x" && git push',
   'true && bash -c "cd a && git push"',
+  // An apostrophe inside double quotes must not pair with a later single quote and hide the push.
+  `git commit -m "fix: don't crash" && git push && echo 'ok'`,
+  `echo "it's" && git push origin x && echo 'done'`,
+  `git commit -m 'say "hi"' && gh pr create --fill`,
 ];
 
 const notGated = [

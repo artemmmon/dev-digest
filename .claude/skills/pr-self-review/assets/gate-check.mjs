@@ -30,9 +30,12 @@ function executedInner(text) {
   return inner;
 }
 
-/** Drop quoted strings: `git commit -m "mention git push"` is not a push. */
+/**
+ * Drop quoted strings: `git commit -m "mention git push"` is not a push. One alternation, so whichever quote
+ * opens first owns the span: an apostrophe inside "double quotes" must not pair with a later single quote.
+ */
 function stripQuotes(text) {
-  return text.replace(/'[^']*'/g, "''").replace(/"(?:[^"\\]|\\.)*"/g, '""');
+  return text.replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, (m) => (m[0] === "'" ? "''" : '""'));
 }
 
 /** Every piece of the command that could run: the top level plus nested shells and substitutions. */

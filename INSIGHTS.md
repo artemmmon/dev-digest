@@ -184,6 +184,12 @@ gate now drops heredoc bodies and quoted strings, and re-scans only text that re
 Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:39` (`commandLayers`),
 `.claude/skills/pr-self-review/assets/tests/command-detection.test.mjs:1`.
 
+### 2026-09-19 — Strip shell quotes with one alternation, never two passes
+`stripQuotes` first removed `'…'` and then `"…"`; in `git commit -m "fix: don't crash" && git push && echo 'ok'` the apostrophe in
+`don't` paired with the quote before `'ok'` and swallowed the push, so the Claude hook let it through. Found by the
+`pr-self-review` correctness reviewer on its own code. One regex `'[^']*'|"(?:[^"\\]|\\.)*"` lets the quote that opens first own the span.
+Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:37`.
+
 ## Open Questions
 
 ### 2026-09-15 — Undocumented task IDs in comments
