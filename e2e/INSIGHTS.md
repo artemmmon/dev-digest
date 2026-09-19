@@ -52,7 +52,7 @@ Where: `README.md:52`, `../scripts/e2e.sh:25`.
 `FINDINGS` / `DESCRIPTION`. A step that clicks a list row must first `wait --text` for the
 row's title: without it, `find text … click` fires while the list is still loading (this
 is what the removed `wait --load networkidle` used to hide).
-Where: `specs/09-pr-overview.flow.json:49`, `specs/04-pr-findings.flow.json:8`.
+Where: `specs/09-pr-overview.flow.json:49`, `specs/02-repo-pulls-detail.flow.json:8`, `specs/04-pr-findings.flow.json:7`.
 
 ## Recurring Errors & Fixes
 
