@@ -11,6 +11,8 @@ export default tseslint.config(
   {
     ignores: [
       ".next/**",
+      // Local e2e build output (./scripts/e2e.sh → .next-e2e), git-ignored through `.next-*/`.
+      ".next-*/**",
       "node_modules/**",
       // Vendored, not ours: the UI kit and the copied Zod contracts.
       "src/vendor/**",

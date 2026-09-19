@@ -150,6 +150,17 @@ Where: `src/app/repos/[repoId]/pulls/_components/FindingsCell/FindingsCell.tsx:5
 `src/app/repos/[repoId]/pulls/_components/FindingsCell/_components/FindingsPopover/styles.ts:11`
 (`anchor`) and `:19` (`card`).
 
+### 2026-09-19 — `pnpm lint` fails with thousands of errors after a local e2e run
+`./scripts/e2e.sh` builds into `client/.next-e2e/` (git-ignored via `.next-*/`), but the ESLint ignore list only
+has `.next/**`, so `eslint .` lints the generated bundle (~2,300 errors, none in `src/`). CI never has the
+directory, so it only bites locally, and `pr-self-review` reports it as a failed `lint` check. Fix: add
+`".next-*/**"` to `ignores`, or delete `client/.next-e2e/` first (`eslint . --ignore-pattern ".next-*/**"` is clean).
+Where: `client/eslint.config.mjs:13`.
+
+### 2026-09-19 — Supersedes "`pnpm lint` fails with thousands of errors after a local e2e run"
+Fixed: `.next-*/**` is now in the ESLint `ignores`, so a clone that has run `./scripts/e2e.sh` lints clean.
+Where: `eslint.config.mjs:15`.
+
 ## Open Questions
 
 ## Session Notes
