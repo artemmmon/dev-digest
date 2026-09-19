@@ -69,6 +69,22 @@
     ]
   },
   {
+    "id": "incremental-push",
+    "skills": ["pr-self-review"],
+    "setup": "Branch already pushed to a remote (upstream set, 300+ files in the pull request). Two new local commits touch two client files; nothing else is unpushed.",
+    "query": "/pr-self-review",
+    "files": [
+      ".claude/skills/pr-self-review/references/gate.md",
+      ".claude/skills/pr-self-review/assets/lib.mjs"
+    ],
+    "expected_behavior": [
+      "collect-diff reports scope = unpushed and base = the upstream ref, and lists only the two changed files",
+      "Only reviewers for those two files are spawned, and only the touched package's checks run; the 300 files already on the remote are not reviewed",
+      "The report names the scope (only what the remote lacks) instead of implying the whole pull request was reviewed",
+      "After a PASS the gate allows the push; once the push succeeds nothing is unpushed and the gate allows without a verdict"
+    ]
+  },
+  {
     "id": "stale-verdict",
     "skills": ["pr-self-review"],
     "setup": "Branch with a PASS verdict already stored; then one more edit to a reviewed file (uncommitted), then the user asks to push.",

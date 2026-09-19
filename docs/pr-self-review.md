@@ -16,10 +16,13 @@ Design, sources and the evaluation log: [`.claude/skills/pr-self-review/README.m
 
    The Claude Code hook needs no install; it ships in `.claude/settings.json`.
 
-2. In Claude Code, run `/pr-self-review` (add `--base <ref>` to compare against something other than
-   `origin/main`). It also runs on its own when you ask Claude to open a PR or push for review.
+2. In Claude Code, run `/pr-self-review` (add `--base <ref>` to look at a different range; the gate still uses its own scope). It also runs on its own when you ask Claude to open a PR or push for review.
 
 3. Read the report. On **PASS** open the PR. On **BLOCK** fix every CRITICAL and run the review again.
+
+**What is reviewed.** A branch that was never pushed is reviewed as the whole pull request (everything since it left
+`main`). Once the branch is on the remote, only the commits and edits the remote does not have yet are reviewed, so a
+small follow-up push gets a small review.
 
 The verdict is tied to the content of your change. Editing a file, or moving the base branch, makes it stale, and
 the next push asks for a new review. Committing files you already reviewed does not.
@@ -69,9 +72,8 @@ Claude never sets this variable: if a command it runs contains it, the hook asks
 - It cannot stop the Merge button on github.com. Only branch protection with a required status check can.
 - `git push --no-verify` and clones without the installed hook skip the git layer.
 - Only the checked-out branch is gated.
-- `client` lint also lints local build output such as `client/.next-e2e/`; delete it before reviewing
-  (see the skill's `references/devdigest.md`).
-- New subagent definitions in `.claude/agents/` become available in the next Claude Code session.
+- `gh pr create` on an already pushed branch finds nothing unpushed and passes: the review that counts is the one at the first push.
+- Subagent definitions added in the middle of a session register late; the skill falls back to `general-purpose`.
 
 ## Maintain it
 

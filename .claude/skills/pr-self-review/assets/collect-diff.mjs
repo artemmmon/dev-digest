@@ -106,6 +106,7 @@ export function analyse({ routing, root, change, installed }) {
 
   return {
     base: change.base,
+    scope: change.scope,
     merge_base: change.mergeBase,
     head_sha: change.headSha,
     branch: change.branch,
@@ -134,7 +135,8 @@ export function analyse({ routing, root, change, installed }) {
 function summary(r) {
   const out = [];
   out.push(`branch ${r.branch}  base ${r.base} @ ${r.merge_base.slice(0, 8)}  head ${r.head_sha.slice(0, 8)}`);
-  out.push(`${r.files.length} files in the PR, hash ${r.diff_hash.slice(0, 12)}${r.empty ? '  (EMPTY)' : ''}`);
+  out.push(`scope: ${r.scope === 'unpushed' ? `only what is not on ${r.base} yet` : r.scope === 'pull-request' ? 'the whole pull request (branch never pushed)' : `custom base ${r.base}`}`);
+  out.push(`${r.files.length} files, hash ${r.diff_hash.slice(0, 12)}${r.empty ? '  (EMPTY)' : ''}`);
   out.push(`packages: ${r.packages.join(', ') || '-'}`);
   out.push('');
   for (const [skill, g] of Object.entries(r.skill_groups)) out.push(`  ${skill.padEnd(26)} ${g.files.length} files`);

@@ -4,7 +4,7 @@ How a BLOCK verdict stops `git push`, `gh pr create` and `gh pr merge`, what it 
 human overrides it. `[Sn]` numbers are the sources in [README.md](../README.md).
 
 ## Contents
-- [Layers](#layers) · [Verdict file](#verdict-file) · [Freshness](#freshness) · [Override](#override) · [What the gate does not do](#what-the-gate-does-not-do) · [Install](#install)
+- [Layers](#layers) · [Scope](#scope) · [Verdict file](#verdict-file) · [Freshness](#freshness) · [Override](#override) · [What the gate does not do](#what-the-gate-does-not-do) · [Install](#install)
 
 ## Layers
 
@@ -21,6 +21,22 @@ re-checks the command itself (`isGatedCommand` in `gate-check.mjs`) and the git 
 
 A PreToolUse block is exit code 2 with the reason on stderr, which Claude reads; it holds even in bypass-permissions
 mode [S1][S2]. The git hook exits 1, which aborts the push.
+
+## Scope
+
+What a verdict has to cover depends on whether the branch is already on the remote (`resolveBase` in `lib.mjs`):
+
+| Branch | Base | Reviewed |
+|---|---|---|
+| Never pushed (no live upstream) | merge-base with `origin/main` | the whole pull request: this is the review the PR gets |
+| Has an upstream | the upstream (`origin/<branch>`) | only commits and edits the remote does not have yet |
+| Upstream branch deleted on the remote | falls back to the first row | whole pull request |
+
+The rule follows from the freshness check: the hash covers the change set, so re-reviewing 300 files that a PR already
+carries after every small push would make the gate unusable. The price: `gh pr create` on a branch that is already
+pushed finds nothing unpushed and passes, so the review that counts is the one at the first push (a push made with
+`--no-verify` skips it). During a push the upstream ref still points at the old remote state, so the hook sees the same
+change set the review saw.
 
 ## Verdict file
 
@@ -43,6 +59,8 @@ merge-base and the content of every changed, non-excluded file (commits + staged
 | Verdict older than an edit or a new commit that changed content | blocked as stale |
 | `git commit` of files that were already reviewed | still fresh (same content, same hash) |
 | Base branch moved (new merge-base) | stale |
+| Everything is already on the remote | allowed (nothing unpushed) |
+| First push of a branch | needs a verdict for the whole pull request |
 
 ## Override
 

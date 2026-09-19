@@ -3,7 +3,7 @@ name: pr-self-review
 description: Pre-PR self-review of the local changes on the current DevDigest branch. Maps every changed file to the project skills that apply (frontend-architecture, react-best-practices, next-best-practices, onion-architecture, fastify-best-practices, drizzle-orm-patterns, zod, security, ...), runs typecheck/lint/unit tests/arch checks, runs one read-only reviewer per skill plus a correctness reviewer, verifies every CRITICAL finding, and records a PASS or BLOCK verdict that a hook checks before git push, gh pr create and gh pr merge. Use before opening a pull request or pushing a branch for review, when the user says "self-review", "review my changes", "ready for PR" or "check before PR", and when the gate reports a missing or stale verdict, even if the user never names the skill. Not for reviewing someone else's PR (use code-review) and not for fixing the findings.
 argument-hint: "[--base <ref>]"
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # PR Self Review
@@ -57,6 +57,10 @@ Use Node ≥ 22 for step 2 (`run-checks.mjs` exits 4 otherwise; put a Node 22 bi
 
 1. **Collect.** `empty: true` → say there is nothing to review and stop. Exit code 3 means `routing.json` names a
    skill that is not installed: report it and stop. Note `unmapped_skills`, `suspicious_generated`, `correctness_only`.
+   `scope` says how wide the review is: `pull-request` (branch never pushed: the whole change since the merge-base with
+   `main`) or `unpushed` (the branch has an upstream: only what the remote lacks). Name it in the report. `--base <ref>`
+   (`custom`) is for looking at a different range; the gate uses its own scope, so that verdict only opens the gate if the
+   file set is identical.
 2. **Checks.** Runs only the touched packages' checks. Exit 1 means a check failed: expected, keep going, the review
    still runs so the report is complete. `fail` blocks; `error` (could not run) is reported as not verified. Do not fix
    and rerun silently: report failures, let the user decide.
@@ -76,7 +80,7 @@ Use Node ≥ 22 for step 2 (`run-checks.mjs` exits 4 otherwise; put a Node 22 bi
    block by themselves; unmapped skills are stored and reported as a WARNING). It rejects findings missing `file`, `line`,
    `rule` or `title`: fix them, do not delete the check. Exit 1 = BLOCK, 0 = PASS.
 6. **Report** (short, no praise padding):
-   - verdict line and counts; the skill → files table; not verified;
+   - verdict line, counts and scope (`unpushed` or the whole pull request); the skill → files table; not verified;
    - each CRITICAL: `file:line`, rule, quoted code, fix;
    - WARNINGs grouped by skill, one line each; SUGGESTIONs only as a count;
    - "N findings refuted by the verifier", unmapped skills, files only the correctness reviewer read;

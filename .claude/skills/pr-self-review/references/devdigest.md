@@ -17,7 +17,7 @@ How the skill maps onto this repository, plus what is known to be rough and what
 | A server test that touches the DB must end in `.it.test.ts` | root `AGENTS.md` → Naming | `db-test-naming`, and why `test:unit` is used |
 | `reviewer-core/**` also triggers the server CI lane | `.github/workflows/server-unit.yml` | server checks run when reviewer-core changes |
 | `pnpm arch` runs the onion-architecture dependency-cruiser config | `server/package.json` | `arch` check |
-| Branches `lesson-NN`, base is `main`, push and PR go to the fork only | root `AGENTS.md`, memory | base ref defaults to `origin/main` |
+| Branches `lesson-NN`, base is `main`, push and PR go to the fork only | root `AGENTS.md`, memory | base is `origin/main` for a never-pushed branch, the upstream otherwise (gate.md → Scope) |
 
 ## Checks per package
 
@@ -45,10 +45,6 @@ How the skill maps onto this repository, plus what is known to be rough and what
 
 ## Known gaps
 
-- **`client` `pnpm lint` also lints local build output.** `client/.next-e2e/` (created by `./scripts/e2e.sh`,
-  git-ignored through `.next-*/`) is not in the ESLint ignore list, so a clone that has run e2e reports
-  thousands of errors in generated files and `check-failed` blocks the push. Fix: add `.next-*/**` to the
-  ignores in `client/eslint.config.mjs`, or delete `client/.next-e2e/` before reviewing. Found on `lesson-02`, 2026-09-19.
 - No skill covers server test conventions, so server tests get the correctness reviewer only.
 - `.it.test.ts` files are never run locally by this skill.
 
@@ -59,6 +55,7 @@ How the skill maps onto this repository, plus what is known to be rough and what
    whether the course fork wants it.
 2. **CI twin.** Should `check-failed` items also run in CI as a required job? They already do (`client.yml`,
    `server-unit.yml`, …); this skill only moves them earlier.
-3. **Cost.** A large PR (300+ files, as on `lesson-02`) spawns roughly 10 to 15 reviewers plus verifiers. If it is too
-   slow, add `--only <skill>` and a per-skill file cap.
+3. **Cost of the first push.** A never-pushed branch is reviewed as the whole pull request. A 300-file PR (as `lesson-02`
+   was) means about 35 reviewers in chunks of 25 files plus verifiers. Later pushes review only the unpushed part. If the
+   first review is still too heavy, add `--only <skill>` and a per-skill file cap.
 4. **`typescript-expert` scope.** Routed to `reviewer-core` only; revisit if the server grows type-level code.

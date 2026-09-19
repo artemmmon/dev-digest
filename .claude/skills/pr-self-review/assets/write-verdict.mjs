@@ -35,6 +35,7 @@ export function buildVerdict({ collect, checks, findings, now = new Date() }) {
     branch: collect.branch,
     head_sha: collect.head_sha,
     base: collect.base,
+    scope: collect.scope,
     merge_base: collect.merge_base,
     diff_hash: collect.diff_hash,
     counts: { critical: count('CRITICAL') + blocking.filter((b) => b.source !== 'finding').length, warning: count('WARNING') + collect.unmapped_skills.length, suggestion: count('SUGGESTION') },

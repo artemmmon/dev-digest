@@ -69,24 +69,37 @@ export function makeMatcher(globs) {
   return (path) => res.some((r) => r.test(path));
 }
 
-/** Base ref to compare against: first of routing.baseRefs that exists. */
+function refExists(ref, cwd) {
+  return Boolean(git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd, allowFail: true }));
+}
+
+/**
+ * What to compare against, and how wide the review is:
+ *  - `custom`       an explicit --base
+ *  - `unpushed`     the branch already has a live upstream: only what is not on the remote yet
+ *  - `pull-request` a branch never pushed: everything since the merge-base with the default branch
+ * @returns {{ ref: string, scope: 'custom' | 'unpushed' | 'pull-request' }}
+ */
 export function resolveBase(routing, cwd, override) {
-  const candidates = override ? [override] : routing.baseRefs;
-  for (const ref of candidates) {
-    if (git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd, allowFail: true })) {
-      return ref;
-    }
+  if (override) {
+    if (!refExists(override, cwd)) throw new Error(`base ref does not exist: ${override}`);
+    return { ref: override, scope: 'custom' };
   }
-  throw new Error(`none of the base refs exist: ${candidates.join(', ')}`);
+  const upstream = git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], { cwd, allowFail: true })?.trim();
+  if (upstream && refExists(upstream, cwd)) return { ref: upstream, scope: 'unpushed' };
+  for (const ref of routing.baseRefs) {
+    if (refExists(ref, cwd)) return { ref, scope: 'pull-request' };
+  }
+  throw new Error(`none of the base refs exist: ${routing.baseRefs.join(', ')}`);
 }
 
 /**
  * Everything that will end up in the PR: commits since the merge-base, plus staged,
  * unstaged and untracked files. Renames are reported as delete + add.
- * @returns {{ base: string, mergeBase: string, headSha: string, branch: string, files: {path: string, status: 'A'|'M'|'D'}[] }}
+ * @returns {{ base: string, scope: string, mergeBase: string, headSha: string, branch: string, files: {path: string, status: 'A'|'M'|'D'}[] }}
  */
 export function changedFiles(routing, cwd, baseOverride) {
-  const base = resolveBase(routing, cwd, baseOverride);
+  const { ref: base, scope } = resolveBase(routing, cwd, baseOverride);
   const mergeBase = git(['merge-base', base, 'HEAD'], { cwd }).trim();
   const headSha = git(['rev-parse', 'HEAD'], { cwd }).trim();
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd }).trim();
@@ -103,7 +116,7 @@ export function changedFiles(routing, cwd, baseOverride) {
   const files = [...byPath]
     .map(([path, status]) => ({ path, status }))
     .sort((a, b) => (a.path < b.path ? -1 : 1));
-  return { base, mergeBase, headSha, branch, files };
+  return { base, scope, mergeBase, headSha, branch, files };
 }
 
 /** Changed files minus routing.excluded — the set every later step (routing, hash, gate) agrees on. */
@@ -162,6 +175,8 @@ export function currentState(root, routing, baseOverride) {
   const files = includedFiles(routing, change);
   return {
     branch: change.branch,
+    base: change.base,
+    scope: change.scope,
     headSha: change.headSha,
     mergeBase: change.mergeBase,
     empty: files.length === 0,

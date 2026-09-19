@@ -6,7 +6,7 @@ skill plus a correctness reviewer, verifies every CRITICAL, and stores a PASS/BL
 hook and a git `pre-push` hook enforce. Fixing findings, reviewing other people's PRs and protecting the Merge
 button on GitHub are out of scope.
 
-- **Version:** 1.0.0 (also in `SKILL.md` frontmatter → `metadata.version`)
+- **Version:** 1.1.0 (also in `SKILL.md` frontmatter → `metadata.version`)
 - **Sources verified:** 2026-09-19
 - **Related skills:** `onion-architecture`, `frontend-architecture`, `react-best-practices`, `next-best-practices`, `fastify-best-practices`, `drizzle-orm-patterns`, `postgresql-table-design`, `zod`, `typescript-expert`, `security`, `react-testing-library` (the rubrics it routes to)
 - **Companions outside this folder:** `.claude/agents/pr-skill-reviewer.md`, `.claude/agents/pr-finding-verifier.md`, `.claude/settings.json` (PreToolUse hook), `scripts/install-hooks.sh`, `.github/workflows/pr-self-review.yml`, `docs/pr-self-review.md`
@@ -15,7 +15,8 @@ button on GitHub are out of scope.
 
 | Version | Date | Change |
 |---|---|---|
-| 1.0.0 | 2026-09-19 | Initial version: 30 sources, 5 references, 6 scripts + 28 script tests, 2 subagents, PreToolUse + pre-push gate, 5 evals (see Evaluation log) |
+| 1.0.0 | 2026-09-19 | Initial version: 30 sources, 5 references, 6 scripts + 33 script tests, 2 subagents, PreToolUse + pre-push gate, 5 evals (see Evaluation log) |
+| 1.1.0 | 2026-09-19 | Review scope follows the remote: a never-pushed branch is reviewed as the whole pull request, a branch with an upstream only for what is unpushed (`scope` in `collect.json` and the verdict); 5 script tests; eval `incremental-push` |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule, reference or check,
 **major** when a rule is reversed. Add a changelog row each time. Changing `routing.json` is a minor bump.
@@ -37,8 +38,8 @@ Bump the version on every change: **patch** for wording/links, **minor** for a n
 | [assets/gate-check.mjs](assets/gate-check.mjs) | The gate: `claude-hook`, `git-hook`, `status` |
 | [assets/lib.mjs](assets/lib.mjs) | Shared: glob matcher, git helpers, content hash, verdict path |
 | [assets/pre-push](assets/pre-push) | The git hook (installed by `scripts/install-hooks.sh`) |
-| [assets/tests/](assets/tests) | 28 tests in throw-away git repos: routing, hashing, verdict, gate, real `git push` through the hook |
-| [evals/evals.json](evals/evals.json) | 5 evaluation scenarios with expected behaviour |
+| [assets/tests/](assets/tests) | 33 tests in throw-away git repos: routing, hashing, verdict, gate, real `git push` through the hook |
+| [evals/evals.json](evals/evals.json) | 6 evaluation scenarios with expected behaviour |
 
 ## Sources
 
@@ -116,6 +117,7 @@ How the skill resolves the places where sources disagree or say nothing:
 | Description length | 1,536 characters truncated in Claude Code [S3]; 1,024 in the skill spec [S5] | Stay under 1,024 (this one is ~870) |
 | Parallel subagents from a skill | Docs describe parallel subagents [S4] but do not say that a skill running in the main conversation can spawn them; they also say skills do not invoke subagents directly | The workflow tells Claude to spawn all reviewers in one message; the evals check that it happens |
 | Custom subagents added mid-session | Not documented | Not registered at first, registered later in the same session (observed 2026-09-19); SKILL.md tries the named type and falls back to `general-purpose` |
+| Scope of a re-review | Reviewing the whole PR on every push matches what a PR is, but 300+ files per small push makes the gate unusable; no source addresses gates for AI review scope | Full review at the first push, incremental afterwards (this project's decision, 2026-09-19); `gh pr create` on a pushed branch therefore trusts the last push |
 | Severity vocabulary | Conventional Comments labels [S9] vs the product's own `CRITICAL / WARNING / SUGGESTION` | The product's words (they already exist in `specs/02-findings-severity.md`); "blocking" = CRITICAL |
 
 ## Notes on verification
