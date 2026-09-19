@@ -19,6 +19,14 @@
     },
     {
       "cmd": [
+        "wait",
+        "--text",
+        "Add rate limiting to public API endpoints"
+      ],
+      "label": "seeded PR title row is visible (list data loaded)"
+    },
+    {
+      "cmd": [
         "find",
         "text",
         "Add rate limiting to public API endpoints",
@@ -38,7 +46,7 @@
       "cmd": [
         "wait",
         "--text",
-        "Description"
+        "DESCRIPTION"
       ],
       "label": "the Overview tab shows its Description section"
     },

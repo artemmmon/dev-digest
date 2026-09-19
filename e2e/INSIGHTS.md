@@ -40,6 +40,20 @@ reviewed by reading them — new steps in `04-pr-findings` were added this way *
 locally; CI `e2e-web.yml` is the first real run)**.
 Where: `run.ts:40` (`AGENT_BROWSER_BIN`), `README.md` ("Run locally").
 
+### 2026-09-19 — Supersedes "`agent-browser` is a global CLI and is not installed on this machine"
+Installed `agent-browser@0.38.1` (the CI pin) and ran `../scripts/e2e.sh`: 9/9 flows pass.
+`npm i -g` puts the binary in `~/.npm-global/bin`, which is not on PATH in the Claude Code
+shell — prefix it, as with Node 22.
+Where: `README.md:52`, `../scripts/e2e.sh:25`.
+
+### 2026-09-19 — `wait --text` matches rendered text: CSS `text-transform` counts
+`wait --text` compares against `innerText`, case-sensitively, so a heading styled
+`text-transform: uppercase` (table column heads, `SectionLabel`) must be waited for as
+`FINDINGS` / `DESCRIPTION`. A step that clicks a list row must first `wait --text` for the
+row's title: without it, `find text … click` fires while the list is still loading (this
+is what the removed `wait --load networkidle` used to hide).
+Where: `specs/09-pr-overview.flow.json:49`, `specs/04-pr-findings.flow.json:8`.
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-15 — Flows assume the seeded repo is the only one
