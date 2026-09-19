@@ -135,6 +135,19 @@ onion layering runs in CI as `pnpm arch` (config + baseline stay in the skill). 
 still holds — don't restore configs from `c6af1e4^`; the current ones were written fresh.
 Where: `.github/workflows/server-unit.yml:74`.
 
+### 2026-09-19 — Claude Code registers subagents created mid-session late, not at once
+A file added to `.claude/agents/` while a session is running fails to spawn with
+`Agent type '<name>' not found`; it appeared in the session's agent list only some minutes later. Don't rely on a
+new agent in the same session: fall back to `general-purpose` with the agent body (without its frontmatter) as the
+prompt and `model` set by hand. `pr-self-review` documents this.
+Where: `.claude/skills/pr-self-review/SKILL.md:68` (step 3), `.claude/agents/pr-skill-reviewer.md:1`.
+
+### 2026-09-19 — `git rev-parse --git-path <file>` resolves our own symlink
+`git rev-parse --path-format=absolute --git-path hooks/pre-push` returns the symlink's *target*, so an
+installer that symlinks the hook then believes "a different hook already exists". Ask for the `hooks`
+directory and append `/pre-push`. Also `pwd -P`, or `/var` vs `/private/var` paths never compare equal on macOS.
+Where: `scripts/install-hooks.sh:14`.
+
 
 ## Recurring Errors & Fixes
 
@@ -162,6 +175,14 @@ quoted strings`, `TS1160: Unterminated template literal`). Write it as `**` + `/
 or use `//`. A directory pattern like `dir/**` is safe — no `*/` in it.
 Where: `server/src/modules/reviews/diff-filter.ts:17` (the pattern-forms comment),
 `server/src/modules/reviews/constants.ts:28` (`REVIEW_EXCLUDED_PATHS`).
+
+### 2026-09-19 — A regex over a whole Bash command blocks commands that only mention `git push`
+The first `pr-self-review` hook matched `git push` anywhere in the command string, so a heredoc or a commit
+message that merely mentions it was blocked with exit 2 (the author's own `cat <<EOF` with eval data). The
+gate now drops heredoc bodies and quoted strings, and re-scans only text that really executes (`bash -c '…'`,
+`eval`, `$(…)`, backticks). Any new hook matcher needs the same tests: quoted, heredoc, nested shell.
+Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:39` (`commandLayers`),
+`.claude/skills/pr-self-review/assets/tests/command-detection.test.mjs:1`.
 
 ## Open Questions
 
