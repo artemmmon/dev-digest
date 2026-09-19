@@ -15,9 +15,10 @@ human overrides it. `[Sn]` numbers are the sources in [README.md](../README.md).
 | GitHub branch protection + required status check | merging on github.com | (not built, see below) |
 
 Why two layers: the Claude hook is the only one that sees `gh pr create` and `gh pr merge`, because those are
-not git operations; the git hook is the only one that also covers a human's terminal. The hook's
-`if: "Bash(git *)"` filter is documented as best-effort for compound commands [S1][S2], so the script
-re-checks the command itself (`isGatedCommand` in `gate-check.mjs`) and the git hook is the backstop.
+not git operations; the git hook is the only one that also covers a human's terminal. `.claude/settings.json` uses no
+`if` filter on purpose: it is documented as best-effort for compound commands [S1][S2] and would not start the hook for
+`bash -c "git push"`. The script decides instead (`isGatedCommand` in `gate-check.mjs`) and exits 0 within milliseconds for
+every other Bash command; the git hook is the backstop.
 
 A PreToolUse block is exit code 2 with the reason on stderr, which Claude reads; it holds even in bypass-permissions
 mode [S1][S2]. The git hook exits 1, which aborts the push.

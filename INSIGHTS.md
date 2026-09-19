@@ -190,6 +190,14 @@ Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:39` (`commandLayers`
 `pr-self-review` correctness reviewer on its own code. One regex `'[^']*'|"(?:[^"\\]|\\.)*"` lets the quote that opens first own the span.
 Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:37`.
 
+### 2026-09-19 — `import.meta.url === \`file://${process.argv[1]}\`` makes a script a silent no-op on some paths
+`import.meta.url` is percent-encoded and symlink-resolved, `process.argv[1]` is neither, so the "run only as a script" guard
+is false for a checkout path with a space or behind a symlink, and a hook script then exits 0 having checked nothing (a
+gate that fails open). Compare `realpathSync(process.argv[1])` with `realpathSync(fileURLToPath(import.meta.url))`; `isMain`
+in `lib.mjs` does. Related: a Claude Code `if` filter on a hook is best-effort and skips `bash -c "…"`; drop it when the
+script can decide cheaply.
+Where: `.claude/skills/pr-self-review/assets/lib.mjs:15`, `.claude/settings.json:1`.
+
 ## Open Questions
 
 ### 2026-09-15 — Undocumented task IDs in comments

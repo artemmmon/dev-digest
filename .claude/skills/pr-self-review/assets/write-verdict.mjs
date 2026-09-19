@@ -8,7 +8,7 @@
 // Findings must carry file, line, rule, severity; incomplete findings are rejected (exit 2).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { repoRoot, verdictPath } from './lib.mjs';
+import { isMain, repoRoot, verdictPath } from './lib.mjs';
 
 const SEVERITIES = ['CRITICAL', 'WARNING', 'SUGGESTION'];
 
@@ -47,7 +47,7 @@ export function buildVerdict({ collect, checks, findings, now = new Date() }) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const arg = (name) => {
     const i = process.argv.indexOf(name);
     return i >= 0 ? process.argv[i + 1] : undefined;

@@ -1,11 +1,24 @@
 // Shared helpers for collect-diff.mjs and gate-check.mjs. No dependencies, Node >= 22.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readlinkSync, readdirSync, existsSync } from 'node:fs';
+import { lstatSync, readFileSync, readlinkSync, readdirSync, existsSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * True when the calling module is the script node was started with. Compares real filesystem paths:
+ * `import.meta.url` is percent-encoded and symlink-resolved, `process.argv[1]` is neither, so a naive
+ * string comparison silently turns the script into a no-op for paths with a space or a symlink.
+ */
+export function isMain(metaUrl) {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(metaUrl));
+  } catch {
+    return false;
+  }
+}
 
 export function git(args, { cwd, allowFail = false } = {}) {
   try {

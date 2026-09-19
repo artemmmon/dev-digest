@@ -10,6 +10,7 @@ import {
   diffHash,
   includedFiles,
   installedSkills,
+  isMain,
   loadRouting,
   makeMatcher,
   repoRoot,
@@ -150,7 +151,7 @@ function summary(r) {
   return out.join('\n');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const baseIdx = args.indexOf('--base');
   const baseOverride = baseIdx >= 0 ? args[baseIdx + 1] : undefined;

@@ -15,7 +15,7 @@ button on GitHub are out of scope.
 
 | Version | Date | Change |
 |---|---|---|
-| 1.0.0 | 2026-09-19 | Initial version: 30 sources, 5 references, 6 scripts + 33 script tests, 2 subagents, PreToolUse + pre-push gate, 5 evals (see Evaluation log) |
+| 1.0.0 | 2026-09-19 | Initial version: 30 sources, 5 references, 6 scripts + 36 script tests, 2 subagents, PreToolUse + pre-push gate, 5 evals (see Evaluation log) |
 | 1.1.0 | 2026-09-19 | Review scope follows the remote: a never-pushed branch is reviewed as the whole pull request, a branch with an upstream only for what is unpushed (`scope` in `collect.json` and the verdict); 5 script tests; eval `incremental-push` |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule, reference or check,
@@ -38,7 +38,7 @@ Bump the version on every change: **patch** for wording/links, **minor** for a n
 | [assets/gate-check.mjs](assets/gate-check.mjs) | The gate: `claude-hook`, `git-hook`, `status` |
 | [assets/lib.mjs](assets/lib.mjs) | Shared: glob matcher, git helpers, content hash, verdict path |
 | [assets/pre-push](assets/pre-push) | The git hook (installed by `scripts/install-hooks.sh`) |
-| [assets/tests/](assets/tests) | 33 tests in throw-away git repos: routing, hashing, verdict, gate, real `git push` through the hook |
+| [assets/tests/](assets/tests) | 36 tests in throw-away git repos: routing, hashing, verdict, gate, real `git push` through the hook |
 | [evals/evals.json](evals/evals.json) | 6 evaluation scenarios with expected behaviour |
 
 ## Sources

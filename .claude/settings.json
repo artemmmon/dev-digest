@@ -6,13 +6,6 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git *)",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/skills/pr-self-review/assets/gate-check.mjs claude-hook",
-            "timeout": 30
-          },
-          {
-            "type": "command",
-            "if": "Bash(gh pr *)",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/skills/pr-self-review/assets/gate-check.mjs claude-hook",
             "timeout": 30
           }

@@ -10,7 +10,7 @@
 // see references/gate.md for why the Claude hook asks a human instead).
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { currentState, git, loadRouting, repoRoot, verdictDir, verdictPath } from './lib.mjs';
+import { currentState, git, isMain, loadRouting, repoRoot, verdictDir, verdictPath } from './lib.mjs';
 
 export const OVERRIDE_VAR = 'PR_SELF_REVIEW_OVERRIDE';
 const GATED = /(?:^|[\s;&|(])(?:gh\s+pr\s+(?:create|merge)|git\s+(?:-\S+\s+(?:\S+\s+)?)*push)(?=\s|$|[;&|)])/;
@@ -143,4 +143,4 @@ function main() {
   process.exit(64);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (isMain(import.meta.url)) main();
