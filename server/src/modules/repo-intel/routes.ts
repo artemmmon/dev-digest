@@ -26,16 +26,16 @@ export default async function repoIntelRoutes(appBase: FastifyInstance) {
   // JobRunner stores the handler closure, not the service instance, and the
   // lazy `container.repoIntel` getter constructs its own service for read
   // calls. Both share the same DB, so behaviour is identical.
-  const service = new RepoIntelService(container);
+  const service = new RepoIntelService(container.repoIntelRepo, container.repoIntelDeps);
   service.registerIndexJobHandlers();
 
   app.get(
     '/repos/:id/index-state',
     { schema: { params: IdParams } },
     async (req): Promise<IndexState> => {
-      // Resolve tenancy so the request is workspace-scoped even though the
-      // facade itself is tenant-agnostic (consistent with blast routes).
-      await getContext(container, req);
+      // The facade is tenant-agnostic, so check the repo's workspace first.
+      const { workspaceId } = await getContext(container, req);
+      await service.requireRepo(workspaceId, req.params.id);
       return container.repoIntel.getIndexState(req.params.id);
     },
   );
@@ -45,6 +45,7 @@ export default async function repoIntelRoutes(appBase: FastifyInstance) {
     { schema: { params: IdParams } },
     async (req, reply) => {
       const { workspaceId } = await getContext(container, req);
+      await service.requireRepo(workspaceId, req.params.id);
       // 202 even when enqueue fails (no handler / DB hiccup) so the UI can
       // still poll /index-state without an inline error path. The actual
       // outcome shows up in `repo_index_state` once the worker runs.

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { z } from 'zod';
 import type {
   LLMProvider,
   ModelInfo,
@@ -24,6 +25,24 @@ import { toJsonSchema, parseWithRepair } from './structured.js';
 
 const NOT_SUPPORTED = 'OpenRouterProvider only implements completeStructured';
 
+/** OpenRouter's extras on an otherwise OpenAI-shaped response, parsed instead of cast. */
+const UsageExtras = z.object({ cost: z.number().optional() }).passthrough();
+const BodyError = z.object({ error: z.object({ message: z.string().optional() }).optional() });
+const ModelsResponse = z.object({
+  data: z
+    .array(
+      z
+        .object({
+          id: z.string(),
+          name: z.string().optional(),
+          context_length: z.number().optional(),
+          pricing: z.object({ prompt: z.string().optional(), completion: z.string().optional() }).optional(),
+        })
+        .passthrough(),
+    )
+    .optional(),
+});
+
 export interface OpenRouterProviderOptions {
   /** OpenAI-compatible base URL (default: OpenRouter). */
   baseURL?: string;
@@ -32,6 +51,8 @@ export interface OpenRouterProviderOptions {
   /** Per-request timeout (ms) — the SDK retries on timeout/5xx/429 with backoff. */
   timeoutMs?: number;
   maxRetries?: number;
+  /** HTTP client (default: global fetch) — injectable so tests need no network. */
+  fetch?: typeof fetch;
   /** Injected cost estimator; returns USD or null when the model is unknown. */
   estimateCost?: (model: string, tokensIn: number, tokensOut: number) => number | null;
 }
@@ -41,6 +62,7 @@ export class OpenRouterProvider implements LLMProvider {
   private client: OpenAI;
   private baseURL: string;
   private apiKey: string;
+  private fetchImpl: typeof fetch;
   private estimateCost?: OpenRouterProviderOptions['estimateCost'];
 
   constructor(apiKey: string, opts: OpenRouterProviderOptions = {}) {
@@ -48,7 +70,9 @@ export class OpenRouterProvider implements LLMProvider {
     this.apiKey = apiKey;
     this.baseURL = opts.baseURL ?? 'https://openrouter.ai/api/v1';
     this.estimateCost = opts.estimateCost;
+    this.fetchImpl = opts.fetch ?? ((input, init) => fetch(input, init));
     this.client = new OpenAI({
+      fetch: this.fetchImpl,
       apiKey,
       baseURL: this.baseURL,
       timeout: opts.timeoutMs ?? 90_000,
@@ -87,14 +111,14 @@ export class OpenRouterProvider implements LLMProvider {
       // error / moderation / free-tier limit in the body) — surface it.
       const choice = res.choices?.[0];
       if (!choice) {
-        const errMsg = (res as unknown as { error?: { message?: string } }).error?.message;
+        const errMsg = BodyError.safeParse(res).data?.error?.message;
         throw new Error(`OpenRouter returned no choices for ${req.schemaName}${errMsg ? `: ${errMsg}` : ''}`);
       }
       lastRaw = choice.message?.content ?? '';
       tokensIn += res.usage?.prompt_tokens ?? 0;
       tokensOut += res.usage?.completion_tokens ?? 0;
       // `usage.cost` is an OpenRouter extension (USD), absent from the OpenAI SDK type.
-      const apiCost = (res.usage as { cost?: number } | null | undefined)?.cost;
+      const apiCost = UsageExtras.safeParse(res.usage).data?.cost;
       if (typeof apiCost === 'number') costFromApi = (costFromApi ?? 0) + apiCost;
 
       const parsed = parseWithRepair(req.schema, lastRaw);
@@ -121,19 +145,13 @@ export class OpenRouterProvider implements LLMProvider {
    * converted from per-token to USD per 1M tokens; cheapest output first.
    */
   async listModels(): Promise<ModelInfo[]> {
-    const res = await fetch(`${this.baseURL}/models`, {
+    const res = await this.fetchImpl(`${this.baseURL}/models`, {
       headers: { Authorization: `Bearer ${this.apiKey}` },
     });
     if (!res.ok) throw new Error(`OpenRouter /models returned ${res.status}`);
-    const json = (await res.json()) as {
-      data?: Array<{
-        id: string;
-        name?: string;
-        context_length?: number;
-        pricing?: { prompt?: string; completion?: string };
-      }>;
-    };
-    const models: ModelInfo[] = (json.data ?? []).map((m) => {
+    const json = ModelsResponse.safeParse(await res.json());
+    if (!json.success) throw new Error('OpenRouter /models returned an unexpected payload');
+    const models: ModelInfo[] = (json.data.data ?? []).map((m) => {
       const prompt = Number(m.pricing?.prompt);
       const completion = Number(m.pricing?.completion);
       // OpenRouter uses -1 as a sentinel for variable-priced router pseudo-models

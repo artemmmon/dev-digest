@@ -4,26 +4,14 @@
  */
 
 // --- Job kinds (registered on JobRunner; enqueued from repos/service.ts) ----
-export const INDEX_JOB_KIND = 'repo-intel-index';
-export const REFRESH_JOB_KIND = 'repo-intel-refresh';
-/** Manual "re-analyze": fetch latest from origin + incremental reindex. */
-export const RESYNC_JOB_KIND = 'repo-intel-resync';
+export { INDEX_JOB_KIND, REFRESH_JOB_KIND, RESYNC_JOB_KIND } from '../_shared/ports.js';
 
 // --- Walk / parse scope -----------------------------------------------------
-/** [T1] Files we parse (diff-scoped in T1; whole walk in T2). */
-export const SUPPORTED_EXT = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'] as const;
+/** [T1] Files we parse (diff-scoped in T1; whole walk in T2). Lives in the core: adapters use it too. */
+export { SUPPORTED_EXT, MAX_SIGNATURE_CHARS } from '@devdigest/shared';
 
-/** [T1] Directories never walked. `.gitignore` is layered on top in T2 walk. */
-export const EXCLUDED_DIRS = [
-  'node_modules',
-  'dist',
-  'build',
-  'coverage',
-  '.next',
-  'out',
-  'vendor',
-  '.git',
-] as const;
+/** [T1] Directories never walked, and the walk bounds. Live in the core: the fs adapter uses them too. */
+export { EXCLUDED_DIRS, MAX_INDEXED_FILES, MAX_FILE_SIZE } from '@devdigest/shared';
 
 // --- Read-time limits -------------------------------------------------------
 /** [T1] Caller fan-out cap per changed symbol (ORDER BY rank DESC LIMIT N). */
@@ -39,8 +27,6 @@ export const MAX_CALLERS_PER_SYMBOL = 20;
 export const INDEXER_VERSION = 2;
 
 // --- [T2] Full-index limits (documented now, enforced in the pipeline) ------
-export const MAX_INDEXED_FILES = 5000;
-export const MAX_FILE_SIZE = 400 * 1024; // 400 KB
 export const MAX_PARSE_MS_PER_FILE = 2000;
 /** Soft self-watch budget (< JobRunner hard 120s) → finish as `partial`. */
 export const INDEX_SOFT_BUDGET_MS = 110_000;
@@ -49,5 +35,3 @@ export const INDEX_SOFT_BUDGET_MS = 110_000;
 export const BFS_DEPTH = 2;
 export const HOTNESS_WINDOW_DAYS = 180;
 export const DEFAULT_REPO_MAP_TOKEN_BUDGET = 1500;
-/** Signatures are trimmed to this many chars in the parse phase (cache stability). */
-export const MAX_SIGNATURE_CHARS = 120;

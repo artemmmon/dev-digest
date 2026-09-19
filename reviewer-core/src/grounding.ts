@@ -18,6 +18,35 @@ const FULL_FILE_KINDS = new Set(['secret_leak', 'lethal_trifecta', 'phantom', 'h
 export interface GroundingResult {
   kept: Finding[];
   dropped: { finding: Finding; reason: string }[];
+  /** Kept findings whose `file` was rewritten to the diff's path (see resolveDiffPath). */
+  remapped: { from: string; to: string; title: string }[];
+}
+
+/** Strip what models commonly prepend to a repo path: `./`, `/`, git's `a/`/`b/`, Windows `\`. */
+function normalizePath(p: string): string {
+  return p
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '')
+    .replace(/^[ab]\//, '');
+}
+
+/**
+ * Map the model's `file` onto a path that is really in the diff: exact match,
+ * then the normalised form, then a UNIQUE whole-segment suffix match either way
+ * (`cost.ts` or `repo/server/cost.ts` for `server/cost.ts`). Ambiguous → null;
+ * the line-range check still has to pass afterwards.
+ */
+function resolveDiffPath(file: string, filesInDiff: Set<string>): string | null {
+  if (filesInDiff.has(file)) return file;
+  const wanted = normalizePath(file);
+  if (!wanted) return null;
+  if (filesInDiff.has(wanted)) return wanted;
+  const candidates = [...filesInDiff].filter(
+    (p) => p.endsWith(`/${wanted}`) || wanted.endsWith(`/${p}`),
+  );
+  return candidates.length === 1 ? candidates[0]! : null;
 }
 
 /** Build a quick lookup of file → set of new-side line numbers covered by hunks. */
@@ -38,10 +67,14 @@ export function buildLineIndex(diff: UnifiedDiff): Map<string, Set<number>> {
   return idx;
 }
 
+/**
+ * Walk the diff's lines, not the finding's range: the range comes from the model
+ * and `end_line: 1e9` must not become a billion iterations on the request path.
+ */
 function rangeIntersects(lines: Set<number>, start: number, end: number): boolean {
   const lo = Math.min(start, end);
   const hi = Math.max(start, end);
-  for (let n = lo; n <= hi; n++) if (lines.has(n)) return true;
+  for (const n of lines) if (n >= lo && n <= hi) return true;
   return false;
 }
 
@@ -54,24 +87,28 @@ export function groundFindings(findings: Finding[], diff: UnifiedDiff): Groundin
   const filesInDiff = new Set(diff.files.map((f) => f.path));
   const kept: Finding[] = [];
   const dropped: { finding: Finding; reason: string }[] = [];
+  const remapped: GroundingResult['remapped'] = [];
 
-  for (const finding of findings) {
-    const isFullFile = finding.kind ? FULL_FILE_KINDS.has(finding.kind) : false;
+  for (const original of findings) {
+    const isFullFile = original.kind ? FULL_FILE_KINDS.has(original.kind) : false;
 
-    if (!filesInDiff.has(finding.file)) {
-      dropped.push({ finding, reason: `file '${finding.file}' not present in diff` });
+    const path = resolveDiffPath(original.file, filesInDiff);
+    if (!path) {
+      dropped.push({ finding: original, reason: `file '${original.file}' not present in diff` });
       continue;
     }
-
-    if (isFullFile) {
-      // full-file scanners only need the file to be in the diff
+    const finding = path === original.file ? original : { ...original, file: path };
+    const keep = () => {
       kept.push(finding);
-      continue;
-    }
+      if (finding !== original) {
+        remapped.push({ from: original.file, to: finding.file, title: finding.title });
+      }
+    };
 
+    // full-file scanners only need the file to be in the diff
     const lines = lineIndex.get(finding.file) ?? new Set<number>();
-    if (rangeIntersects(lines, finding.start_line, finding.end_line)) {
-      kept.push(finding);
+    if (isFullFile || rangeIntersects(lines, finding.start_line, finding.end_line)) {
+      keep();
     } else {
       dropped.push({
         finding,
@@ -80,7 +117,7 @@ export function groundFindings(findings: Finding[], diff: UnifiedDiff): Groundin
     }
   }
 
-  return { kept, dropped };
+  return { kept, dropped, remapped };
 }
 
 /** Human-readable summary, e.g. "3/3 passed" used in run-trace stats. */

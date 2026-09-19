@@ -49,7 +49,7 @@ warn() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 command -v docker >/dev/null || { echo "docker not found"; exit 1; }
 command -v pnpm   >/dev/null || { echo "pnpm not found (npm i -g pnpm)"; exit 1; }
 command -v agent-browser >/dev/null || \
-  warn "agent-browser not found — install once: npm i -g agent-browser && agent-browser install"
+  warn "agent-browser not found — install once: npm i -g agent-browser@0.38.1 && agent-browser install"
 
 # --- teardown trap (installed before we start anything) ----------------------
 SERVER_PID=""
@@ -88,7 +88,7 @@ docker run -d --rm --name "$PG_CONTAINER" \
   -e POSTGRES_USER="$PG_USER" \
   -e POSTGRES_PASSWORD="$PG_PASS" \
   -e POSTGRES_DB="$PG_DB" \
-  -p "${PG_PORT}:5432" \
+  -p "127.0.0.1:${PG_PORT}:5432" \
   --health-cmd="pg_isready -U $PG_USER -d $PG_DB" \
   --health-interval=5s --health-timeout=5s --health-retries=10 \
   "$PG_IMAGE" >/dev/null
@@ -145,7 +145,8 @@ log "API healthy"
 
 # --- web on :$WEB_PORT (next dev → reads NEXT_PUBLIC_API_BASE from env) -------
 log "starting web on :$WEB_PORT"
-(cd client && pnpm exec next dev -p "$WEB_PORT") &
+# own build dir: a dev server already running in client/ keeps its .next cache intact
+(cd client && NEXT_DIST_DIR=.next-e2e pnpm exec next dev -p "$WEB_PORT") &
 WEB_PID=$!
 log "waiting for web :$WEB_PORT"
 web_up=0

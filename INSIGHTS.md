@@ -27,6 +27,14 @@ costs full price and persists zero findings. Exclude vendored/fixture paths from
 diff before blaming the model. Seen on PR #1 (`0/2 passed`, run `0d14f36c`).
 Where: `client/docs/design/src/data.jsx`, `reviewer-core/src/grounding.ts:61`.
 
+### 2026-09-19 — Supersedes "Docs drift from code"
+The README items (three reviewers, OpenRouter key, `down -v` warning) and the `skip-worktree`
+claim in TESTING.md are fixed. The `agent-runner` mentions are intentional forward references
+to lesson L06 — leave them; the `server/docker-compose.yml` duplicate of the root compose file
+is gone. To catch new drift, re-read README claims against `server/src/db/seed.ts` and
+`.env.example` after every lesson merge.
+Where: `README.md:73`, `.gitignore:5`.
+
 ## Codebase Patterns
 
 ### 2026-09-15 — `vendor/shared` copies have diverged
@@ -64,6 +72,30 @@ and `FINDINGS` in the list describe the latest review *round*, while the severit
 run card describe that one agent — two different numbers with the same shape.
 Where: `client/src/lib/format-cost.ts:1`, `server/docs/0001-latest-review-is-a-batch.md:1`.
 
+### 2026-09-18 — Agent instructions live in AGENTS.md; CLAUDE.md is a symlink to it
+Root and all four packages keep their agent map in `AGENTS.md` (read by Codex, Cursor and
+others); `CLAUDE.md` beside it is a relative symlink (git mode 120000) so Claude Code loads the
+same file. Edit `AGENTS.md` only — an editor that "saves as copy" silently forks the two. The
+`@AGENTS.md` import stub was rejected: it works on Windows without symlink support, but the team
+is on macOS and wanted one file. `hw/L01/**` and older entries still say `CLAUDE.md` on purpose.
+Where: `AGENTS.md:69`.
+
+### 2026-09-18 — Supersedes "Grounding gate 1 is an exact string match on the diff's file path"
+`groundFindings` now resolves the model's `file` before the line check: exact, then normalised
+(`./`, `/`, `a/`, `b/`, `\`), then a unique whole-segment suffix match either way. It never guesses
+between two candidates, and the line range must still intersect a hunk. Rewrites show up in the trace
+as `grounding matched "…": 'x' → 'y'` (`GroundingResult.remapped`). A path with a different middle
+(`src/server/cost.ts` for `server/src/modules/pulls/cost.ts`) is still dropped.
+Where: `reviewer-core/src/grounding.ts:41`.
+
+### 2026-09-18 — Supersedes "`vendor/shared` copies have diverged"
+The copies are now byte-identical (server → client sync of the 5 drifted files) and
+`./scripts/shared-contracts.sh check` fails CI (`shared-contracts.yml`) on any difference. Edit
+only the server copy, then run `./scripts/shared-contracts.sh sync`. Comment-only drift counts
+too — identical files are what makes the check a plain `diff -r`.
+Where: `scripts/shared-contracts.sh:17`.
+
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
@@ -97,6 +129,26 @@ namespaced (`/screencast-demo-maker:demo-film`), and an update replaces the plug
 is re-installed by the skill on first use.
 Where: `.claude/skills/devdigest-demo/SKILL.md:1`, `docs/demo-video.md:9`.
 
+### 2026-09-18 — Supersedes "Lint was removed from the starter on purpose, and history is not a source"
+Lint is back: every package has `eslint.config.mjs` and every workflow runs it, and the server's
+onion layering runs in CI as `pnpm arch` (config + baseline stay in the skill). The history note
+still holds — don't restore configs from `c6af1e4^`; the current ones were written fresh.
+Where: `.github/workflows/server-unit.yml:74`.
+
+### 2026-09-19 — Claude Code registers subagents created mid-session late, not at once
+A file added to `.claude/agents/` while a session is running fails to spawn with
+`Agent type '<name>' not found`; it appeared in the session's agent list only some minutes later. Don't rely on a
+new agent in the same session: fall back to `general-purpose` with the agent body (without its frontmatter) as the
+prompt and `model` set by hand. `pr-self-review` documents this.
+Where: `.claude/skills/pr-self-review/SKILL.md:68` (step 3), `.claude/agents/pr-skill-reviewer.md:1`.
+
+### 2026-09-19 — `git rev-parse --git-path <file>` resolves our own symlink
+`git rev-parse --path-format=absolute --git-path hooks/pre-push` returns the symlink's *target*, so an
+installer that symlinks the hook then believes "a different hook already exists". Ask for the `hooks`
+directory and append `/pre-push`. Also `pwd -P`, or `/var` vs `/private/var` paths never compare equal on macOS.
+Where: `scripts/install-hooks.sh:14`.
+
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-17 — `eslint --fix` leaves a whitespace-only line when it drops a disable directive
@@ -123,6 +175,28 @@ quoted strings`, `TS1160: Unterminated template literal`). Write it as `**` + `/
 or use `//`. A directory pattern like `dir/**` is safe — no `*/` in it.
 Where: `server/src/modules/reviews/diff-filter.ts:17` (the pattern-forms comment),
 `server/src/modules/reviews/constants.ts:28` (`REVIEW_EXCLUDED_PATHS`).
+
+### 2026-09-19 — A regex over a whole Bash command blocks commands that only mention `git push`
+The first `pr-self-review` hook matched `git push` anywhere in the command string, so a heredoc or a commit
+message that merely mentions it was blocked with exit 2 (the author's own `cat <<EOF` with eval data). The
+gate now drops heredoc bodies and quoted strings, and re-scans only text that really executes (`bash -c '…'`,
+`eval`, `$(…)`, backticks). Any new hook matcher needs the same tests: quoted, heredoc, nested shell.
+Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:39` (`commandLayers`),
+`.claude/skills/pr-self-review/assets/tests/command-detection.test.mjs:1`.
+
+### 2026-09-19 — Strip shell quotes with one alternation, never two passes
+`stripQuotes` first removed `'…'` and then `"…"`; in `git commit -m "fix: don't crash" && git push && echo 'ok'` the apostrophe in
+`don't` paired with the quote before `'ok'` and swallowed the push, so the Claude hook let it through. Found by the
+`pr-self-review` correctness reviewer on its own code. One regex `'[^']*'|"(?:[^"\\]|\\.)*"` lets the quote that opens first own the span.
+Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:37`.
+
+### 2026-09-19 — `import.meta.url === \`file://${process.argv[1]}\`` makes a script a silent no-op on some paths
+`import.meta.url` is percent-encoded and symlink-resolved, `process.argv[1]` is neither, so the "run only as a script" guard
+is false for a checkout path with a space or behind a symlink, and a hook script then exits 0 having checked nothing (a
+gate that fails open). Compare `realpathSync(process.argv[1])` with `realpathSync(fileURLToPath(import.meta.url))`; `isMain`
+in `lib.mjs` does. Related: a Claude Code `if` filter on a hook is best-effort and skips `bash -c "…"`; drop it when the
+script can decide cheaply.
+Where: `.claude/skills/pr-self-review/assets/lib.mjs:15`, `.claude/settings.json:1`.
 
 ## Open Questions
 

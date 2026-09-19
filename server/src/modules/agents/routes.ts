@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import {
+  Agent,
+  AgentSkillLink,
+  AgentVersion,
+  CiFailOn,
+  Provider,
+  ReviewStrategy,
+} from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -69,21 +76,27 @@ const SetSkillsBody = z
 
 export default async function agentsRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
-  const service = new AgentsService(app.container);
+  const service = new AgentsService({
+    agents: app.container.agentsRepo,
+    llm: (provider) => app.container.llm(provider),
+  });
 
-  app.get('/agents', async (req) => {
+  app.get('/agents', { schema: { response: { 200: z.array(Agent) } } }, async (req) => {
     const { workspaceId } = await getContext(app.container, req);
     return service.list(workspaceId);
   });
 
-  app.get('/agents/:id', { schema: { params: IdParams } }, async (req) => {
+  app.get('/agents/:id', { schema: { params: IdParams, response: { 200: Agent } } }, async (req) => {
     const { workspaceId } = await getContext(app.container, req);
     const agent = await service.get(workspaceId, req.params.id);
     if (!agent) throw new NotFoundError('Agent not found');
     return agent;
   });
 
-  app.post('/agents', { schema: { body: CreateAgentBody } }, async (req, reply) => {
+  app.post(
+    '/agents',
+    { schema: { body: CreateAgentBody, response: { 201: Agent } } },
+    async (req, reply) => {
     const { workspaceId, userId } = await getContext(app.container, req);
     const body = req.body;
     const agent = await service.create(
@@ -104,11 +117,12 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     );
     reply.status(201);
     return agent;
-  });
+    },
+  );
 
   app.put(
     '/agents/:id',
-    { schema: { params: IdParams, body: UpdateAgentBody } },
+    { schema: { params: IdParams, body: UpdateAgentBody, response: { 200: Agent } } },
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       const agent = await service.update(workspaceId, req.params.id, req.body);
@@ -124,16 +138,20 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     return { ok: true };
   });
 
-  app.get('/agents/:id/versions', { schema: { params: IdParams } }, async (req) => {
+  app.get(
+    '/agents/:id/versions',
+    { schema: { params: IdParams, response: { 200: z.array(AgentVersion) } } },
+    async (req) => {
     const { workspaceId } = await getContext(app.container, req);
     const versions = await service.listVersions(workspaceId, req.params.id);
     if (!versions) throw new NotFoundError('Agent not found');
     return versions;
-  });
+    },
+  );
 
   app.get(
     '/agents/:id/versions/:version',
-    { schema: { params: VersionParams } },
+    { schema: { params: VersionParams, response: { 200: AgentVersion } } },
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       const version = await service.getVersion(workspaceId, req.params.id, req.params.version);
@@ -142,16 +160,20 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     },
   );
 
-  app.get('/agents/:id/skills', { schema: { params: IdParams } }, async (req) => {
+  app.get(
+    '/agents/:id/skills',
+    { schema: { params: IdParams, response: { 200: z.array(AgentSkillLink) } } },
+    async (req) => {
     const { workspaceId } = await getContext(app.container, req);
     const agent = await service.get(workspaceId, req.params.id);
     if (!agent) throw new NotFoundError('Agent not found');
     return service.skillLinks(req.params.id);
-  });
+    },
+  );
 
   app.post(
     '/agents/:id/skills',
-    { schema: { params: IdParams, body: SetSkillsBody } },
+    { schema: { params: IdParams, body: SetSkillsBody, response: { 200: z.array(AgentSkillLink) } } },
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       const body = req.body;

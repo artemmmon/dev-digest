@@ -6,7 +6,8 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon, Badge, Toggle } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
-import { useDeleteAgent } from "../../../../lib/hooks/agents";
+import { useDeleteAgent } from "@/lib/hooks/agents";
+import { rowClickProps, unstyledButton } from "@/lib/interactive";
 import { modelColor } from "./helpers";
 import { s } from "./styles";
 
@@ -27,25 +28,32 @@ export function AgentCard({
   const del = useDeleteAgent();
   const color = modelColor(ag.model);
   return (
-    <div onClick={onClick} style={s.card(!!active, ag.enabled)}>
+    <div {...(onClick ? rowClickProps(onClick) : {})} style={s.card(!!active, ag.enabled)}>
       <div style={s.headerRow}>
         <div style={s.iconBox}>
           <Icon.Cpu size={15} />
         </div>
-        <span style={s.name}>{ag.name}</span>
-        {onToggle && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <Toggle on={ag.enabled} onChange={onToggle} size={14} />
-          </div>
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            aria-current={active ? "true" : undefined}
+            style={{ ...unstyledButton, ...s.name }}
+          >
+            {ag.name}
+          </button>
+        ) : (
+          <span style={s.name}>{ag.name}</span>
         )}
+        {onToggle && <Toggle on={ag.enabled} onChange={onToggle} size={14} />}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (window.confirm(`Delete agent "${ag.name}"? This cannot be undone.`)) del.mutate(ag.id);
+          type="button"
+          onClick={() => {
+            if (window.confirm(t("card.deleteConfirm", { name: ag.name }))) del.mutate(ag.id);
           }}
           disabled={del.isPending}
-          title="Delete agent"
-          aria-label="Delete agent"
+          title={t("card.delete")}
+          aria-label={t("card.delete")}
           style={{
             background: "none",
             border: "none",

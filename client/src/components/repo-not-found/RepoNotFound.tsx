@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { EmptyState } from "@devdigest/ui";
 
-/** Renders the "no repo selected" empty state. Wrap in the page's <AppShell>. */
+/** Renders the "no repo selected" empty state. The shell comes from the root layout. */
 export function RepoNotFound() {
   const t = useTranslations("common");
   const router = useRouter();

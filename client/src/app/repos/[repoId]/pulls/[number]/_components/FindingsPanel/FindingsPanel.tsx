@@ -8,7 +8,7 @@ import { Toggle, EmptyState } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
 import { SeverityFilterPills } from "../SeverityFilterPills";
-import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
+import { useFindingAction } from "@/lib/hooks/reviews";
 import { countBySeverity, type CountedSeverity } from "@/lib/severity-counts";
 import { KEY_TO_ACTION } from "./constants";
 import { filterBySeverity, visibleFindings } from "./helpers";
@@ -29,7 +29,7 @@ export function FindingsPanel({
   const action = useFindingAction();
   const [hideLow, setHideLow] = React.useState(false);
   const [severity, setSeverity] = React.useState<CountedSeverity | null>(null);
-  const [focusIdx, setFocusIdx] = React.useState(0);
+  const [focusRaw, setFocusIdx] = React.useState(0);
 
   // Counters are taken from the full visible set, the list from the filtered one, so a
   // pill's number always equals the number of cards it shows.
@@ -37,25 +37,29 @@ export function FindingsPanel({
   const counts = React.useMemo(() => countBySeverity(visible), [visible]);
   const shown = React.useMemo(() => filterBySeverity(visible, severity), [visible, severity]);
 
-  // Keep the j/k cursor inside the list when filtering shrinks it.
-  React.useEffect(() => {
-    setFocusIdx((i) => Math.min(i, Math.max(shown.length - 1, 0)));
-  }, [shown.length]);
+  // The j/k cursor stays inside the list when filtering shrinks it — derived, not synced by an effect.
+  const focusIdx = Math.min(focusRaw, Math.max(shown.length - 1, 0));
 
-  // j/k navigation + a/d shortcuts on the focused finding (keyboard).
+  // j/k navigation + a/d shortcuts on the focused finding (keyboard). The listener is
+  // bound once and reads the latest values through a ref, so it isn't re-bound every render.
+  const latest = React.useRef({ shown, focusIdx, prId, mutate: action.mutate });
+  React.useEffect(() => {
+    latest.current = { shown, focusIdx, prId, mutate: action.mutate };
+  });
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "j") setFocusIdx((i) => Math.min(i + 1, shown.length - 1));
-      else if (e.key === "k") setFocusIdx((i) => Math.max(i - 1, 0));
-      else if (KEY_TO_ACTION[e.key] && shown[focusIdx]) {
-        action.mutate({ findingId: shown[focusIdx]!.id, action: KEY_TO_ACTION[e.key]!, prId });
+      const { shown: list, focusIdx: idx, prId: id, mutate } = latest.current;
+      if (e.key === "j") setFocusIdx(Math.min(idx + 1, list.length - 1));
+      else if (e.key === "k") setFocusIdx(Math.max(idx - 1, 0));
+      else if (KEY_TO_ACTION[e.key] && list[idx]) {
+        mutate({ findingId: list[idx]!.id, action: KEY_TO_ACTION[e.key]!, prId: id });
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [shown, focusIdx, action, prId]);
+  }, []);
 
   return (
     <div>

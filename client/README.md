@@ -1,7 +1,7 @@
 # `@devdigest/web` — the studio (Next.js 15)
 
 The DevDigest UI: import repos, browse pull requests, run and read AI reviews,
-and author agents. App Router + React Server/Client components, data via
+and author agents. App Router (pages are client components; the root layout and metadata are server-rendered), data via
 **TanStack Query** hooks over the Fastify API. (This is the starter surface;
 course lessons add the Skills, Memory, Eval, Blast/Brief, multi-agent, CI, and
 dashboard screens.)

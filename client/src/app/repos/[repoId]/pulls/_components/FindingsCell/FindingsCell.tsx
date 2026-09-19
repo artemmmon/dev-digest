@@ -71,8 +71,8 @@ export function FindingsCell({
       // and cancels the pending close.
       onMouseEnter={open}
       onMouseLeave={scheduleClose}
-      // The whole row navigates on click; the popover is a reading surface.
-      onClick={(e) => e.stopPropagation()}
+      // The whole row navigates on click; the popover is a reading surface, so the row leaves it alone.
+      data-row-ignore
     >
       <SeverityCounts counts={counts} underline />
       {hovered && (

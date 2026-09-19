@@ -8,7 +8,6 @@ import * as t from '../src/db/schema.js';
 import { MockGitClient, MockGitHubClient } from '../src/adapters/mocks.js';
 import { AgentsService } from '../src/modules/agents/service.js';
 import { AgentsRepository } from '../src/modules/agents/repository.js';
-import type { Container } from '../src/platform/container.js';
 
 const hasDocker = await dockerAvailable();
 const d = hasDocker ? describe : describe.skip;
@@ -93,6 +92,29 @@ d('GET /agents/:id/versions', () => {
     await app.close();
   });
 
+  it('concurrent config edits each get their own version and snapshot', async () => {
+    const app = await makeApp();
+    const agentId = (
+      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
+    ).json().id as string;
+
+    // Without the row lock both saves read v1, both write v2, and one snapshot
+    // is silently dropped by onConflictDoNothing.
+    const edits = await Promise.all(
+      ['gpt-4o', 'gpt-4.1', 'gpt-4.1-mini'].map((model) =>
+        app.inject({ method: 'PUT', url: `/agents/${agentId}`, payload: { model } }),
+      ),
+    );
+    expect(edits.map((r) => r.statusCode)).toEqual([200, 200, 200]);
+    expect(edits.map((r) => r.json().version).sort()).toEqual([2, 3, 4]);
+
+    const versions = (
+      await app.inject({ method: 'GET', url: `/agents/${agentId}/versions` })
+    ).json();
+    expect(versions.map((v: { version: number }) => v.version)).toEqual([4, 3, 2, 1]);
+    await app.close();
+  });
+
   it('toggling enabled does NOT create a new version', async () => {
     const app = await makeApp();
     const agentId = (
@@ -163,7 +185,7 @@ d('GET /agents/:id/versions', () => {
       systemPrompt: 'x',
     });
 
-    const service = new AgentsService({ db } as unknown as Container);
+    const service = new AgentsService({ agents: new AgentsRepository(db), llm: async () => { throw new Error('unused'); } });
     const [{ id: defaultWs }] = await db
       .select({ id: t.workspaces.id })
       .from(t.workspaces)

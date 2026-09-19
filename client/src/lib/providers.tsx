@@ -29,8 +29,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: false,
           },
         },
-        // Global error surfacing (errors anywhere → toast). Mutations always
-        // toast (they are user actions). Queries only toast on network/5xx —
+        // Global error surfacing (errors anywhere → toast). Mutations toast
+        // (they are user actions) unless marked silent below. Queries only toast on network/5xx —
         // expected 4xx like a 404 "no tour yet" stay silent for inline empty states.
         queryCache: new QueryCache({
           onError: (err) => {
@@ -38,8 +38,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
             if (status === 0 || status >= 500) notify.error(errorMessage(err));
           },
         }),
+        // `meta: { silent: true }` opts a mutation out when its screen already
+        // shows the error inline (a form), so the user doesn't get it twice.
         mutationCache: new MutationCache({
-          onError: (err) => notify.error(errorMessage(err)),
+          onError: (err, _vars, _ctx, mutation) => {
+            if (mutation.meta?.silent === true) return;
+            notify.error(errorMessage(err));
+          },
         }),
       })
   );

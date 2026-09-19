@@ -1,4 +1,3 @@
-import type { Container } from '../../platform/container.js';
 import type {
   Agent,
   AgentSkillLink,
@@ -8,7 +7,8 @@ import type {
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
-import { AgentsRepository } from './repository.js';
+import type { AgentsServiceDeps } from './ports.js';
+import { ValidationError } from '../../platform/errors.js';
 import { toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
@@ -49,10 +49,10 @@ export interface UpdateAgentInput {
 }
 
 export class AgentsService {
-  private repo: AgentsRepository;
+  constructor(private deps: AgentsServiceDeps) {}
 
-  constructor(private container: Container) {
-    this.repo = new AgentsRepository(container.db);
+  private get repo() {
+    return this.deps.agents;
   }
 
   async list(workspaceId: string): Promise<Agent[]> {
@@ -138,7 +138,7 @@ export class AgentsService {
   /** Linked skills for an agent as AgentSkillLink[] (ordered). */
   async skillLinks(agentId: string): Promise<AgentSkillLink[]> {
     const links = await this.repo.linkedSkills(agentId);
-    return links.map((l) => ({ agent_id: agentId, skill_id: l.skill.id, order: l.order }));
+    return links.map((l) => ({ agent_id: agentId, skill_id: l.skillId, order: l.order }));
   }
 
   /**
@@ -152,6 +152,7 @@ export class AgentsService {
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
+    await this.requireWorkspaceSkills(workspaceId, skillIds);
     await this.repo.setSkills(agentId, skillIds);
     return this.skillLinks(agentId);
   }
@@ -165,10 +166,20 @@ export class AgentsService {
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
+    await this.requireWorkspaceSkills(workspaceId, [skillId]);
     const existing = await this.repo.linkedSkills(agentId);
     const resolvedOrder = order ?? existing.length;
     await this.repo.linkSkill(agentId, skillId, resolvedOrder);
     return this.skillLinks(agentId);
+  }
+
+  /** An agent may only link skills of its own workspace. */
+  private async requireWorkspaceSkills(workspaceId: string, skillIds: string[]): Promise<void> {
+    const known = await this.repo.skillIdsInWorkspace(workspaceId, skillIds);
+    const unknown = skillIds.filter((id) => !known.has(id));
+    if (unknown.length > 0) {
+      throw new ValidationError('Unknown skill for this workspace', { skill_ids: unknown });
+    }
   }
 
   /**
@@ -177,7 +188,7 @@ export class AgentsService {
    */
   async listModels(provider: Provider): Promise<ModelInfo[]> {
     try {
-      const llm = await this.container.llm(provider);
+      const llm = await this.deps.llm(provider);
       return await llm.listModels();
     } catch {
       return [];

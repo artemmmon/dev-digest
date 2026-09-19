@@ -43,16 +43,17 @@ export function RepoProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const list = repos ?? [];
+  const list = React.useMemo(() => repos ?? [], [repos]);
   const fromPath = repoIdFromPath(pathname);
   const repoId = fromPath ?? stored ?? list[0]?.id ?? null;
-  const activeRepo = list.find((r) => r.id === repoId) ?? null;
-
-  return (
-    <RepoCtx.Provider value={{ repoId, setRepoId, repos: list, activeRepo, reposLoaded }}>
-      {children}
-    </RepoCtx.Provider>
+  const activeRepo = React.useMemo(() => list.find((r) => r.id === repoId) ?? null, [list, repoId]);
+  // Memoised, so consumers re-render when the repo state changes — not on every provider render.
+  const value = React.useMemo(
+    () => ({ repoId, setRepoId, repos: list, activeRepo, reposLoaded }),
+    [repoId, setRepoId, list, activeRepo, reposLoaded],
   );
+
+  return <RepoCtx.Provider value={value}>{children}</RepoCtx.Provider>;
 }
 
 export function useActiveRepo() {

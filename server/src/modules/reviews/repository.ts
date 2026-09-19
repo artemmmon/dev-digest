@@ -1,5 +1,4 @@
 import type { Db } from '../../db/client.js';
-import type * as t from '../../db/schema.js';
 import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
 
 /**
@@ -13,16 +12,24 @@ import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
  * composes them so its public API stays identical.
  */
 
-import type { FindingRow, PullRow } from '../../db/rows.js';
-export type { FindingRow, PullRow };
-
-export type ReviewRow = typeof t.reviews.$inferSelect;
+import type {
+  ActiveRun,
+  AgentRunCompletion,
+  FindingRow,
+  NewAgentRun,
+  NewReview,
+  PrFileRow,
+  PullRow,
+  ReviewRow,
+  ReviewStore,
+} from './ports.js';
+export type { FindingRow, PullRow, ReviewRow };
 
 import * as reviewRepo from './repository/review.repo.js';
 import * as runRepo from './repository/run.repo.js';
 import * as pullRepo from './repository/pull.repo.js';
 
-export class ReviewRepository {
+export class ReviewRepository implements ReviewStore {
   constructor(private db: Db) {}
 
   // ---- PR lookup (workspace-scoped) --------------------------------------
@@ -31,27 +38,17 @@ export class ReviewRepository {
     return pullRepo.getPull(this.db, workspaceId, prId);
   }
 
-  getRepo(repoId: string): Promise<typeof t.repos.$inferSelect | undefined> {
+  getRepo(repoId: string): Promise<{ id: string; owner: string; name: string } | undefined> {
     return pullRepo.getRepo(this.db, repoId);
   }
 
-  getPrFiles(prId: string): Promise<(typeof t.prFiles.$inferSelect)[]> {
+  getPrFiles(prId: string): Promise<PrFileRow[]> {
     return pullRepo.getPrFiles(this.db, prId);
   }
 
   // ---- reviews + findings -------------------------------------------------
 
-  insertReview(values: {
-    workspaceId: string;
-    prId: string;
-    agentId: string | null;
-    runId: string | null;
-    kind: 'summary' | 'review';
-    verdict: string | null;
-    summary: string | null;
-    score: number | null;
-    model: string | null;
-  }): Promise<ReviewRow> {
+  insertReview(values: NewReview): Promise<ReviewRow> {
     return reviewRepo.insertReview(this.db, values);
   }
 
@@ -70,10 +67,7 @@ export class ReviewRepository {
 
   /** In-flight runs for a PR (status='running') — the server-side source of
    *  truth for "which agents are running now". Joined with the agent name. */
-  activeRunsForPull(
-    workspaceId: string,
-    prId: string,
-  ): Promise<{ run_id: string; agent_id: string | null; agent_name: string | null; ran_at: string | null }[]> {
+  activeRunsForPull(workspaceId: string, prId: string): Promise<ActiveRun[]> {
     return runRepo.activeRunsForPull(this.db, workspaceId, prId);
   }
 
@@ -87,9 +81,14 @@ export class ReviewRepository {
     return runRepo.deleteAgentRun(this.db, workspaceId, runId);
   }
 
+  /** A run's status in the workspace; `undefined` when the run doesn't exist there. */
+  runStatus(workspaceId: string, runId: string): Promise<string | null | undefined> {
+    return runRepo.runStatus(this.db, workspaceId, runId);
+  }
+
   /** Mark a still-running run as cancelled (no-op if it already finished). */
-  cancelRunIfRunning(runId: string): Promise<boolean> {
-    return runRepo.cancelRunIfRunning(this.db, runId);
+  cancelRunIfRunning(workspaceId: string, runId: string): Promise<boolean> {
+    return runRepo.cancelRunIfRunning(this.db, workspaceId, runId);
   }
 
   /** On boot: any run still 'running' is orphaned (its process died / restarted),
@@ -138,37 +137,11 @@ export class ReviewRepository {
   // ---- observability: agent_runs + run_traces ----------------------------
 
   /** Create an agent_runs row in `running` state; returns its id (= the runId). */
-  createAgentRun(values: {
-    workspaceId: string;
-    agentId: string | null;
-    prId: string;
-    provider: string | null;
-    model: string | null;
-    /** Shared by every run started from one review request. */
-    batchId: string | null;
-  }): Promise<string> {
+  createAgentRun(values: NewAgentRun): Promise<string> {
     return runRepo.createAgentRun(this.db, values);
   }
 
-  completeAgentRun(
-    runId: string,
-    values: {
-      status: 'done' | 'failed' | 'cancelled';
-      durationMs: number;
-      tokensIn: number;
-      tokensOut: number;
-      /** LLM cost in USD; null when unknown (failed run, unpriced model). */
-      costUsd?: number | null;
-      findingsCount: number;
-      grounding: string;
-      /** Review score (0-100); null on failed/cancelled runs. */
-      score?: number | null;
-      /** Findings that tripped the agent's gate; 0 on failed/cancelled runs. */
-      blockers?: number | null;
-      /** Failure reason (status='failed') / cancellation note. Null clears it. */
-      error?: string | null;
-    },
-  ): Promise<void> {
+  completeAgentRun(runId: string, values: AgentRunCompletion): Promise<void> {
     return runRepo.completeAgentRun(this.db, runId, values);
   }
 
@@ -182,7 +155,7 @@ export class ReviewRepository {
     return runRepo.saveRunTrace(this.db, runId, trace);
   }
 
-  getRunTrace(runId: string): Promise<RunTrace | undefined> {
-    return runRepo.getRunTrace(this.db, runId);
+  getRunTrace(workspaceId: string, runId: string): Promise<RunTrace | undefined> {
+    return runRepo.getRunTrace(this.db, workspaceId, runId);
   }
 }

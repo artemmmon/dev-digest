@@ -1,47 +1,56 @@
 import { and, eq } from 'drizzle-orm';
-import type { Db } from '../../db/client.js';
+import type { DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
+import type { NewRepo, RepoRecord, RepoStore } from './ports.js';
 
 /**
- * F1 — repos data-access layer. The ONLY place that touches the `repos`
- * table. Every query is scoped by `workspaceId` (tenancy guard).
+ * F1 — repos data-access layer (Drizzle implementation of RepoStore). The ONLY
+ * place that touches the `repos` table; it hands out RepoRecords, never rows.
+ * Every query is scoped by `workspaceId` (tenancy guard).
  */
 
-export type RepoRow = typeof t.repos.$inferSelect;
+type RepoRow = typeof t.repos.$inferSelect;
 
-export interface InsertRepo {
-  workspaceId: string;
-  owner: string;
-  name: string;
-  fullName: string;
-  createdBy: string;
+function toRecord(r: RepoRow): RepoRecord {
+  return {
+    id: r.id,
+    workspaceId: r.workspaceId,
+    owner: r.owner,
+    name: r.name,
+    fullName: r.fullName,
+    defaultBranch: r.defaultBranch,
+    clonePath: r.clonePath,
+    lastPolledAt: r.lastPolledAt,
+    createdBy: r.createdBy,
+  };
 }
 
-export class RepoRepository {
-  constructor(private db: Db) {}
+export class RepoRepository implements RepoStore {
+  constructor(private db: DbOrTx) {}
 
   /** Find a repo in a workspace by its `owner/name` full name (dedupe on add). */
-  async findByFullName(workspaceId: string, fullName: string): Promise<RepoRow | undefined> {
+  async findByFullName(workspaceId: string, fullName: string): Promise<RepoRecord | undefined> {
     const [row] = await this.db
       .select()
       .from(t.repos)
       .where(and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.fullName, fullName)));
-    return row;
+    return row && toRecord(row);
   }
 
-  async list(workspaceId: string): Promise<RepoRow[]> {
-    return this.db.select().from(t.repos).where(eq(t.repos.workspaceId, workspaceId));
+  async list(workspaceId: string): Promise<RepoRecord[]> {
+    const rows = await this.db.select().from(t.repos).where(eq(t.repos.workspaceId, workspaceId));
+    return rows.map(toRecord);
   }
 
-  async getById(workspaceId: string, id: string): Promise<RepoRow | undefined> {
+  async getById(workspaceId: string, id: string): Promise<RepoRecord | undefined> {
     const [row] = await this.db
       .select()
       .from(t.repos)
       .where(and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.id, id)));
-    return row;
+    return row && toRecord(row);
   }
 
-  async insert(values: InsertRepo): Promise<RepoRow> {
+  async insert(values: NewRepo): Promise<RepoRecord> {
     const [row] = await this.db
       .insert(t.repos)
       .values({
@@ -52,15 +61,9 @@ export class RepoRepository {
         createdBy: values.createdBy,
       })
       .returning();
-    return row!;
+    return toRecord(row!);
   }
 
-  /**
-   * Look up the workspace owning a repo (by repo id, no tenancy scope —
-   * the JobRunner's `runCloneJob` is the only caller and it already trusted
-   * the payload that came out of an authenticated `add()`). Returns null
-   * if the repo was deleted before the followup ran.
-   */
   async workspaceIdFor(repoId: string): Promise<string | null> {
     const [row] = await this.db
       .select({ workspaceId: t.repos.workspaceId })
@@ -69,7 +72,6 @@ export class RepoRepository {
     return row?.workspaceId ?? null;
   }
 
-  /** Persist the clone path and bump `last_polled_at` once a clone job completes. */
   async updateClonePath(repoId: string, clonePath: string): Promise<void> {
     await this.db
       .update(t.repos)

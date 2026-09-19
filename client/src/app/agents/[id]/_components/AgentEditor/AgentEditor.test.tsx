@@ -1,12 +1,10 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import { screen, cleanup } from "@testing-library/react";
+import { renderWithIntl } from "@/test/render";
 import type { Agent } from "@devdigest/shared";
-import messages from "../../../../../../messages/en/agents.json";
-import { ToastProvider } from "../../../../../lib/toast";
 
 // Mock the data hooks so the editor renders without a network/query client.
-vi.mock("../../../../../lib/hooks/agents", () => ({
+vi.mock("@/lib/hooks/agents", () => ({
   useUpdateAgent: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false, data: undefined }),
   useProviderModels: () => ({ data: [{ id: "gpt-4.1", provider: "openai" }] }),
 }));
@@ -29,14 +27,6 @@ const AGENT: Agent = {
   enabled: true,
   version: 1,
 };
-
-function renderWithIntl(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ agents: messages }}>
-      <ToastProvider>{ui}</ToastProvider>
-    </NextIntlClientProvider>,
-  );
-}
 
 describe("A2 Agent Editor (smoke)", () => {
   it("renders the Config tab fields", () => {

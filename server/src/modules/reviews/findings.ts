@@ -1,6 +1,6 @@
 import type { FindingActionKind } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
-import type { ReviewRepository } from './repository.js';
+import type { ReviewStore } from './ports.js';
 import { findingRowToDto, type ReviewDtoFinding } from './helpers.js';
 
 /**
@@ -9,7 +9,7 @@ import { findingRowToDto, type ReviewDtoFinding } from './helpers.js';
  * `learn → memory` action, etc.).
  */
 export async function actOnFinding(
-  repo: ReviewRepository,
+  repo: ReviewStore,
   workspaceId: string,
   findingId: string,
   action: FindingActionKind,

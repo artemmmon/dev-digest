@@ -170,6 +170,8 @@ export interface GitHubClient {
 export interface CloneOptions {
   depth?: number;
   branch?: string;
+  /** Abort the clone/fetch (the job runner's timeout). */
+  signal?: AbortSignal;
 }
 
 export interface DiffHunk {

@@ -1,6 +1,6 @@
 // Flat config, ESLint 9. Not type-aware: `npm run typecheck` is this package's build
 // and already runs tsc over the same files. What this config adds is the purity
-// contract from reviewer-core/CLAUDE.md, which tsc cannot express.
+// contract from reviewer-core/AGENTS.md, which tsc cannot express.
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 

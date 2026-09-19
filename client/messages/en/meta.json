@@ -1,0 +1,9 @@
+{
+  "siteName": "DevDigest",
+  "description": "Local-first AI PR review tool",
+  "pulls": "Pull requests",
+  "pull": "Pull request",
+  "agents": "Agents",
+  "settings": "Settings",
+  "addRepo": "Add repository"
+}

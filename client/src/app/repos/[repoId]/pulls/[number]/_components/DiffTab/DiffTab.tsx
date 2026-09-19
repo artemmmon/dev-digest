@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { SectionLabel, Button } from "@devdigest/ui";
 import { DiffViewer, type DiffCommentApi } from "@/components/diff-viewer";
 import { usePrComments, useCreatePrComment } from "@/lib/hooks/reviews";
-import { notify } from "@/lib/toast";
 import type { PrFile } from "@devdigest/shared";
 
 interface DiffTabProps {
@@ -16,6 +16,7 @@ interface DiffTabProps {
 }
 
 export function DiffTab({ prId, filesCount, files, canComment }: DiffTabProps) {
+  const t = useTranslations("shell");
   const { data: comments } = usePrComments(prId);
   const create = useCreatePrComment(prId);
   // Comments start hidden so the diff is clean by default — toggle to reveal.
@@ -28,15 +29,12 @@ export function DiffTab({ prId, filesCount, files, canComment }: DiffTabProps) {
     canComment: !!canComment && !!prId,
     showComments,
     posting: create.isPending,
+    // A failure is toasted once by the global MutationCache handler; rethrown by
+    // mutateAsync so the composer keeps the draft.
     onSubmit: async (input) => {
-      try {
-        const res = await create.mutateAsync(input);
-        setShowComments(true); // a just-posted comment shouldn't stay hidden
-        return res;
-      } catch (err) {
-        notify.error(err instanceof Error ? err.message : "Couldn't post the comment to GitHub.");
-        throw err;
-      }
+      const res = await create.mutateAsync(input);
+      setShowComments(true); // a just-posted comment shouldn't stay hidden
+      return res;
     },
   };
 
@@ -52,12 +50,12 @@ export function DiffTab({ prId, filesCount, files, canComment }: DiffTabProps) {
               icon={showComments ? "EyeOff" : "Eye"}
               onClick={() => setShowComments((v) => !v)}
             >
-              {showComments ? "Hide comments" : "Show comments"} ({commentCount})
+              {showComments ? t("diffViewer.hideComments") : t("diffViewer.showComments")} ({commentCount})
             </Button>
           ) : undefined
         }
       >
-        Files changed · {filesCount} files
+        {t("diffViewer.filesChanged", { count: filesCount })}
       </SectionLabel>
       <DiffViewer files={files} commenting={commenting} />
     </section>

@@ -1,11 +1,10 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import { screen, cleanup, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { FindingRecord } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/prReview.json";
-import common from "../../../../../../../../messages/en/common.json";
+import { renderWithIntl } from "@/test/render";
 
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
+vi.mock("@/lib/hooks/reviews", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
@@ -40,14 +39,6 @@ const FINDINGS: FindingRecord[] = [
   finding({ id: "f3", severity: "WARNING", title: "Missing await", confidence: 0.4 }),
   finding({ id: "f4", severity: "SUGGESTION", title: "Rename variable" }),
 ];
-
-function renderWithIntl(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview: messages, common }}>
-      {ui}
-    </NextIntlClientProvider>,
-  );
-}
 
 /** Titles of the finding cards currently rendered (each card title is an h4-less span). */
 function shownTitles(): string[] {
@@ -95,39 +86,43 @@ describe("FindingsPanel severity counters", () => {
     expect(screen.queryByRole("group", { name: "Filter findings by severity" })).toBeNull();
   });
 
-  it("counts only what is visible: hiding low confidence lowers the pill", () => {
+  it("counts only what is visible: hiding low confidence lowers the pill", async () => {
+    const user = userEvent.setup();
     renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
     expect(pill("Warning")).toHaveAccessibleName("2 Warning");
-    fireEvent.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("switch"));
     expect(pill("Warning")).toHaveAccessibleName("1 Warning");
     expect(screen.queryByText("Missing await")).toBeNull();
   });
 });
 
 describe("FindingsPanel severity filter", () => {
-  it("shows only the clicked severity, and its count matches the cards below", () => {
+  it("shows only the clicked severity, and its count matches the cards below", async () => {
+    const user = userEvent.setup();
     renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
-    fireEvent.click(pill("Warning"));
+    await user.click(pill("Warning"));
 
     expect(pill("Warning")).toHaveAttribute("aria-pressed", "true");
     expect(shownTitles()).toEqual(["Unbounded loop", "Missing await"]);
     expect(pill("Warning")).toHaveAccessibleName("2 Warning");
   });
 
-  it("restores the full list when the active pill is clicked again", () => {
+  it("restores the full list when the active pill is clicked again", async () => {
+    const user = userEvent.setup();
     renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
-    fireEvent.click(pill("Suggestion"));
+    await user.click(pill("Suggestion"));
     expect(shownTitles()).toEqual(["Rename variable"]);
 
-    fireEvent.click(pill("Suggestion"));
+    await user.click(pill("Suggestion"));
     expect(pill("Suggestion")).toHaveAttribute("aria-pressed", "false");
     expect(shownTitles()).toHaveLength(FINDINGS.length);
   });
 
-  it("switches severity on a single click (single-select)", () => {
+  it("switches severity on a single click (single-select)", async () => {
+    const user = userEvent.setup();
     renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
-    fireEvent.click(pill("Critical"));
-    fireEvent.click(pill("Suggestion"));
+    await user.click(pill("Critical"));
+    await user.click(pill("Suggestion"));
     expect(pill("Critical")).toHaveAttribute("aria-pressed", "false");
     expect(shownTitles()).toEqual(["Rename variable"]);
   });

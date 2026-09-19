@@ -50,7 +50,7 @@ Flows target **read-only seeded data** (the demo repo `acme/payments-api`, PR
 
 ```sh
 # 1. install the agent-browser CLI once (downloads Chrome for Testing)
-npm i -g agent-browser && agent-browser install
+npm i -g agent-browser@0.38.1 && agent-browser install
 ```
 
 ### Hermetic (recommended)
@@ -100,3 +100,5 @@ a CI artifact by `.github/workflows/e2e-web.yml`).
 | `05-pr-diff` | PR #482 → Files changed tab → seeded file renders in the diff viewer |
 | `06-onboarding` | `/onboarding` → add-repository form renders (no submit) |
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
+| `08-agent-editor` | agents list → open Security Reviewer → editor Config tab renders |
+| `09-pr-overview` | PR #482 → Overview tab → Description + the seeded PR body |

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "new-endpoint",
+    "skills": [
+      "onion-architecture"
+    ],
+    "query": "Add GET /repos/:id/stats to the DevDigest server, returning the repo's PR count and the total review cost in USD.",
+    "files": [
+      "server/src/modules/repos/",
+      "server/src/modules/pulls/cost.ts",
+      "server/src/platform/container.ts"
+    ],
+    "expected_behavior": [
+      "Declares a port (e.g. a RepoStats/RepoStore method) in modules/repos/ports.ts; Drizzle queries live only in the repository, which returns domain types rather than $inferSelect rows",
+      "The service receives narrow ports through its constructor, not the whole Container, and imports no drizzle-orm, db/*, fastify or adapters/*",
+      "routes.ts stays thin: zod params/response schema, getContext, one service call; no query in the handler",
+      "The repository is wired in platform/container.ts and the service is assembled from container parts in routes.ts",
+      "Reuses existing pure cost logic instead of reimplementing it, and does not import another module's internals (goes through index.ts/types.ts, a port, or core)",
+      "Plans a .it.test.ts for the repository/route and a plain unit test for the service with in-memory fakes",
+      "Runs the depcruise Check (`pnpm arch`) and expects zero violations"
+    ]
+  },
+  {
+    "id": "new-sdk",
+    "skills": [
+      "onion-architecture"
+    ],
+    "query": "Send a Slack notification (via the @slack/web-api SDK) when a review run finishes in the DevDigest server.",
+    "files": [
+      "server/src/vendor/shared/adapters.ts",
+      "server/src/adapters/",
+      "server/src/modules/reviews/run-executor.ts",
+      "server/src/platform/container.ts"
+    ],
+    "expected_behavior": [
+      "Defines a Notifier-style port in vendor/shared/adapters.ts (core), and notes that the client copy of vendor/shared must be updated too",
+      "Imports @slack/web-api only in src/adapters/slack/, translating to/from DevDigest contracts; Slack types never leave the adapter",
+      "Maps Slack SDK failures to ExternalServiceError/AppError inside the adapter",
+      "The token comes from SecretsProvider, and the client is constructed in platform/container.ts, not in the service",
+      "Adds a mock implementation in adapters/mocks.ts and a ContainerOverrides entry for tests",
+      "The review service or run executor depends on the port, not on the adapter class; the depcruise Check (sdk-only-in-adapters / application-allowed-packages) is mentioned or run"
+    ]
+  },
+  {
+    "id": "review-clean-module",
+    "skills": [
+      "onion-architecture"
+    ],
+    "query": "Review server/src/modules/settings/ for architecture problems.",
+    "files": [
+      "server/src/modules/settings/routes.ts",
+      "server/src/modules/settings/service.ts",
+      "server/src/modules/settings/ports.ts"
+    ],
+    "expected_behavior": [
+      "Recognises the module as following the target shape: thin routes (schema, getContext, one service call), a service that takes ports through its constructor, a repository behind a port",
+      "Does not invent violations: routes.ts has no Drizzle/db import, the service has no Container, drizzle-orm or db/* import",
+      "Backs the verdict with the Check command (`pnpm arch`, zero violations, no baseline) instead of eyeballing imports",
+      "May suggest small, real improvements (e.g. feature-models.ts) but labels them optional and does not rewrite the module unasked"
+    ]
+  }
+]

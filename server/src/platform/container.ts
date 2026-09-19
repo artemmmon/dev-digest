@@ -25,8 +25,17 @@ import { PriceBook } from './price-book.js';
 import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
+import { PullsRepository } from '../modules/pulls/index.js';
+import type { ReviewDeps } from '../modules/reviews/deps.js';
+import { SettingsRepository } from '../modules/settings/repository.js';
+import { RepoRepository } from '../modules/repos/index.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
+import { cpus } from 'node:os';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
+import { RepoIntelRepository } from '../modules/repo-intel/repository.js';
+import type { RepoFiles, RepoIntelDeps, SourceParser } from '../modules/repo-intel/ports.js';
+import { AstGrepSourceParser } from '../adapters/astgrep/source-parser.js';
+import { FsRepoFiles } from '../adapters/repo-files/fs.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
 
@@ -48,9 +57,13 @@ export interface ContainerOverrides {
   llm?: Partial<Record<'openai' | 'anthropic' | 'openrouter', LLMProvider>>;
   /** repo-intel facade (T1.1+) — tests inject mock RepoIntel implementations. */
   repoIntel?: RepoIntel;
+  /** Run-event bus; defaults to the process-wide one. Tests inject a fresh bus. */
+  runBus?: RunBus;
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  sourceParser?: SourceParser;
+  repoFiles?: RepoFiles;
 }
 
 export class Container {
@@ -72,8 +85,14 @@ export class Container {
   // `container.agentsRepo` instead of reaching into another module's folder.
   private _agentsRepo?: AgentsRepository;
   private _reviewRepo?: ReviewRepository;
+  private _pullsRepo?: PullsRepository;
+  private _settingsRepo?: SettingsRepository;
+  private _reposRepo?: RepoRepository;
   private _repoIntel?: RepoIntel;
   private _depgraph?: DepGraph;
+  private _repoIntelRepo?: RepoIntelRepository;
+  private _sourceParser?: SourceParser;
+  private _repoFiles?: RepoFiles;
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
 
@@ -82,18 +101,44 @@ export class Container {
     this.db = db;
     this.secrets = overrides.secrets ?? new LocalSecretsProvider(config.secretsPath);
     this.auth = overrides.auth ?? new LocalNoAuthProvider(db);
-    this.runBus = runBus;
+    this.runBus = overrides.runBus ?? runBus;
     this.jobs = new JobRunner(db);
   }
 
   get git(): GitClient {
     if (this.overrides.git) return this.overrides.git;
-    this._git ??= new SimpleGitClient(this.config.cloneDir);
+    this._git ??= new SimpleGitClient(this.config.cloneDir, () =>
+      this.secrets.get('GITHUB_TOKEN'),
+    );
     return this._git;
   }
 
   get agentsRepo(): AgentsRepository {
     return (this._agentsRepo ??= new AgentsRepository(this.db));
+  }
+
+  get reposRepo(): RepoRepository {
+    return (this._reposRepo ??= new RepoRepository(this.db));
+  }
+
+  get settingsRepo(): SettingsRepository {
+    return (this._settingsRepo ??= new SettingsRepository(this.db));
+  }
+
+  get pullsRepo(): PullsRepository {
+    return (this._pullsRepo ??= new PullsRepository(this.db));
+  }
+
+  /** Collaborators of the review service and run executor, wired from the container. */
+  get reviewDeps(): ReviewDeps {
+    return {
+      reviews: this.reviewRepo,
+      agents: this.agentsRepo,
+      git: this.git,
+      llm: (provider) => this.llm(provider),
+      repoIntel: this.repoIntel,
+      bus: this.runBus,
+    };
   }
 
   get reviewRepo(): ReviewRepository {
@@ -113,8 +158,40 @@ export class Container {
    */
   get repoIntel(): RepoIntel {
     if (this.overrides.repoIntel) return this.overrides.repoIntel;
-    this._repoIntel ??= new RepoIntelService(this);
+    this._repoIntel ??= new RepoIntelService(this.repoIntelRepo, this.repoIntelDeps);
     return this._repoIntel;
+  }
+
+  get repoIntelRepo(): RepoIntelRepository {
+    return (this._repoIntelRepo ??= new RepoIntelRepository(this.db));
+  }
+
+  /** Collaborators of the repo-intel service and its indexing pipeline, wired from the container. */
+  get repoIntelDeps(): RepoIntelDeps {
+    return {
+      git: this.git,
+      parser: this.sourceParser,
+      files: this.repoFiles,
+      depgraph: this.depgraph,
+      tokenizer: this.tokenizer,
+      // leave a core free for the API while a repo is being parsed
+      parseConcurrency: Math.max(1, cpus().length - 1),
+      jobs: this.jobs,
+      codeIndex: this.codeIndex,
+      enabled: this.config.repoIntelEnabled,
+    };
+  }
+
+  get sourceParser(): SourceParser {
+    if (this.overrides.sourceParser) return this.overrides.sourceParser;
+    this._sourceParser ??= new AstGrepSourceParser();
+    return this._sourceParser;
+  }
+
+  get repoFiles(): RepoFiles {
+    if (this.overrides.repoFiles) return this.overrides.repoFiles;
+    this._repoFiles ??= new FsRepoFiles();
+    return this._repoFiles;
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */
@@ -159,6 +236,19 @@ export class Container {
     return this._github;
   }
 
+  /**
+   * Throwaway clients built from an explicit key — not cached, nothing persisted.
+   * test-connection checks a candidate key with these before saving it, so a typo
+   * never replaces a working key.
+   */
+  githubWithToken(token: string): GitHubClient {
+    return this.overrides.github ?? new OctokitGitHubClient(token);
+  }
+
+  async llmWithKey(id: 'openai' | 'anthropic' | 'openrouter', key: string): Promise<LLMProvider> {
+    return this.overrides.llm?.[id] ?? this.buildLlm(id, key);
+  }
+
   /** Resolve an LLM provider by id; constructs from the secret key, cached. */
   async llm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     const injected = this.overrides.llm?.[id];
@@ -170,9 +260,12 @@ export class Container {
     return provider;
   }
 
-  private async buildLlm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
+  private async buildLlm(
+    id: 'openai' | 'anthropic' | 'openrouter',
+    explicitKey?: string,
+  ): Promise<LLMProvider> {
     if (id === 'openai') {
-      const key = await this.secrets.get('OPENAI_API_KEY');
+      const key = explicitKey ?? (await this.secrets.get('OPENAI_API_KEY'));
       if (!key) throw new ConfigError('OPENAI_API_KEY is not configured');
       return new OpenAIProvider(key);
     }
@@ -180,14 +273,14 @@ export class Container {
       // Single OpenRouter provider lives in reviewer-core (shared with the CI
       // runner); inject the PriceBook so cost attribution uses LIVE OpenRouter
       // prices (with the static table as a fallback) rather than a hardcoded one.
-      const key = await this.secrets.get('OPENROUTER_API_KEY');
+      const key = explicitKey ?? (await this.secrets.get('OPENROUTER_API_KEY'));
       if (!key) throw new ConfigError('OPENROUTER_API_KEY is not configured');
       return new OpenRouterProvider(key, {
         estimateCost: (model, tokensIn, tokensOut) =>
           this.priceBook.estimate(model, tokensIn, tokensOut),
       });
     }
-    const key = await this.secrets.get('ANTHROPIC_API_KEY');
+    const key = explicitKey ?? (await this.secrets.get('ANTHROPIC_API_KEY'));
     if (!key) throw new ConfigError('ANTHROPIC_API_KEY is not configured');
     return new AnthropicProvider(key);
   }
