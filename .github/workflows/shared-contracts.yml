@@ -1,0 +1,29 @@
+# Contract drift — server/src/vendor/shared (canonical) and client/src/vendor/shared
+# must be byte-identical. Fix a failure with ./scripts/shared-contracts.sh sync.
+name: shared contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/src/vendor/shared/**'
+      - 'client/src/vendor/shared/**'
+      - 'scripts/shared-contracts.sh'
+      - '.github/workflows/shared-contracts.yml'
+  pull_request:
+    paths:
+      - 'server/src/vendor/shared/**'
+      - 'client/src/vendor/shared/**'
+      - 'scripts/shared-contracts.sh'
+      - '.github/workflows/shared-contracts.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: copies identical
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/shared-contracts.sh check

@@ -4,7 +4,6 @@
   "steps": [
     { "cmd": ["open", "{BASE}/agents"], "label": "load the agents page" },
     { "cmd": ["wait", "--url", "/agents"], "label": "agents route reached" },
-    { "cmd": ["wait", "--load", "networkidle"], "label": "agents fetch settles" },
     { "cmd": ["wait", "--text", "Security Reviewer"], "label": "seeded agent card is visible" }
   ]
 }

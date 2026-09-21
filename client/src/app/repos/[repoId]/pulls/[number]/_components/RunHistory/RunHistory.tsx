@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
 import type { RunSummary, PrCommit, FindingsBySeverity } from "@devdigest/shared";
 import { RunCostBadge } from "@/components/run-cost-badge";
@@ -105,7 +105,9 @@ export function RunHistory({
   onDelete?: (runId: string) => void;
 }) {
   const t = useTranslations("prReview");
+  const format = useFormatter();
   if (runs.length === 0 && commits.length === 0) return null;
+  const clock = (iso: string) => format.dateTime(new Date(iso), { timeStyle: "medium" });
 
   const items: TimelineItem[] = [
     ...runs.map((run) => ({ kind: "run" as const, ts: tsOf(run.ran_at), run })),
@@ -144,7 +146,7 @@ export function RunHistory({
               <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{c.author}</span>
               {c.committed_at && (
                 <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
-                  {new Date(c.committed_at).toLocaleTimeString()}
+                  {clock(c.committed_at)}
                 </span>
               )}
             </div>
@@ -179,7 +181,7 @@ export function RunHistory({
                     textUnderlineOffset: 3,
                   }}
                 >
-                  {r.agent_name ?? "Agent"}
+                  {r.agent_name ?? t("reviewRun.agentFallback")}
                 </button>{" "}
                 <span className="mono" style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)" }}>
                   {r.provider}/{r.model}
@@ -205,7 +207,7 @@ export function RunHistory({
               )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
-              {r.ran_at && <span>{new Date(r.ran_at).toLocaleTimeString()}</span>}
+              {r.ran_at && <span>{clock(r.ran_at)}</span>}
               {settled && (
                 <RunCostBadge
                   variant="detailed"
@@ -224,15 +226,15 @@ export function RunHistory({
               <Icon.FileText size={13} />
             </button>
             {onDelete && r.status !== "running" && (
-              <span
-                role="button"
+              <button
+                type="button"
                 aria-label={t("timeline.deleteRun")}
                 title={t("timeline.deleteRun")}
                 onClick={() => onDelete(r.run_id)}
-                style={{ display: "inline-flex", padding: 3, borderRadius: 5, color: "var(--text-muted)", flexShrink: 0, cursor: "pointer" }}
+                style={{ display: "inline-flex", padding: 3, borderRadius: 5, color: "var(--text-muted)", flexShrink: 0, cursor: "pointer", background: "none", border: "none" }}
               >
                 <Icon.Trash size={13} />
-              </span>
+              </button>
             )}
           </div>
         );

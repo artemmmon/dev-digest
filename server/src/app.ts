@@ -78,7 +78,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // NOTE: assumes a SINGLE API instance per DB. With multiple replicas this
   // would need per-instance scoping / heartbeats (not this app's deployment).
   try {
-    const reaped = await new ReviewService(container).reapStaleRuns();
+    const reaped = await new ReviewService(container.reviewDeps).reapStaleRuns();
     if (reaped > 0) app.log.info({ reaped }, 'reaped stale running agent_runs on boot');
   } catch (err) {
     app.log.warn({ err: (err as Error).message }, 'stale-run reaping failed (non-fatal)');
@@ -158,8 +158,16 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     }
     app.log.error(err);
     const e = err as { statusCode?: number; message?: string };
-    reply.status(e.statusCode ?? 500).send({
-      error: { code: 'internal_error', message: e.message ?? 'Internal error' },
+    const status = e.statusCode ?? 500;
+    // A 5xx here is an unmapped failure (Postgres, driver, a bug): its message can
+    // carry SQL, paths or connection strings. It is logged above; the client only
+    // gets it in development. Fastify's own 4xx (body too large, bad JSON) pass through.
+    const exposeMessage = status < 500 || config.nodeEnv === 'development';
+    reply.status(status).send({
+      error: {
+        code: 'internal_error',
+        message: (exposeMessage && e.message) || 'Internal error',
+      },
     });
   });
 
@@ -169,8 +177,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     await app.register(plugin);
   }
 
-  // Close the db handle we created on shutdown.
-  if (handle) app.addHook('onClose', async () => handle.close());
+  // One hook, so the order is fixed: stop background jobs (they still write to
+  // the DB while failing) and only then close the db handle we created.
+  app.addHook('onClose', async () => {
+    await container.jobs.shutdown();
+    if (handle) await handle.close();
+  });
 
   return app;
 }

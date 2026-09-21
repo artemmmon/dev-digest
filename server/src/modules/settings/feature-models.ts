@@ -1,11 +1,9 @@
-import { eq } from 'drizzle-orm';
 import {
   FEATURE_MODELS,
   FeatureModelChoice,
   type FeatureModelId,
 } from '@devdigest/shared';
-import type { Container } from '../../platform/container.js';
-import * as t from '../../db/schema.js';
+import type { SettingsStore } from './ports.js';
 import { rowsToSettings } from './helpers.js';
 
 /**
@@ -34,14 +32,11 @@ export function defaultFeatureModel(id: FeatureModelId): FeatureModelChoice {
  * `resolveFeatureModel` instead.
  */
 export async function getFeatureModelOverride(
-  container: Container,
+  settings: SettingsStore,
   workspaceId: string,
   id: FeatureModelId,
 ): Promise<FeatureModelChoice | undefined> {
-  const rows = await container.db
-    .select({ key: t.settings.key, value: t.settings.value })
-    .from(t.settings)
-    .where(eq(t.settings.workspaceId, workspaceId));
+  const rows = await settings.list(workspaceId);
   const fm = (rowsToSettings(rows) as { feature_models?: Record<string, unknown> }).feature_models;
   const parsed = FeatureModelChoice.safeParse(fm?.[id]);
   return parsed.success ? parsed.data : undefined;
@@ -49,9 +44,9 @@ export async function getFeatureModelOverride(
 
 /** Resolve `id` to a concrete provider+model: workspace override, else registry default. */
 export async function resolveFeatureModel(
-  container: Container,
+  settings: SettingsStore,
   workspaceId: string,
   id: FeatureModelId,
 ): Promise<FeatureModelChoice> {
-  return (await getFeatureModelOverride(container, workspaceId, id)) ?? DEFAULTS[id];
+  return (await getFeatureModelOverride(settings, workspaceId, id)) ?? DEFAULTS[id];
 }

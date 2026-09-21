@@ -1,6 +1,6 @@
 // Flat config, ESLint 9. Not type-aware on purpose: `pnpm typecheck` runs tsc over the
 // same files in the same CI lane. What this config adds is what tsc cannot see —
-// unused code, `any`, and the layering rules from server/CLAUDE.md.
+// unused code, `any`, and the layering rules from server/AGENTS.md.
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 

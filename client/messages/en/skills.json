@@ -9,26 +9,16 @@
     "menu": {
       "fromFile": "Import from file",
       "fromUrl": "Import from URL",
-      "community": "Search community skills…"
+      "community": "Search community skills…",
+      "create": "Create from scratch"
     },
     "empty": {
       "title": "No skills yet",
-      "body": "Import a skill from a file, a URL, or the community catalog.",
-      "cta": "Import from file"
+      "body": "Write a skill from scratch, or import one from a markdown file or a zip archive.",
+      "cta": "Create a skill"
     },
-    "selectPrompt": {
-      "title": "Select a skill",
-      "body": "Pick a skill on the left to preview its body."
-    }
-  },
-  "detail": {
-    "crumbSkill": "Skill",
-    "back": "← All skills",
-    "loadError": "Could not load this skill.",
-    "notFound": {
-      "title": "Skill not found",
-      "body": "It may have been deleted."
-    }
+    "noMatch": "No skills match “{q}”.",
+    "toggleLabel": "Enable skill {name}"
   },
   "drawer": {
     "title": "Add a skill",
@@ -84,18 +74,121 @@
       "manual": "Manual",
       "extracted": "Extracted",
       "community": "Community",
-      "imported_url": "Imported"
-    }
+      "imported_url": "Imported URL",
+      "imported_file": "Imported file"
+    },
+    "noDescription": "No description",
+    "agents": "{count, plural, one {# agent} other {# agents}}"
   },
   "preview": {
     "untrustedBadge": "untrusted source",
     "enabled": "Enabled",
-    "disabled": "Disabled",
     "save": "Save",
     "edit": "Edit",
     "untrustedNotice": "This skill came from an untrusted source. Its body is stored as data (delimiter-wrapped) and must be vetted before it is enabled for an agent.",
-    "bodyLabel": "Skill body (Markdown)",
     "bodyHint": "Saving a changed body creates a new immutable version.",
-    "version": "v{version}"
+    "importedNotice": "This skill was written by someone else. Its body becomes instructions inside the prompt of every agent that uses it — read it before you enable it.",
+    "source": "Source"
+  },
+  "form": {
+    "name": "Name",
+    "namePlaceholder": "branch-coverage-rubric",
+    "description": "Description",
+    "descriptionHint": "The description is the skill's interface: write it as a directive that says when to apply the skill and what to do, e.g. “Use when reviewing tests: flag every branch no test reaches.”",
+    "descriptionPlaceholder": "Use when reviewing … : flag …",
+    "type": "Type",
+    "body": "Body (Markdown)",
+    "bodyPlaceholder": "# Rule\nDescribe how to apply the rule…",
+    "write": "Write",
+    "preview": "Preview",
+    "previewEmpty": "Nothing to preview yet.",
+    "required": "Name, description and body are required.",
+    "cancel": "Cancel",
+    "create": "Create skill",
+    "save": "Save skill",
+    "saving": "Saving…",
+    "savedToast": "Saved “{name}” (v{version})",
+    "createdToast": "Created “{name}”"
+  },
+  "import": {
+    "title": "Import a skill",
+    "subtitle": "Upload a markdown file or a zip archive. You review it before anything is saved.",
+    "pick": "Choose a file",
+    "pickHint": ".md or .zip · up to 2 MB",
+    "reading": "Reading {name}…",
+    "tooLarge": "The file is larger than 2 MB.",
+    "wrongType": "Only .md and .zip files can be imported.",
+    "readFailed": "The file could not be read.",
+    "trustTitle": "Someone else's instructions",
+    "trustBody": "An imported skill is another person's text placed in your agent's prompt. It can steer the model — read it fully before you save it. Nothing in the file is run.",
+    "previewTitle": "Preview",
+    "sourceFile": "Read from {file}",
+    "ignoredTitle": "Not imported",
+    "ignoredHint": "Only the skill's text is used. These files were left out and are never run.",
+    "reason": {
+      "executable": "executable — not run",
+      "not_used": "not used"
+    },
+    "confirm": "Save skill",
+    "confirmed": "Imported “{name}”",
+    "back": "Choose another file",
+    "cancel": "Cancel"
+  },
+  "detail": {
+    "newTitle": "New skill",
+    "version": "v{version}",
+    "delete": "Delete skill",
+    "deleteConfirm": "Delete skill \"{name}\"? Agents that use it lose it. This cannot be undone.",
+    "tabs": {
+      "config": "Config",
+      "preview": "Preview",
+      "stats": "Stats",
+      "versions": "Versions"
+    },
+    "discardConfirm": "Discard your unsaved changes?"
+  },
+  "config": {
+    "title": "Configuration",
+    "enabled": "Enabled",
+    "body": "Skill body",
+    "newFile": "untitled",
+    "unsaved": "unsaved",
+    "tokens": "{n} tokens",
+    "tokensApprox": "≈ {n} tokens",
+    "bodyHint": "Saving a changed body creates a new immutable version.",
+    "messagePlaceholder": "What changed? (optional)",
+    "discard": "Discard",
+    "save": "Save"
+  },
+  "previewTab": {
+    "title": "Preview",
+    "subtitle": "Rendered as the reviewing agent receives it."
+  },
+  "stats": {
+    "usedBy": "USED BY",
+    "agents": "{count, plural, one {agent} other {agents}}",
+    "agentsUsing": "Agents using this skill",
+    "none": "No agent has this skill switched on.",
+    "open": "Open {name}",
+    "openLabel": "Open",
+    "loadError": "Could not load the agents."
+  },
+  "versions": {
+    "title": "Version history",
+    "count": "{count, plural, one {# version} other {# versions}}",
+    "subtitle": "Every save snapshots the body, so a review run can be traced to the exact text it used.",
+    "dirtyNote": "Save or discard your unsaved changes on the Config tab before restoring a version.",
+    "initial": "Initial version",
+    "untitled": "Version {version}",
+    "current": "Current",
+    "diff": "Diff",
+    "diffLabel": "Show changes of v{version}",
+    "diffHint": "What restoring v{version} would change: green lines come back, red lines go away.",
+    "restore": "Restore",
+    "restoreLabel": "Restore v{version}",
+    "restoreConfirm": "Restore v{version}? Its text is saved again as a new version; nothing is deleted.",
+    "restoredMessage": "Restored v{version}",
+    "restoredToast": "Restored v{from} as v{to}",
+    "loadError": "Could not load the version history."
   }
 }

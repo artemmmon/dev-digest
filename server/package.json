@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/*.it.test.ts'",
+    "test:integration": "vitest run .it.test",
+    "arch": "depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --output-type err",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts"
@@ -28,6 +31,7 @@
     "fastify": "^5.2.0",
     "fastify-sse-v2": "^4.2.1",
     "fastify-type-provider-zod": "^4.0.2",
+    "fflate": "^0.8.3",
     "graphology": "^0.26.0",
     "graphology-metrics": "^2.4.0",
     "js-tiktoken": "^1.0.21",

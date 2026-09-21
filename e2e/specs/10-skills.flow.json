@@ -1,0 +1,21 @@
+{
+  "name": "Skills page and the agent Skills tab show the seeded skills",
+  "description": "Opens /skills and selects a seeded skill (branch-coverage-rubric) in the card list, checks its Config tab (editor, Save) and its Versions tab, then opens the seeded Test Quality Reviewer and checks its Skills tab lists every skill with the enabled count. Read-only: nothing is created, toggled or saved, no model call.",
+  "steps": [
+    {"cmd": ["open", "{BASE}/skills"], "label": "load the skills page"},
+    {"cmd": ["wait", "--text", "branch-coverage-rubric"], "label": "a seeded skill is listed"},
+    {"cmd": ["find", "role", "button", "click", "--name", "branch-coverage-rubric"], "label": "select it in the list"},
+    {"cmd": ["wait", "--text", "Configuration"], "label": "the Config tab opens"},
+    {"cmd": ["wait", "--text", "Save"], "label": "the Config tab has a Save action"},
+    {"cmd": ["wait", "--text", "Skill body"], "label": "the body editor is shown"},
+    {"cmd": ["find", "role", "button", "click", "--name", "Versions"], "label": "open the Versions tab"},
+    {"cmd": ["wait", "--text", "Version history"], "label": "the version history is listed"},
+    {"cmd": ["open", "{BASE}/agents"], "label": "load the agents page"},
+    {"cmd": ["wait", "--text", "Test Quality Reviewer"], "label": "the seeded Test Quality Reviewer is listed"},
+    {"cmd": ["find", "text", "Test Quality Reviewer", "click"], "label": "open the agent"},
+    {"cmd": ["wait", "--url", "/agents/"], "label": "navigate to the editor route"},
+    {"cmd": ["find", "role", "button", "click", "--name", "Skills"], "label": "open the Skills tab"},
+    {"cmd": ["wait", "--text", "mocking-discipline"], "label": "a skill bound to the agent is listed"},
+    {"cmd": ["wait", "--text", "of 5 enabled"], "label": "the tab counts the enabled skills out of all five seeded ones"}
+  ]
+}

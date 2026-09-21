@@ -34,23 +34,28 @@ swapped for mocks in tests.
 flowchart LR
   REQ["HTTP request"] --> MW["plugins (registered before modules)<br/>helmet · cors · rate-limit · SSE"]
   MW --> VAL["route zod schema<br/>params/body validation"]
-  VAL --> MOD["feature module plugin<br/>modules/&lt;name&gt;/routes.ts"]
-  MOD --> SVC["service<br/>(e.g. ReviewService)"]
-  SVC --> DI{"DI container<br/>platform/container.ts"}
-  DI --> ADP["adapters (ports)<br/>llm · github · git · astgrep · tokenizer · secrets"]
-  ADP -->|"prod"| EXT["LLM (OpenAI/Anthropic) · GitHub · git · pgvector"]
+  VAL --> RT["routes.ts (thin)<br/>schema → getContext → one service call"]
+  RT --> SVC["service<br/>(e.g. ReviewService)"]
+  SVC -->|"ports (constructor)"| REPO["repository<br/>Drizzle → Postgres"]
+  SVC -->|"ports (constructor)"| ADP["adapters<br/>llm · github · git · astgrep · fs · tokenizer · secrets"]
+  CT{"platform/container.ts<br/>composition root"} -. "builds the deps of" .-> RT
+  ADP -->|"prod"| EXT["LLM (OpenAI/Anthropic/OpenRouter) · GitHub · git · pgvector"]
   ADP -->|"tests"| MOCK["src/adapters/mocks.ts<br/>MockLLMProvider · MockGitClient · …"]
-  SVC --> DB[("Drizzle → Postgres")]
   SVC -. "run traces" .-> SSE["SSE stream → client"]
   VAL -. "invalid" .-> ERR["error handler (structured envelope)<br/>validation → 422 · AppError → status<br/>response serialization → 500"]
   SVC -. "throws" .-> ERR
 ```
 
+- **Layering** follows the Onion rules in `.claude/skills/onion-architecture` and is checked by
+  `pnpm arch` (also in CI): services see ports (`modules/<m>/ports.ts`), never the DB, an SDK
+  or the `Container`; repositories and adapters implement the ports; only `container.ts` knows
+  every ring. Worked examples: `modules/pulls/`, `modules/repos/`, `modules/settings/`.
 - **Plugins register before modules** so the encapsulated module plugins inherit
   them (helmet, cors, rate-limit, SSE) and the shared error handler.
 - **Validation is schema-first.** Each route declares zod `params`/`body` schemas
   (`fastify-type-provider-zod`); invalid input is rejected with a `422` **before**
-  the handler runs — handlers no longer hand-roll `Schema.parse(req.body)`.
+  the handler runs — handlers never hand-roll `Schema.parse(req.body)`. Most routes also declare
+  a zod `response` schema, so a handler returning the wrong shape fails loudly (500) in tests.
 - **Rate limiting:** a global 120/min limit (disabled under `NODE_ENV=test`), with
   tighter per-route caps on expensive endpoints (e.g. `POST /pulls/:id/review`);
   SSE and `/health*` are exempt.
@@ -72,7 +77,8 @@ flowchart TB
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
   end
   subgraph Agents["Agents"]
-    agents["agents<br/>/agents · /agents/:id"]
+    agents["agents<br/>/agents · /agents/:id · /agents/:id/skills"]
+    skills["skills<br/>/skills · /skills/:id · /skills/import/preview"]
   end
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
@@ -92,6 +98,7 @@ flowchart TB
 |-----|---------|-------|
 | `DATABASE_URL` | `postgres://devdigest:devdigest@localhost:5432/devdigest` | required to migrate/serve |
 | `API_PORT` / `WEB_PORT` | `3001` / `3000` | API port; `WEB_PORT` also sets the allowed CORS origin |
+| `API_HOST` | `localhost` | Interface the API binds to. It has no auth — set `0.0.0.0` only to expose it on purpose |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | — | optional, per-provider; also settable via Settings UI |
 | `GITHUB_TOKEN` | — | optional; PAT with repo scope (`GITHUB_PAT` accepted as a fallback) |
 | `EMBEDDINGS_ENABLED` | `false` | memory/RAG embeddings (OpenAI); off → **zero** OpenAI calls |
@@ -106,7 +113,7 @@ through `SecretsProvider` (`~/.devdigest/secrets.json`, mode `0600`, with
 
 Migrations are **not** applied on boot — run `pnpm db:migrate` (pgvector is
 enabled by migration `0000`). `pnpm db:seed` is idempotent demo data
-(`acme/payments-api`, PR #482, the two built-in agents).
+(`acme/payments-api`, PR #482, the five built-in agents and the skills bound to Test Quality / API Contract).
 
 ## Review context (non-obvious)
 
@@ -137,9 +144,9 @@ What the reviewer actually sends to the model is assembled in
 The suite splits by filename — `*.it.test.ts` is DB-backed, everything else is
 hermetic:
 
-- **unit** — `pnpm exec vitest run --exclude '**/*.it.test.ts'` — the DB-free
+- **unit** — `pnpm test:unit` — the DB-free
   files. Adapters mocked; no Docker.
-- **integration** — `pnpm exec vitest run .it.test` — the `*.it.test.ts` files.
+- **integration** — `pnpm test:integration` — the `*.it.test.ts` files.
   Each starts a real Postgres via testcontainers (`test/helpers/pg.ts`), builds
   the app, migrates + seeds, and exercises routes end-to-end. They self-skip when
   Docker is absent.

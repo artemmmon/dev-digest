@@ -5,6 +5,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@devdigest/ui";
 import type { ToolCall } from "@devdigest/shared";
+import { unstyledButton } from "@/lib/interactive";
 import { s } from "../../styles";
 
 export function ToolCallRow({ tc }: { tc: ToolCall }) {
@@ -12,7 +13,12 @@ export function ToolCallRow({ tc }: { tc: ToolCall }) {
   const [open, setOpen] = React.useState(false);
   return (
     <div style={s.toolRow}>
-      <div onClick={() => setOpen((o) => !o)} style={s.toolHead}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ ...unstyledButton, ...s.toolHead, width: "100%" }}
+      >
         <Icon.Wrench size={13} style={s.toolIcon} />
         <span className="mono" style={s.toolName}>
           {tc.tool}
@@ -22,7 +28,7 @@ export function ToolCallRow({ tc }: { tc: ToolCall }) {
         <span className="mono tnum" style={s.toolMs}>
           {tc.ms}ms
         </span>
-      </div>
+      </button>
       {open && (
         <div className="mono" style={s.toolDetail}>
           {t("trace.tools.args")}: {tc.args}

@@ -3,20 +3,13 @@
  * Missing data must read "—", never "$0.00".
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
-import common from "../../../messages/en/common.json";
+import { screen, cleanup } from "@testing-library/react";
+import { renderWithIntl } from "@/test/render";
 import { RunCostBadge } from "./RunCostBadge";
 
 afterEach(cleanup);
 
-function renderBadge(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ common }}>
-      {ui}
-    </NextIntlClientProvider>,
-  );
-}
+const renderBadge = renderWithIntl;
 
 describe("RunCostBadge", () => {
   it("compact shows only the cost, or '—' without data", () => {

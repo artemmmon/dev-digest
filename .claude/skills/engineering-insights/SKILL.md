@@ -6,7 +6,7 @@ description: Appends non-obvious engineering findings to the INSIGHTS.md of the 
 # Engineering insights
 
 1. **Filter.** Skip routine edits, trivial fixes and anything obvious to someone
-   reading the code or already in a `CLAUDE.md`, `docs/` or the target `INSIGHTS.md`.
+   reading the code or already in a `AGENTS.md`, `docs/` or the target `INSIGHTS.md`.
    For a tradeoff decision, record why the rejected option lost.
 2. **File.** The `INSIGHTS.md` of the module the finding is about; most specific wins:
    `server/src/modules/repo-intel/` · `server/` · `client/` · `reviewer-core/` · `e2e/` ·
@@ -27,7 +27,7 @@ description: Appends non-obvious engineering findings to the INSIGHTS.md of the 
    the root file). It must be actionable cold: name the file, function or command and
    the concrete action. Mark unchecked claims **(unverified)**.
 6. **Report.** Tell the user in one line: file + section. If it will bite every task
-   in that module, suggest promoting a one-liner to its `CLAUDE.md` Gotchas; don't edit it.
+   in that module, suggest promoting a one-liner to its `AGENTS.md` Gotchas; don't edit it.
 
 ## Bad vs good
 

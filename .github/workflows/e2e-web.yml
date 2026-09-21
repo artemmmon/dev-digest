@@ -14,12 +14,14 @@ on:
     paths:
       - 'client/**'
       - 'server/**'
+      - 'reviewer-core/**'
       - 'e2e/**'
       - '.github/workflows/e2e-web.yml'
   pull_request:
     paths:
       - 'client/**'
       - 'server/**'
+      - 'reviewer-core/**'
       - 'e2e/**'
       - '.github/workflows/e2e-web.yml'
 
@@ -82,9 +84,8 @@ jobs:
       - name: Start API (:3001)
         working-directory: server
         run: |
-          # tsx directly (not `pnpm start`): the committed package.json's start
-          # is `node dist/server.js`, which would need a build first. tsx runs
-          # the TS entrypoint as dev does. (server/package.json is skip-worktree.)
+          # tsx directly (not `pnpm start`): `start` is `node dist/server.js`,
+          # which would need a build first. tsx runs the TS entrypoint as dev does.
           nohup pnpm exec tsx src/server.ts > "$RUNNER_TEMP/api.log" 2>&1 &
           echo "waiting for API /health…"
           for i in $(seq 1 30); do
@@ -108,16 +109,19 @@ jobs:
           curl -fsS http://localhost:3000 >/dev/null 2>&1 || { echo "::error::web never became reachable"; cat "$RUNNER_TEMP/web.log"; exit 1; }
 
       # --- agent-browser CLI (Rust + CDP) + Chrome for Testing ---
+      # Pinned: an unpinned global install changes the browser driver under the
+      # suite without a commit. Bump deliberately.
       - name: Install agent-browser
         run: |
-          npm i -g agent-browser
+          npm i -g agent-browser@0.38.1
           agent-browser install --with-deps
 
       - name: Run e2e flows
         working-directory: e2e
         run: |
           npm ci
-          npx eslint .
+          npm run typecheck
+          npm run lint
           npm test
 
       - name: Upload failure artifacts

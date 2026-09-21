@@ -20,7 +20,8 @@ import {
 import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
-import { githubBlobUrl } from "../../../../../../../lib/github-urls";
+import { githubBlobUrl } from "@/lib/github-urls";
+import { rowClickProps, unstyledButton } from "@/lib/interactive";
 import { s } from "./styles";
 
 export function FindingCard({
@@ -53,13 +54,20 @@ export function FindingCard({
 
   return (
     <div data-finding-id={f.id} style={s.card(!!focused, sevColor, muted)}>
-      <div onClick={() => setExpanded((e) => !e)} style={s.header}>
+      <div {...rowClickProps(() => setExpanded((e) => !e))} style={s.header}>
         <div style={s.badgeWrap}>
           <SeverityBadge severity={f.severity as Severity} compact />
         </div>
         <div style={s.headerMain}>
           <div style={s.titleRow}>
-            <span style={s.title(muted, dismissed)}>{f.title}</span>
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((e) => !e)}
+              style={{ ...unstyledButton, ...s.title(muted, dismissed) }}
+            >
+              {f.title}
+            </button>
             <CategoryTag category={f.category as Category} />
             {accepted && <span style={s.acceptedTag}>{t("finding.accepted")}</span>}
             {dismissed && <span style={s.dismissedTag}>{t("finding.dismissed")}</span>}

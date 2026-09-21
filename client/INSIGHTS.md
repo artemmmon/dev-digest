@@ -41,6 +41,79 @@ flows target the pills by exactly that name.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/SeverityFilterPills/SeverityFilterPills.tsx:42`,
 `e2e/specs/04-pr-findings.flow.json`.
 
+### 2026-09-18 — Every failed mutation toasts globally; forms opt out with `meta.silent`
+`MutationCache.onError` toasts all mutation errors, so a component that also shows the error (inline
+or its own `notify.error`) doubles it. Set `meta: { silent: true }` on a mutation whose screen shows
+the error inline (e.g. `useAddRepo`); otherwise don't toast locally at all.
+Where: `src/lib/providers.tsx:45`.
+
+### 2026-09-18 — jsx-a11y is on, with a per-file baseline for the clickable-div debt
+The three click/keyboard rules are errors except in the files listed under "Known a11y debt", where
+they warn. Fixing a file (real `<button>`/`<Link>`) means deleting it from that list, so the rule
+guards it from then on. Don't add new files to the list.
+Where: `eslint.config.mjs:36`.
+
+### 2026-09-18 — `renderWithIntl` mounts providers, so `container.firstChild` is not the component
+The shared test helper wraps the UI in QueryClient, next-intl (all namespaces) and the toast host,
+which renders its own element. "Renders nothing" assertions must query for the component's
+content (`queryByPlaceholderText`, `queryByRole`), not check `container.firstChild`.
+Where: `src/test/render.tsx:13`.
+
+### 2026-09-19 — The shell lives in the root layout; pages only set the breadcrumb
+`ShellFrame` (root layout) wraps every route except `/onboarding` in `AppShell`, so the sidebar and
+palette survive navigation (verified: the same `<aside>` node after an SPA click). A page calls
+`usePageCrumb([...])` — a layout effect keyed by the crumb's JSON, cleared on unmount — instead of
+wrapping itself in `AppShell`. A new full-screen route goes in `BARE_ROUTES`.
+Where: `src/components/app-shell/ShellFrame.tsx:12`, `src/components/app-shell/crumb.tsx:1`.
+
+### 2026-09-19 — SSE contract: terminal `done` frame, Last-Event-ID resume
+The server ends every run stream with an `event: done` frame and honours `Last-Event-ID`, so
+`useRunEvents` lets EventSource reconnect on a drop (no replay of what it already has) and closes
+only on `done` or when the browser gave up (readyState CLOSED, e.g. 404). Events are deduped by
+`runId:seq`; changing the run ids opens/closes just the difference; `onSettled` fires once when the
+last open stream ends (never on unmount), so callers pass fresh arrows freely.
+Where: `src/lib/hooks/reviews.ts:224`, `../server/src/modules/reviews/routes.ts:101`.
+
+### 2026-09-19 — Invalidate through the key factory; a settled run also refreshes the PR list
+`src/lib/query-keys.ts` is hierarchical: `keys.pr.scope(id)` is a prefix of the PR's detail, reviews,
+runs, active runs and comments. The PR list's COST/SCORE/FINDINGS describe the latest round, so run
+settle/delete invalidates `keys.allPulls()` too. Cancelling a run now invalidates the live section.
+Where: `src/lib/query-keys.ts:1`, `src/lib/hooks/reviews.ts:93`.
+
+### 2026-09-19 — A clickable row = presentational container + a real control inside
+`role="presentation"` + `rowClickProps` widens the mouse target; the `<button aria-expanded>`/`<Link>`
+inside is what keyboards and screen readers use, and clicks on links/buttons/`data-row-ignore`
+areas are left to them (no double toggle). Used by PRRow, FindingCard, PromptBlock, AgentCard;
+plain buttons where the header holds no other control (TraceSection, ToolCallRow, FileCard).
+Where: `src/lib/interactive.ts:1`.
+
+### 2026-09-21 — A code-style editor is rows + a transparent textarea over them, in ONE scroll container
+`MarkdownCodeEditor` renders the coloured lines as ordinary rows (gutter number + text) that set the height, and lays a
+`color: transparent` `<textarea>` absolutely over the text column. Font, line height, `pre-wrap` and right padding must be
+identical, so wrapped lines take the same height in both; then one scrolling parent moves everything and no scroll syncing is
+needed (a textarea-as-scroller needs JS to sync the gutter and misaligns numbers on wrapped lines). Empty value: the
+placeholder is drawn as the first row, because `::placeholder` inherits the transparent colour in Firefox.
+Where: `src/app/skills/_components/SkillDetail/_components/ConfigTab/_components/MarkdownCodeEditor/styles.ts:35`.
+
+### 2026-09-21 — Mutations that a caller follows with a selection resolve after the list refetch
+`/skills` keeps the selection in `?skill=<id>`. `useCreateSkill` / `useDeleteSkill` return the `invalidateQueries` promise
+from `onSuccess`, so the per-call `onSuccess` (select the new skill / fall back) runs once the list already has (or no
+longer has) the row; otherwise the page briefly falls back to the first skill. Keep that if you add a mutation that navigates.
+Where: `src/lib/hooks/skills.ts:34`.
+
+### 2026-09-21 — `docs/design/` can be OLDER than the screens the user has in front of them
+The export in `docs/design/src` showed the Skills Lab as list + one editor + Eval panel and no Versions/Stats/Preview tabs;
+the user's current design had cards and five tabs. The sidebar was also missed: `chrome.jsx` groups nav into WORKSPACE /
+SKILLS LAB / GLOBAL, we had put everything under WORKSPACE. Before building a screen: read `chrome.jsx` for the nav, and
+ask whether the export is the latest (`scripts/unpack-design.mjs` re-imports it) — a missing tab is a red flag, not a scope cut.
+Where: `docs/design/src/chrome.jsx:4`, `src/vendor/ui/nav.ts:22`.
+
+### 2026-09-21 — Two `useSearchParamState` setters in one handler undo each other; use `useSearchParamsUpdate`
+Each setter builds the next URL from the `search` snapshot of its own render, so `setSkill(id); setTab(null)` navigates
+twice and the second drops the first. `/skills` moves `?skill=` and `?tab=` together with `useSearchParamsUpdate`.
+Where: `src/lib/use-search-param-state.ts:45`.
+
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -56,6 +129,61 @@ Automatic source detection picks up any non-gitignored file, so the design expor
 `docs/design` (JSX + bundled HTML) added 31 files / ~800 class candidates (oxide `Scanner`:
 3761 vs 2973). Non-source text files under `client/` need an `@source not "<path>"` line.
 Where: `src/app/globals.css:9` (`@source not "../../docs"`).
+
+### 2026-09-18 — `pnpm build` breaks a running `pnpm dev`
+Both write `client/.next`. After a build, the dev server answers every page with 500 and logs
+`Cannot find module './vendor-chunks/…'`. Stop `next dev`, `rm -rf .next`, start it again. To check a
+build while dev runs, don't — or run it from a separate worktree.
+Where: `package.json:7`.
+
+### 2026-09-18 — Local pnpm 12, CI pnpm 10: check the lockfile before pushing
+`pnpm add` here runs pnpm 12 (corepack); CI installs with pnpm 10 `--frozen-lockfile`. Both write
+`lockfileVersion: '9.0'`, but prove it before a push: copy `package.json` + `pnpm-lock.yaml` to a
+temp dir and run `npx pnpm@10 install --frozen-lockfile --lockfile-only`. Running pnpm 10 in
+`client/` itself fails — `node_modules` is linked from pnpm 12's store (v11).
+Where: `pnpm-lock.yaml:1`.
+
+### 2026-09-19 — `NEXT_DIST_DIR` keeps a build from breaking a running `next dev`
+`next.config.mjs` reads `NEXT_DIST_DIR` (default `.next`), so `NEXT_DIST_DIR=.next-build pnpm build`
+verifies a production build while dev keeps its cache (`scripts/e2e.sh` does the same with
+`.next-e2e`). Next rewrites `tsconfig.json`'s `include` for the alternate dir — `git checkout
+tsconfig.json` afterwards. Also: don't put zod in `src/config/env.ts`; it is in every page bundle
+(+12 kB first-load JS).
+Where: `next.config.mjs:9`, `src/config/env.ts:1`.
+
+### 2026-09-21 — The kit's `Markdown` had no heading or list styles; a skill body rendered as flat text
+The global reset in `vendor/ui/styles.css` zeroes `h1–h4` margins and list styles, and the `Markdown` primitive only
+styled `p`, `strong`, `code` and `a`. Findings never needed more; a skill body (a whole document) did. Block styles now
+live under `.dd-md`; add new markdown elements there, not as inline styles in the component.
+Where: `src/vendor/ui/styles.css:222`.
+
+### 2026-09-21 — `File.arrayBuffer()` does not exist in jsdom; read uploads with `FileReader`
+The import dialog first used `await file.arrayBuffer()`: fine in browsers, but every jsdom test showed "could not be
+read". `readFileAsBase64` uses `FileReader.readAsArrayBuffer`, which both have. Base64 is built in 32 KB chunks so
+`String.fromCharCode(...bytes)` does not overflow the stack on a 2 MB zip.
+Where: `src/app/skills/_components/ImportSkillModal/helpers.ts:24`.
+
+### 2026-09-21 — Native HTML5 drag-and-drop for the skill order: what it needs and what it can't do
+`SkillsTab` reorders with `draggable` rows, no library. `onDragStart` calls `dataTransfer.setData` (Firefox starts no
+drag without it) and guards `dataTransfer` (jsdom has none); `onDragOver` must `preventDefault()` or `drop` never fires.
+Indexes are positions in the FULL bindings list, so a drop is right while the filter hides rows. No touch support on
+mobile: the ↑/↓ buttons are the fallback and the keyboard path. `userEvent` cannot drag — tests use `fireEvent`.
+The browser-pane `left_click_drag` does not start a native drag either (it sends plain mouse events); dispatch
+`DragEvent`s with a `DataTransfer` from `javascript_tool` to check it in a real browser.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.tsx:108`.
+
+### 2026-09-21 — Supersedes "Native HTML5 drag-and-drop for the skill order": the ↑/↓ buttons are gone
+The Skills tab is now one list of all skills (checkbox = used by the agent). The keyboard path is the grip, a real
+`<button aria-label="Move <name>">`: ArrowUp/ArrowDown call `moveBinding`. Moving a row down makes React re-insert the
+focused node, which can blur it **(unverified: not tested without the fix)**, so `SkillsTab` re-focuses the grip in a layout effect after each keyboard move.
+The rest of the DnD notes (setData for Firefox, `preventDefault` on dragover, `fireEvent` in tests) still hold.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.tsx:42`.
+
+### 2026-09-21 — Per-call `mutate(..., { onSuccess })` callbacks are dropped when the component remounts
+SkillDetail is keyed by `id:version`, so a save that changes the body (or a restore) remounts it before the per-call callbacks
+run, and the "Saved …" toast and draft reset never happened. Use `mutateAsync(...).then(...)` (a promise settles regardless of
+the observer) and the module-level `notify` toast; errors are toasted by the MutationCache, so end the chain with `.catch(() => {})`.
+Where: `src/app/skills/_components/SkillDetail/SkillDetail.tsx:76`.
 
 ## Recurring Errors & Fixes
 
@@ -81,6 +209,23 @@ Where: `src/app/repos/[repoId]/pulls/_components/FindingsCell/FindingsCell.tsx:5
 `src/app/repos/[repoId]/pulls/_components/FindingsCell/_components/FindingsPopover/styles.ts:11`
 (`anchor`) and `:19` (`card`).
 
+### 2026-09-19 — `pnpm lint` fails with thousands of errors after a local e2e run
+`./scripts/e2e.sh` builds into `client/.next-e2e/` (git-ignored via `.next-*/`), but the ESLint ignore list only
+has `.next/**`, so `eslint .` lints the generated bundle (~2,300 errors, none in `src/`). CI never has the
+directory, so it only bites locally, and `pr-self-review` reports it as a failed `lint` check. Fix: add
+`".next-*/**"` to `ignores`, or delete `client/.next-e2e/` first (`eslint . --ignore-pattern ".next-*/**"` is clean).
+Where: `client/eslint.config.mjs:13`.
+
+### 2026-09-19 — Supersedes "`pnpm lint` fails with thousands of errors after a local e2e run"
+Fixed: `.next-*/**` is now in the ESLint `ignores`, so a clone that has run `./scripts/e2e.sh` lints clean.
+Where: `eslint.config.mjs:15`.
+
+### 2026-09-21 — `next dev` with `NEXT_DIST_DIR` rewrites `tsconfig.json` and `next-env.d.ts`
+Running a second dev server on an alternate dist dir (to leave `.next` alone) made Next add its `types` include to
+`tsconfig.json` (reformatting the whole file) and point `next-env.d.ts` at the alternate dir. Neither is part of the
+change: stop the server, `git checkout tsconfig.json next-env.d.ts`, delete the alternate dist dir before committing.
+Where: `next-env.d.ts:3`.
+
 ## Open Questions
 
 ## Session Notes
@@ -97,3 +242,9 @@ Counts are taken over the post-"hide low confidence" set so a pill's number alwa
 the number of cards under it.
 Where: `src/lib/severity-counts.ts:21` (`countBySeverity`), spec `../specs/02-findings-severity.md`.
 
+### 2026-09-19 — Phase 4 (client): architecture, a11y, i18n
+Shell in the layout, query-key factory + invalidation fixes, `useRunEvents` rewrite, slimmer
+FindingsTab/page, jsx-a11y baseline removed (all clickable divs fixed), hardcoded strings moved to
+messages (home, addRepo, header, diff, toast…), per-segment titles, env module, deep relative
+imports → `@/`.
+Where: `src/app/layout.tsx:36`.

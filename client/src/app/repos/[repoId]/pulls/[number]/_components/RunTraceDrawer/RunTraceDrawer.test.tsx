@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import { screen, cleanup } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { RunTrace } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/runs.json"; // apps/web/messages/en/runs.json
+import { renderWithIntl } from "@/test/render";
 
 // Mock the trace hooks so the drawer renders without a query client / SSE.
 const TRACE: RunTrace = {
@@ -19,28 +19,28 @@ const TRACE: RunTrace = {
   ],
 };
 
-vi.mock("../../../../../../../lib/hooks/trace", () => ({
+vi.mock("@/lib/hooks/trace", () => ({
   useRunTrace: () => ({ data: TRACE, isLoading: false }),
 }));
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
+vi.mock("@/lib/hooks/reviews", () => ({
   useRunEvents: () => ({ events: [], running: false }),
 }));
 
-import RunTraceDrawer from "./RunTraceDrawer";
+import { RunTraceDrawer } from "./RunTraceDrawer";
 
 afterEach(cleanup);
 
-function renderWithIntl(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ runs: messages }}>
-      <div data-theme="dark">{ui}</div>
-    </NextIntlClientProvider>,
+function renderDrawer() {
+  return renderWithIntl(
+    <div data-theme="dark">
+      <RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />
+    </div>,
   );
 }
 
 describe("A5 Run Trace drawer (smoke)", () => {
   it("renders the trace tabs and stats", () => {
-    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
+    renderDrawer();
     expect(screen.getByText("Configuration")).toBeInTheDocument();
     expect(screen.getByText("Stats")).toBeInTheDocument();
     expect(screen.getByText("2/2 passed")).toBeInTheDocument();
@@ -49,9 +49,34 @@ describe("A5 Run Trace drawer (smoke)", () => {
     expect(screen.getByText("Tool calls")).toBeInTheDocument();
   });
 
-  it("switches to the live log tab", () => {
-    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
-    fireEvent.click(screen.getByText("log"));
+  it("lists each skill block of the prompt with its tokens", async () => {
+    TRACE.prompt_assembly.skill_blocks = [
+      { skill_id: "s1", name: "branch-coverage-rubric", tokens: 210 },
+      { skill_id: "s2", name: "mocking-discipline", tokens: 145 },
+    ];
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByText("Prompt assembly"));
+    const rows = screen.getByRole("list", { name: "Skill blocks in the prompt" });
+    expect(rows).toHaveTextContent("branch-coverage-rubric");
+    expect(rows).toHaveTextContent("210 tok");
+    expect(rows).toHaveTextContent("mocking-discipline");
+    expect(rows).toHaveTextContent("Skills add 355 tokens to the prompt");
+    TRACE.prompt_assembly.skill_blocks = undefined;
+  });
+
+  it("shows no skill rows for a trace saved before per-skill accounting", async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByText("Prompt assembly"));
+    expect(screen.getByText("Skills (dynamic)")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Skill blocks in the prompt" })).not.toBeInTheDocument();
+  });
+
+  it("switches to the live log tab", async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByText("log"));
     // LiveLogStream renders its filter input
     expect(screen.getByPlaceholderText("Filter log…")).toBeInTheDocument();
   });

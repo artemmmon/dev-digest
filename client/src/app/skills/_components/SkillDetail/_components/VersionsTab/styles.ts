@@ -1,0 +1,50 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for VersionsTab (screenshot "Versions" of the design). */
+export const s = {
+  headRow: { display: "flex", alignItems: "center", gap: 10 } satisfies CSSProperties,
+  h3: { fontSize: 15, fontWeight: 600, margin: 0 } satisfies CSSProperties,
+  sub: { fontSize: 12.5, color: "var(--text-muted)", margin: "4px 0 16px" } satisfies CSSProperties,
+  list: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8, maxWidth: 760 } satisfies CSSProperties,
+  item: {
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+    overflow: "hidden",
+  } satisfies CSSProperties,
+  row: { display: "flex", alignItems: "center", gap: 12, padding: "11px 14px" } satisfies CSSProperties,
+  version: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "3px 8px",
+    borderRadius: 5,
+    background: "var(--bg-hover)",
+    color: "var(--text-secondary)",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  text: { flex: 1, minWidth: 0 } satisfies CSSProperties,
+  message: { fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } satisfies CSSProperties,
+  date: { fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 } satisfies CSSProperties,
+  actions: { display: "flex", gap: 6, flexShrink: 0 } satisfies CSSProperties,
+  diff: {
+    margin: 0,
+    maxHeight: 300,
+    overflow: "auto",
+    borderTop: "1px solid var(--border)",
+    background: "var(--bg-surface)",
+    fontSize: 12,
+    lineHeight: "19px",
+    padding: "8px 0",
+  } satisfies CSSProperties,
+  diffHint: { fontSize: 11.5, color: "var(--text-muted)", padding: "6px 14px 0" } satisfies CSSProperties,
+  line: (kind: "same" | "add" | "del"): CSSProperties => ({
+    display: "flex",
+    padding: "0 14px",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    color: kind === "add" ? "var(--ok)" : kind === "del" ? "var(--crit)" : "var(--text-secondary)",
+    background: kind === "add" ? "var(--ok-bg)" : kind === "del" ? "var(--crit-bg)" : "transparent",
+  }),
+  sign: { width: 16, flexShrink: 0, userSelect: "none" } satisfies CSSProperties,
+  muted: { fontSize: 13, color: "var(--text-muted)" } satisfies CSSProperties,
+} as const;

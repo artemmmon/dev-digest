@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { RunEvent, RunEventKind } from '@devdigest/shared';
+import type { RunBusPort } from '../modules/_shared/ports.js';
 
 /**
  * SSE / run-log bus.
@@ -16,7 +17,12 @@ function clockTime(): string {
   return new Date().toTimeString().slice(0, 8);
 }
 
-export class RunBus {
+/** How long a completed run's buffer stays replayable for late subscribers. */
+const COMPLETED_RETENTION_MS = 5 * 60_000;
+
+export class RunBus implements RunBusPort {
+  constructor(private retentionMs = COMPLETED_RETENTION_MS) {}
+
   private emitters = new Map<string, EventEmitter>();
   private buffers = new Map<string, RunEvent[]>();
   private seq = new Map<string, number>();
@@ -72,14 +78,30 @@ export class RunBus {
     return this.buffers.get(runId) ?? [];
   }
 
-  /** Signal completion and release buffers/emitters. */
+  /** Whether the bus holds anything for this run (live, or completed and still retained). */
+  knows(runId: string): boolean {
+    return this.buffers.has(runId);
+  }
+
+  /**
+   * Signal completion. The emitter goes now; the buffer stays replayable for
+   * late subscribers for `retentionMs`, then everything for the run is dropped —
+   * the persisted `run_traces` row is the long-term record.
+   */
   complete(runId: string): void {
     const e = this.emitters.get(runId);
     this.completed.add(runId);
     this.cancelled.delete(runId);
     e?.emit('done');
-    // Keep the buffer briefly available for late subscribers; clear emitter.
     this.emitters.delete(runId);
+    setTimeout(() => this.forget(runId), this.retentionMs).unref();
+  }
+
+  private forget(runId: string): void {
+    this.emitters.delete(runId);
+    this.buffers.delete(runId);
+    this.seq.delete(runId);
+    this.completed.delete(runId);
   }
 
   /** Whether a run has already completed (for replay-then-end late subscribers). */

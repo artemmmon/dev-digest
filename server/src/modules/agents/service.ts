@@ -1,4 +1,3 @@
-import type { Container } from '../../platform/container.js';
 import type {
   Agent,
   AgentSkillLink,
@@ -8,7 +7,8 @@ import type {
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
-import { AgentsRepository } from './repository.js';
+import type { AgentsServiceDeps } from './ports.js';
+import { ValidationError } from '../../platform/errors.js';
 import { toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
@@ -49,10 +49,10 @@ export interface UpdateAgentInput {
 }
 
 export class AgentsService {
-  private repo: AgentsRepository;
+  constructor(private deps: AgentsServiceDeps) {}
 
-  constructor(private container: Container) {
-    this.repo = new AgentsRepository(container.db);
+  private get repo() {
+    return this.deps.agents;
   }
 
   async list(workspaceId: string): Promise<Agent[]> {
@@ -138,22 +138,50 @@ export class AgentsService {
   /** Linked skills for an agent as AgentSkillLink[] (ordered). */
   async skillLinks(agentId: string): Promise<AgentSkillLink[]> {
     const links = await this.repo.linkedSkills(agentId);
-    return links.map((l) => ({ agent_id: agentId, skill_id: l.skill.id, order: l.order }));
+    return links.map((l) => ({
+      agent_id: agentId,
+      skill_id: l.skillId,
+      order: l.order,
+      enabled: l.enabled,
+    }));
   }
 
   /**
-   * Set / reorder the agent's linked skills. If `skillIds` is provided, replaces
-   * the whole set in that order. Returns the resulting ordered links.
+   * Set / reorder the agent's linked skills. Replaces the whole set in the given order
+   * and keeps each skill's existing on/off switch (new links start on).
    */
   async setSkills(
     workspaceId: string,
     agentId: string,
     skillIds: string[],
   ): Promise<AgentSkillLink[] | undefined> {
+    const existing = new Map((await this.repo.linkedSkills(agentId)).map((l) => [l.skillId, l.enabled]));
+    return this.setBindings(
+      workspaceId,
+      agentId,
+      skillIds.map((skill_id) => ({ skill_id, enabled: existing.get(skill_id) ?? true })),
+    );
+  }
+
+  /** Replace the agent's bindings: array order is the prompt order, `enabled` the per-agent switch. */
+  async setBindings(
+    workspaceId: string,
+    agentId: string,
+    bindings: Array<{ skill_id: string; enabled: boolean }>,
+  ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
-    await this.repo.setSkills(agentId, skillIds);
-    return this.skillLinks(agentId);
+    const ids = bindings.map((b) => b.skill_id);
+    if (new Set(ids).size !== ids.length) {
+      throw new ValidationError('A skill can be bound to an agent only once');
+    }
+    await this.requireWorkspaceSkills(workspaceId, ids);
+    const ok = await this.repo.setSkills(
+      workspaceId,
+      agentId,
+      bindings.map((b) => ({ skillId: b.skill_id, enabled: b.enabled })),
+    );
+    return ok ? this.skillLinks(agentId) : undefined;
   }
 
   /** Link a single skill (append or set order) — additive to existing links. */
@@ -165,10 +193,20 @@ export class AgentsService {
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
+    await this.requireWorkspaceSkills(workspaceId, [skillId]);
     const existing = await this.repo.linkedSkills(agentId);
     const resolvedOrder = order ?? existing.length;
     await this.repo.linkSkill(agentId, skillId, resolvedOrder);
     return this.skillLinks(agentId);
+  }
+
+  /** An agent may only link skills of its own workspace. */
+  private async requireWorkspaceSkills(workspaceId: string, skillIds: string[]): Promise<void> {
+    const known = await this.repo.skillIdsInWorkspace(workspaceId, skillIds);
+    const unknown = skillIds.filter((id) => !known.has(id));
+    if (unknown.length > 0) {
+      throw new ValidationError('Unknown skill for this workspace', { skill_ids: unknown });
+    }
   }
 
   /**
@@ -177,7 +215,7 @@ export class AgentsService {
    */
   async listModels(provider: Provider): Promise<ModelInfo[]> {
     try {
-      const llm = await this.container.llm(provider);
+      const llm = await this.deps.llm(provider);
       return await llm.listModels();
     } catch {
       return [];

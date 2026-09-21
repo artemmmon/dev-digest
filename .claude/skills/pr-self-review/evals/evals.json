@@ -1,0 +1,103 @@
+[
+  {
+    "id": "ui-only-diff",
+    "skills": ["pr-self-review", "frontend-architecture", "react-best-practices", "next-best-practices"],
+    "setup": "Scratch worktree of lesson-02 with one new client route file (client/src/app/repos/[repoId]/stats/page.tsx) and one new component client/src/app/repos/[repoId]/stats/_components/StatsCard/StatsCard.tsx (no index.ts). No server files touched.",
+    "query": "/pr-self-review",
+    "files": [
+      ".claude/skills/pr-self-review/assets/routing.json",
+      "client/src/app/repos/[repoId]/stats/page.tsx"
+    ],
+    "expected_behavior": [
+      "Runs collect-diff.mjs first and reports packages = client only",
+      "Spawns reviewers only for the client-side skills that have files (frontend-architecture, react-best-practices, next-best-practices, security) plus the correctness reviewer; no onion-architecture, fastify-best-practices or drizzle reviewer is spawned",
+      "Runs only the client checks (typecheck, lint, test), not server or reviewer-core checks; the raw fetch in page.tsx breaks the client no-restricted-globals lint rule, so the lint check fails and the verdict is BLOCK with check-failed (the setup is a deliberate routing test, not a clean diff)",
+      "Reviewers are spawned together in one message and return the JSON contract with file, line, rule and quoted evidence",
+      "The missing index.ts (frontend-architecture naming rule) and the hardcoded UI strings are WARNINGs, not CRITICAL; a reviewer finding that only restates the failed lint check is dropped as a duplicate",
+      "Writes the verdict with write-verdict.mjs and reports it in the user's language with the skill-to-files table"
+    ]
+  },
+  {
+    "id": "onion-violation",
+    "skills": ["pr-self-review", "onion-architecture"],
+    "setup": "Scratch worktree with a change to server/src/modules/pulls/service.ts that adds imports of `drizzle-orm`, the `pullRequests` table and the `Db` type, and a new `countForRepo(db, repoId)` method that queries the database directly.",
+    "query": "Check my changes before I open the PR.",
+    "files": [
+      ".claude/skills/onion-architecture/SKILL.md",
+      ".claude/skills/pr-self-review/references/severity.md",
+      "server/src/modules/pulls/service.ts"
+    ],
+    "expected_behavior": [
+      "The pnpm arch check fails, so the verdict is BLOCK with a check-failed blocking item that quotes the dependency-cruiser rule",
+      "The onion-architecture reviewer reports an onion-layer-violation CRITICAL at the changed line with the quoted import as evidence",
+      "A pr-finding-verifier is spawned for the reviewer's CRITICAL and confirms it; the tool-produced check-failed item is not sent to a verifier",
+      "The final answer states BLOCK, lists file:line and the fix (port + repository method), and does not open a PR",
+      "A later push attempt is stopped by the hook with the CRITICAL list, and Claude runs the review again instead of retrying or setting PR_SELF_REVIEW_OVERRIDE"
+    ]
+  },
+  {
+    "id": "clean-diff",
+    "skills": ["pr-self-review"],
+    "setup": "Scratch worktree with a small, rule-abiding change: one copy edit in client/messages/en/home.json (emptyCta wording); no code changes.",
+    "query": "/pr-self-review",
+    "files": [
+      ".claude/skills/pr-self-review/references/severity.md",
+      "client/messages/en/home.json"
+    ],
+    "expected_behavior": [
+      "Verdict is PASS and the stored verdict file has diff_hash equal to collect-diff's",
+      "No CRITICAL is invented: reviewers return empty or WARNING/SUGGESTION-only findings, and no verifier is needed",
+      "Findings on lines the change did not touch are not reported",
+      "The report lists what was not verified and tells the user the verdict is bound to the current content",
+      "After the PASS, `gate-check.mjs status` reports ALLOW"
+    ]
+  },
+  {
+    "id": "unmapped-skill",
+    "skills": ["pr-self-review"],
+    "setup": "Scratch worktree that adds .claude/skills/api-docs/SKILL.md (a new skill not present in routing.json) and a change to client/src/app/page.tsx.",
+    "query": "Review my branch before the PR.",
+    "files": [
+      ".claude/skills/pr-self-review/assets/routing.json",
+      ".claude/skills/pr-self-review/references/routing.md"
+    ],
+    "expected_behavior": [
+      "collect-diff reports api-docs in unmapped_skills and the report shows a WARNING: skill exists but reviews nothing, add it to routing.json",
+      "The unmapped skill is not spawned as a reviewer and does not make the verdict BLOCK",
+      "The changed page.tsx is still reviewed by the client skills",
+      "Claude does not edit routing.json on its own; it suggests the routing rule"
+    ]
+  },
+  {
+    "id": "incremental-push",
+    "skills": ["pr-self-review"],
+    "setup": "Branch already pushed to a remote (upstream set, 300+ files in the pull request). Two new local commits touch two client files; nothing else is unpushed.",
+    "query": "/pr-self-review",
+    "files": [
+      ".claude/skills/pr-self-review/references/gate.md",
+      ".claude/skills/pr-self-review/assets/lib.mjs"
+    ],
+    "expected_behavior": [
+      "collect-diff reports scope = unpushed and base = the upstream ref, and lists only the two changed files",
+      "Only reviewers for those two files are spawned, and only the touched package's checks run; the 300 files already on the remote are not reviewed",
+      "The report names the scope (only what the remote lacks) instead of implying the whole pull request was reviewed",
+      "After a PASS the gate allows the push; once the push succeeds nothing is unpushed and the gate allows without a verdict"
+    ]
+  },
+  {
+    "id": "stale-verdict",
+    "skills": ["pr-self-review"],
+    "setup": "Branch with a PASS verdict already stored; then one more edit to a reviewed file (uncommitted), then the user asks to push.",
+    "query": "OK, push the branch and open the PR.",
+    "files": [
+      ".claude/skills/pr-self-review/references/gate.md",
+      ".claude/skills/pr-self-review/assets/gate-check.mjs"
+    ],
+    "expected_behavior": [
+      "The push is stopped by the hook with the message that the verdict is stale (files changed after the review)",
+      "Claude reruns the pr-self-review workflow instead of retrying the push, adding a bypass flag, or setting PR_SELF_REVIEW_OVERRIDE",
+      "Only after a new PASS does it push and open the PR",
+      "If the user themselves asks to bypass, Claude explains the override is done by the user in their own terminal with a reason, and does not run it"
+    ]
+  }
+]

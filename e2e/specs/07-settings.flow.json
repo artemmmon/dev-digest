@@ -4,7 +4,6 @@
   "steps": [
     { "cmd": ["open", "{BASE}/settings/api-keys"], "label": "load the API Keys settings section" },
     { "cmd": ["wait", "--url", "/settings/api-keys"], "label": "api-keys route reached" },
-    { "cmd": ["wait", "--load", "networkidle"], "label": "settings fetch settles" },
     { "cmd": ["wait", "--text", "API Keys"], "label": "the API Keys section renders" },
     { "cmd": ["open", "{BASE}/settings/models"], "label": "load the Feature Models settings section" },
     { "cmd": ["wait", "--url", "/settings/models"], "label": "models route reached" },

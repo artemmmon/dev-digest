@@ -115,7 +115,13 @@ export type MemoryItem = z.infer<typeof MemoryItem>;
 export const SkillType = z.enum(['rubric', 'convention', 'security', 'custom']);
 export type SkillType = z.infer<typeof SkillType>;
 
-export const SkillSource = z.enum(['manual', 'imported_url', 'extracted', 'community']);
+export const SkillSource = z.enum([
+  'manual',
+  'imported_url',
+  'imported_file',
+  'extracted',
+  'community',
+]);
 export type SkillSource = z.infer<typeof SkillSource>;
 
 export const Skill = z.object({
@@ -128,8 +134,60 @@ export const Skill = z.object({
   enabled: z.boolean(),
   version: z.number().int(),
   evidence_files: z.array(z.string()).nullish(),
+  /** Agents with an enabled binding to this skill. */
+  agent_count: z.number().int().nullish(),
+  /** Tokens the body adds to a prompt. */
+  body_tokens: z.number().int().nullish(),
 });
 export type Skill = z.infer<typeof Skill>;
+
+/** One saved body of a skill. `message` says what changed; v1 and old rows have none. */
+export const SkillVersion = z.object({
+  version: z.number().int(),
+  body: z.string(),
+  message: z.string().nullable(),
+  created_at: z.string(),
+});
+export type SkillVersion = z.infer<typeof SkillVersion>;
+
+/** An agent that has this skill switched on. */
+export const SkillAgentUse = z.object({ id: z.string(), name: z.string() });
+export type SkillAgentUse = z.infer<typeof SkillAgentUse>;
+
+/** Create / update body. `description` is the skill's interface — written as a directive. */
+export const SkillInput = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(500),
+  type: SkillType,
+  body: z.string().min(1).max(200_000),
+  source: SkillSource.optional(),
+});
+export type SkillInput = z.infer<typeof SkillInput>;
+
+/** A file in an imported archive that the product read but did not use. */
+export const IgnoredFile = z.object({
+  path: z.string(),
+  reason: z.enum(['executable', 'not_used']),
+});
+export type IgnoredFile = z.infer<typeof IgnoredFile>;
+
+/** What an import extracted — shown for confirmation, nothing is saved yet. */
+export const SkillImportPreview = z.object({
+  name: z.string(),
+  description: z.string(),
+  type: SkillType,
+  body: z.string(),
+  source_file: z.string(),
+  ignored_files: z.array(IgnoredFile),
+});
+export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
+
+export const SkillImportBody = z.object({
+  filename: z.string().min(1).max(255),
+  // base64 of the 2 MiB import cap: ceil(2 * 1024 * 1024 / 3) * 4
+  content_base64: z.string().min(1).max(2_796_204),
+});
+export type SkillImportBody = z.infer<typeof SkillImportBody>;
 
 export const CommunitySkill = z.object({
   name: z.string(),
@@ -188,6 +246,8 @@ export const Agent = z.object({
   // Inject repo-intel context (repo skeleton + callers + rank note) into this
   // agent's review prompt. Default on; gated again by the global flag.
   repo_intel: z.boolean().default(true),
+  // Enabled skill bindings; drives the "N skills" badge on the agent card.
+  skill_count: z.number().int().nullish(),
 });
 export type Agent = z.infer<typeof Agent>;
 
@@ -195,8 +255,15 @@ export const AgentSkillLink = z.object({
   agent_id: z.string(),
   skill_id: z.string(),
   order: z.number().int(),
+  enabled: z.boolean().default(true),
 });
 export type AgentSkillLink = z.infer<typeof AgentSkillLink>;
+
+/** Replace an agent's skill bindings: array order is the prompt order. */
+export const SetAgentSkillsBody = z.object({
+  skills: z.array(z.object({ skill_id: z.string().uuid(), enabled: z.boolean() })).max(100),
+});
+export type SetAgentSkillsBody = z.infer<typeof SetAgentSkillsBody>;
 
 // The immutable config snapshot captured in `agent_versions` whenever an agent's
 // config changes (everything but `enabled`). Mirrors the shape written by the

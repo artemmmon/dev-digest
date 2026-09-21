@@ -5,6 +5,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Button, Icon, Modal } from "@devdigest/ui";
+import { rowClickProps, unstyledButton } from "@/lib/interactive";
 import { s } from "../../styles";
 import { PromptModalBody } from "../PromptModalBody";
 
@@ -32,9 +33,16 @@ export function PromptBlock({ label, text, color }: { label: string; text: strin
   };
   return (
     <div style={s.promptRow}>
-      <div onClick={() => setOpen((o) => !o)} style={s.promptHead}>
-        <span style={s.promptDot(color)} />
-        <span style={s.promptLabel}>{label}</span>
+      <div {...rowClickProps(() => setOpen((o) => !o))} style={s.promptHead}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          style={{ ...unstyledButton, display: "flex", alignItems: "center", gap: 10 }}
+        >
+          <span style={s.promptDot(color)} />
+          <span style={s.promptLabel}>{label}</span>
+        </button>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           <button
             type="button"

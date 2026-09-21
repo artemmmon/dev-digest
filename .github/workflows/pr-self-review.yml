@@ -1,0 +1,34 @@
+# pr-self-review skill — script tests (routing, hashing, verdict, gate, real git push through the hook).
+# They build throw-away git repos in a temp dir: no network, no Docker, no dependencies to install.
+name: pr-self-review
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/pr-self-review/**'
+      - '.claude/agents/**'
+      - '.claude/settings.json'
+      - 'scripts/install-hooks.sh'
+      - '.github/workflows/pr-self-review.yml'
+  pull_request:
+    paths:
+      - '.claude/skills/pr-self-review/**'
+      - '.claude/agents/**'
+      - '.claude/settings.json'
+      - 'scripts/install-hooks.sh'
+      - '.github/workflows/pr-self-review.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    name: script tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test '.claude/skills/pr-self-review/assets/tests/*.test.mjs'

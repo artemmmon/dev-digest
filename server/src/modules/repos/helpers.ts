@@ -1,9 +1,8 @@
 import { type Repo } from '@devdigest/shared';
-import type * as t from '../../db/schema.js';
+import type { RepoRecord } from './ports.js';
 import { AppError } from '../../platform/errors.js';
 import {
   GITHUB_URL_REGEX,
-  GIT_TOKEN_USERNAME,
   GITHUB_HTTPS_HOST,
 } from './constants.js';
 
@@ -15,33 +14,25 @@ import {
 /** Parse `owner`/`name` from a GitHub URL (https or ssh form). */
 export function parseRepoUrl(url: string): { owner: string; name: string } {
   // https://github.com/owner/repo(.git)  |  git@github.com:owner/repo.git
-  const match = url.match(GITHUB_URL_REGEX);
-  if (!match?.[1] || !match[2]) {
+  const match = url.trim().match(GITHUB_URL_REGEX);
+  const owner = match?.[1];
+  const name = match?.[2];
+  if (!owner || !name || /^\.+$/.test(name)) {
     throw new AppError('invalid_repo_url', `Could not parse owner/repo from '${url}'`, 400);
   }
-  return { owner: match[1], name: match[2] };
+  return { owner, name };
 }
 
 /**
- * Embed a token into an https github.com URL so private clones authenticate
- * non-interactively. SSH/non-GitHub URLs are left untouched.
+ * Canonical https clone URL for a GitHub repo. The clone job always clones this,
+ * never the raw user input, so only github.com is ever fetched.
  */
-export function withGitHubToken(url: string, token: string): string {
-  try {
-    const u = new URL(url);
-    if (u.protocol === 'https:' && u.hostname === GITHUB_HTTPS_HOST) {
-      u.username = GIT_TOKEN_USERNAME;
-      u.password = token;
-      return u.toString();
-    }
-  } catch {
-    /* non-URL (e.g. git@github.com:...) — leave as-is */
-  }
-  return url;
+export function githubCloneUrl(owner: string, name: string): string {
+  return `https://${GITHUB_HTTPS_HOST}/${owner}/${name}.git`;
 }
 
 /** Map a persisted repo row to the API `Repo` DTO. */
-export function toRepoDto(row: typeof t.repos.$inferSelect): Repo {
+export function toRepoDto(row: RepoRecord): Repo {
   return {
     id: row.id,
     workspace_id: row.workspaceId,

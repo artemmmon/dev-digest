@@ -30,6 +30,13 @@ Fix: mock every provider used in the file. The existing test "run all enabled ag
 Where: `test/reviews.it.test.ts:372` ("run all enabled agents"), `test/helpers/runs.ts:14`
 (`waitForPrRuns`).
 
+### 2026-09-21 — A review of a PR nobody has opened yet reviews an EMPTY diff and reports "approve"
+`loadDiff` tries `git diff base...head` on the clone, then falls back to `pr_files` patches. A freshly imported repo has
+neither: the clone holds only `main` (the PR head commit is missing) and `pr_files` is filled the first time
+`GET /pulls/:id` runs (the PR page). `POST /pulls/:id/review` straight after import therefore logs "0 changed file(s)" and
+the model answers "approve, no changes". Open the PR (or `GET /pulls/:id`) once before reviewing it from a script.
+Where: `src/modules/reviews/diff-loader.ts:11` (`loadDiff`).
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Queue state is in-memory only
@@ -68,6 +75,82 @@ worst/sum across the round: `latestBatchByPr` in `pulls/cost.ts` +
 Where: `src/modules/pulls/findings.ts:39` (`latestRoundReviewIds`),
 `src/modules/pulls/routes.ts:151`, `src/modules/reviews/repository/review.repo.ts:75`.
 
+### 2026-09-18 — A repo URL is a filesystem boundary, not just input
+`parseRepoUrl` output becomes `<cloneDir>/<owner>/<name>`, and `SimpleGitClient.clone()` deletes a
+destination that has no `.git`. The old unanchored regex let `https://github.com/../x` through, i.e.
+an `rm -rf` of a sibling of the clone dir, and cloned the raw user URL (any host). Now three layers:
+`RepoInput` regex (both contract copies), the anchored `GITHUB_URL_REGEX`, and `insideDir()` in the
+adapter. The clone job rebuilds the URL with `githubCloneUrl(owner, name)` and ignores `payload.url`.
+Where: `src/adapters/git/simple-git.ts:140`, `src/modules/repos/constants.ts:21`.
+
+### 2026-09-18 — Transactions: build the repository on `tx`
+A repository typed on `DbOrTx` (pool or open transaction) runs unchanged inside `db.transaction`:
+`this.db.transaction((tx) => work(new AgentsRepository(tx)))`. Not hypothetical: before the row lock,
+three concurrent `PUT /agents/:id` produced versions `[2, 2, 3]` and dropped a snapshot
+(`onConflictDoNothing`). Read-then-write paths lock with `.for('update')` inside the transaction.
+Where: `src/db/client.ts:15`, `src/modules/agents/repository.ts:162`.
+
+### 2026-09-18 — GitHub auth for git: a per-command header, never the remote URL
+`SimpleGitClient` sends the PAT as `-c http.https://github.com/.extraheader=AUTHORIZATION: basic …`
+(the same form `actions/checkout` uses) on clone/fetch only. Clones made before this kept the token
+in `origin`; `scrubOrigin()` strips it on the next clone/fetch/sync, so an old clone is clean after
+one Refresh. Private-repo fetches depend on the token being in Settings, not in the clone.
+Where: `src/adapters/git/simple-git.ts:90`.
+
+### 2026-09-18 — Jobs on one repo are serialised by `repoJobKey`
+Clone, index, refresh and resync all register with `{ serializeBy: repoJobKey }` (`repo:<repoId>`),
+so a Refresh can't re-clone a directory the indexer is reading. A timed-out attempt aborts
+`ctx.signal` and holds the key until the handler settles, at most `ABORT_GRACE_MS` (30 s) — the
+repo-intel pipeline ignores the signal today, so its overlap is bounded, not impossible. A job
+waiting for its key holds a p-queue slot.
+Where: `src/platform/jobs.ts:31`, `src/modules/_shared/jobs.ts:1`.
+
+### 2026-09-19 — Where a shared contract goes so both rings can import it
+A file named `ports.ts` counts as core for depcruise — including `modules/_shared/ports.ts`, which
+holds `JobQueue`, `RunBusPort`, the job kinds and `repoJobKey`. An adapter may not import any
+`modules/**` file, so a constant both an adapter and a module need goes to `vendor/shared`
+(`contracts/code-index.ts`: `SUPPORTED_EXT`, walk limits). Another module's types come through its
+`types.ts`/`index.ts` only (`agents/types.ts`, `repos/types.ts`), which re-export from its `ports.ts`.
+Where: `src/modules/_shared/ports.ts:1`, `src/vendor/shared/contracts/code-index.ts:1`.
+
+### 2026-09-19 — Wiring lives in container getters: `reviewDeps`, `repoIntelDeps`
+A service takes a plain deps object; `Container` builds it (`container.reviewDeps`,
+`container.repoIntelDeps`) and routes call `new XService(container.xDeps)`. Tests build the same
+object from fakes and real pure adapters (`test/helpers/repo-intel.ts`), so no test casts a fake
+Container or patches a private field. The parse concurrency (`cpus() - 1`) is decided in the
+container, not in the pipeline.
+Where: `src/platform/container.ts:119`, `test/helpers/repo-intel.ts:11`.
+
+### 2026-09-19 — `parseUnifiedDiff` lives in reviewer-core
+The parser was an adapter file but is pure and is what grounding depends on, so it moved to
+`reviewer-core/src/diff.ts`; the git adapter, the mocks and the review module import it from
+`@devdigest/reviewer-core`. reviewer-core's own vitest config aliases `@devdigest/reviewer-core` to
+its `src`, because its tests borrow the server mocks, which import it through that alias.
+Where: `../reviewer-core/src/diff.ts:1`, `../reviewer-core/vitest.config.ts:12`.
+
+### 2026-09-21 — An agent's version moves when its prompt's skill set moves, not on every binding edit
+`AgentsRepository.setSkills` locks the agent row, replaces `agent_skills`, and bumps `agents.version` (plus an
+`agent_versions` snapshot) only when the ENABLED, ordered skill ids differ from before. Muting a binding that was already
+off, or re-saving the same list, leaves the version alone. The snapshot holds ids of enabled bindings, not bodies, so
+editing a skill's body does not version the agents that use it (see Open Questions).
+Where: `src/modules/agents/repository.ts:295` (`setSkillsLocked`).
+
+### 2026-09-21 — A narrow skill narrows the agent: `route-breaking-change-rubric` made API Contract approve a new API client
+With the lean prompt (role + severity/verdict only) the rubric in the skill becomes the agent's whole notion of the job.
+`route-breaking-change-rubric` compares an OLD and a NEW route signature; on a PR that only ADDS an API client (no old
+contract in the diff) API Contract returned `approve`/100 in 2 of 2 runs, while the same agent without skills found a
+silent `[]` on error, a crash on non-404 statuses and a wrong map. On a PR that really breaks a route (renamed param,
+array → object, dropped field) skills and no-skills found the same three breaks, so an obvious break does not separate
+them. Write a skill for a class of input, and say in its `description` when it does NOT apply.
+Where: `src/db/seed-skills.ts:89` (`ROUTE_BREAKING_CHANGE_RUBRIC`).
+
+### 2026-09-21 — "Used by N agents" is a read port the agents repository implements, not a join in the skills module
+`agent_skills` belongs to the agents module, so `SkillsService` takes a `SkillUsageReader` (`agentCounts`, `agentsUsing`) and
+the container passes `agentsRepo`, which satisfies it structurally (no import of the skills port). Only bindings with
+`enabled = true` count — an agent whose binding is muted does not "use" the skill. `GET /skills` computes counts in one grouped
+query; `GET /skills/:id` and the mutations ask `agentsUsing` for one skill. `body_tokens` comes from the shared `Tokenizer`.
+Where: `src/modules/agents/repository.ts:82`, `src/modules/skills/service.ts:26`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -78,6 +161,48 @@ The rule is written up but left out of the config until those three grow a repos
 enabling it means rewriting starter code, not fixing a violation you introduced.
 Where: `eslint.config.mjs:33`, `src/modules/pulls/routes.ts:3`.
 
+
+### 2026-09-18 — Layer rules live in the onion-architecture skill, with a known-violations baseline
+The 2026-09-17 entry left layer rules out of eslint because starter code breaks them. They now
+run as dependency-cruiser from the skill; `known-violations.json` (40 entries) hides existing
+debt, so only new violations fail. Rejected: eslint `no-restricted-imports` has no baseline, so
+it would fail on day one. To move it into CI later, point `depcruise` at the same config + baseline.
+Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:57`.
+
+### 2026-09-18 — dependency-cruiser quirks when writing rules for this package
+`octokit` is ESM-only and stays unresolved (path = bare `octokit`), so package rules must match
+`(^|node_modules/)pkg(/|$)`. Nested quantifiers such as `(\.pnpm/[^/]+/)?` fail with "unsafe regular
+expression". `depcruise src/modules/x` follows imports into other modules and reports their
+violations too; to scope a report, run on `src` and grep the path.
+Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:27`.
+
+### 2026-09-18 — Supersedes "Layer rules live in the onion-architecture skill, with a known-violations baseline"
+Still true: the rules live in the skill, not in eslint/CI. What changed: the baseline now has 45
+entries, not 40. Application code is now fail-closed. `application-allowed-packages` allows only
+zod, graphology, p-queue and `crypto`/`path`/`util`, so `fs/promises` and `os` in `repo-intel` were
+added to the baseline as debt. An eval found the previous SDK list let an unlisted `@slack/web-api`
+import through. A new pure library must be added to `APPLICATION_PKGS`.
+Where: `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:47`, rule at `:76`.
+
+### 2026-09-18 — Batched upsert in Drizzle: `excluded.<column>` and one row per key
+`onConflictDoUpdate` with `set` values written as the sql template `excluded.title` updates each row from its own
+VALUES tuple. Postgres rejects a batch that hits the same conflict key twice ("cannot affect row a
+second time"), so dedupe by the key first — GitHub's paginated PR list can repeat a PR.
+Where: `src/modules/pulls/repository.ts:50`.
+
+### 2026-09-19 — Supersedes "Layer rules live in the onion-architecture skill, with a known-violations baseline"
+The baseline is gone: the layering debt was paid down from 45 entries to zero (pulls, settings, repos,
+agents, reviews, repo-intel), so `pnpm arch` runs the skill's config without `--ignore-known` and any
+violation fails CI. The rules still live in the skill (`assets/dependency-cruiser.cjs`), not in eslint.
+Two things the rules do not see: application code importing `platform/resilience.ts` /
+`platform/run-logger.ts`, and `RepoIntelService` taking the concrete `RepoIntelRepository` class.
+Where: `package.json:15`, `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:1`.
+
+### 2026-09-21 — Listing a zip without inflating it: `unzipSync` with a filter that returns false
+`FflateZipReader.list` passes a `filter` that records `{name, originalSize}` and returns `false`, so headers are read and
+nothing is decompressed; `readText` then inflates one chosen entry. The import limits (200 entries, 1 MB file, 10 MB total)
+are checked against the DECLARED `originalSize`; a header that lies about its size is not covered by a test **(unverified)**.
+Where: `src/adapters/archive/zip.ts:19`, `src/modules/skills/import-parser.ts:141`.
 
 ## Recurring Errors & Fixes
 
@@ -96,6 +221,43 @@ Apply the new SQL with `ADD COLUMN IF NOT EXISTS`, then `INSERT INTO drizzle.__d
 `pnpm db:migrate` then reports applied. The migrator only runs files whose `when` is newer than the
 last applied `created_at`.
 Where: `src/db/migrations/meta/_journal.json:79`, `src/db/migrations/0010_colossal_shaman.sql:1`.
+
+### 2026-09-18 — Supersedes "Failed background job may crash the process (unverified)"
+Verified, then fixed: `test/jobs.test.ts` saw the `done` rejection reach `unhandledRejection` for a
+fire-and-forget `enqueue()`. `enqueue` now attaches `done.catch(() => {})` — the failure is already
+persisted as `status='failed'`, and a caller that awaits `done` still gets the rejection.
+Where: `src/platform/jobs.ts:102`.
+
+### 2026-09-18 — Supersedes "`RunBus.complete()` doesn't release buffers"
+`complete()` now drops a run's buffer, seq and completed flag after `COMPLETED_RETENTION_MS` (5 min).
+The flip side: a late SSE subscriber to a run the bus forgot would wait forever, so
+`ReviewService.runStream()` checks `agent_runs` first — unknown run → 404, finished and not on the
+bus → the stream closes at once (the persisted trace has the log). Tests inject a fresh bus via
+`ContainerOverrides.runBus`.
+Where: `src/platform/sse.ts:90`, `src/modules/reviews/service.ts:80`.
+
+### 2026-09-18 — Reconciling a new migration with the ahead-of-branch local DB
+The local volume already had several objects of `0011_low_stark_industries` with identical definitions
+(`findings_review_idx`, `agent_runs_status_ck`, …) from the integration branch, and `db:migrate` runs
+a file in one transaction, so the first "already exists" rolls it all back. What worked: feed the
+file to `psql -v ON_ERROR_ROLLBACK=on` (savepoint per statement) inside BEGIN/COMMIT together with
+the `__drizzle_migrations` insert (hash = `shasum -a 256`, created_at = journal `when`), after checking
+that every "already exists" object has the same definition. `pnpm db:migrate` is then a no-op.
+Where: `src/db/migrations/0011_low_stark_industries.sql:1`.
+
+### 2026-09-19 — A "no DB" unit test passes locally and fails in CI when the handler reads the DB first
+`POST /pulls/:id/review` calls `getContext` (workspace lookup) before it validates the body, so the test that expects
+400 `invalid_run_request` needs a database. It passed on every dev machine (docker Postgres is up) and answered 500 on the
+`server unit` CI lane (no DB). Reproduce it with `DATABASE_URL=postgres://x:x@127.0.0.1:1/x pnpm test:unit`; a DB-touching
+test belongs in a `*.it.test.ts`, so it moved to `routes.it.test.ts`.
+Where: `test/routes.it.test.ts:221`, `src/modules/reviews/routes.ts:38`.
+
+### 2026-09-21 — Supersedes "Local dev DB is ahead of this branch's migrations": the dev schema was reset
+Migration `0012` failed on the dev DB with `column "enabled" of relation "agent_skills" already exists` (the volume came
+from another branch: 19 rows in `drizzle.__drizzle_migrations` vs 13 files). With the owner's OK the schema was dropped
+(`DROP SCHEMA public, drizzle CASCADE; CREATE SCHEMA public`), then `pnpm db:migrate` and `pnpm db:seed`. The volume and
+container stayed; keys live in `~/.devdigest/secrets.json`, so they survived. Repos must be re-added afterwards.
+Where: `src/db/migrations/meta/_journal.json:93`.
 
 ## Open Questions
 
@@ -120,6 +282,12 @@ and regenerate with `pnpm db:generate` (never hand-write the migration).
 Where: `src/db/schema/reviews.ts:28`, `src/db/migrations/0000_init.sql:378`,
 `src/modules/pulls/routes.ts:163` (the `IN (latest review ids)` read).
 
+### 2026-09-21 — Should editing a skill body version the agents bound to it?
+Today it does not: agent snapshots store skill ids only, and a run's trace records the skill blocks (name, tokens) it
+actually used, not their bodies. To reproduce an old run you would need `skill_versions`, which is written but not
+linked from `agent_runs`. Decide before L06 (eval) needs reproducible runs.
+Where: `src/modules/reviews/run-executor.ts:393` (`buildSkillBlocks`), `src/db/schema/skills.ts`.
+
 ## Session Notes
 
 ### 2026-09-16 — Run Cost Badge (L01)
@@ -133,3 +301,26 @@ Added `PrMeta.findings_by_severity` (mirrored into `client/src/vendor/shared`) a
 module + one extra IN-query in the route, no schema change.
 Where: `src/modules/pulls/findings.ts:70` (`severityByPr`), spec `../specs/02-findings-severity.md`.
 
+### 2026-09-18 — onion-architecture skill
+Added `.claude/skills/onion-architecture/`. It maps Onion rings onto `routes`, `service` and
+`repository`, gives practices per tool and code patterns, and ships a runnable depcruise
+check. The two Tool & Library entries above came from this work.
+Where: `../.claude/skills/onion-architecture/SKILL.md:18`.
+
+### 2026-09-18 — Phase 1 of the skills audit (security and crash fixes)
+Repo URL hardening, job rejection fix, `API_HOST` (default `localhost`) and Postgres on
+`127.0.0.1`, 5xx messages hidden outside development, test-connection saves a key only after it
+passes, SSE 404 + RunBus retention. Plan: `~/.claude/plans/sunny-squishing-token.md`.
+Where: `src/server.ts:29`.
+
+### 2026-09-18 — Phase 2 of the skills audit (data integrity)
+Indexes/CHECKs/FKs (migration 0011), transactions (agents, PR refresh, repo-intel replace*), batched
+PR/settings upserts and agent-name lookup, JobRunner abort + per-repo serialisation + shutdown, git
+token via header, GitHub errors → AppError, workspace scoping for runs/skills/repo-intel.
+Where: `src/platform/jobs.ts:1`.
+
+### 2026-09-19 — Phase 4 (server): layering debt to zero
+Onion slices for pulls, settings, repos, agents, reviews and repo-intel; dead code and re-export
+shims removed; response schemas on pulls/settings/repos/workspace; unit tests with fakes for the
+services. Client refactors are tracked separately in `../client/INSIGHTS.md`.
+Where: `src/modules/pulls/service.ts:1`.

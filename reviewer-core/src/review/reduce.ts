@@ -60,12 +60,15 @@ export function sliceDiff(diff: UnifiedDiff, path: string): string {
   const out: string[] = [];
   let capture = false;
   for (const line of lines) {
+    // Match the header's new-side path exactly (`… b/<path>`, or `… <path>` for a
+    // --no-prefix diff): a substring test would also capture `<path>.bak`.
     if (line.startsWith('diff --git'))
-      capture = line.includes(`b/${path}`) || line.includes(` ${path}`);
+      capture = line.endsWith(` b/${path}`) || line.endsWith(` ${path}`);
     if (capture) out.push(line);
   }
   if (out.length > 0) return out.join('\n');
-  // fallback: synthesize from the file's hunks
+  // fallback: a bare header. UnifiedDiff keeps hunk ranges but not hunk text,
+  // so the body can't be rebuilt from `files`.
   const f = diff.files.find((x) => x.path === path);
   if (!f) return diff.raw;
   return `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}`;

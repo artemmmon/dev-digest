@@ -2,8 +2,9 @@
    All hooks build on `apiFetch`. Errors are normalized to ApiError so the
    error-UX taxonomy (toast/inline/full-screen) can branch on status. */
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+import { env } from "@/config/env";
+
+export const API_BASE = env.apiBase;
 
 export class ApiError extends Error {
   status: number;
@@ -22,7 +23,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   let res: Response;
   try {
     // The one legitimate `fetch` in the app — this function IS the seam every
-    // hook goes through (client/CLAUDE.md, "Conventions").
+    // hook goes through (client/AGENTS.md, "Conventions").
     // eslint-disable-next-line no-restricted-globals
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
