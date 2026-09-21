@@ -4,8 +4,9 @@
   "steps": [
     {"cmd": ["open", "{BASE}/skills"], "label": "load the skills page"},
     {"cmd": ["wait", "--text", "branch-coverage-rubric"], "label": "a seeded skill is listed"},
-    {"cmd": ["find", "role", "button", "click", "--name", "branch-coverage-rubric"], "label": "click its card"},
+    {"cmd": ["find", "role", "button", "click", "--name", "branch-coverage-rubric", "--exact"], "label": "click its card (exact: the card's Delete button is named \"Delete skill branch-coverage-rubric\")"},
     {"cmd": ["wait", "--text", "Branch coverage"], "label": "the preview drawer shows the rendered body"},
+    {"cmd": ["wait", "500"], "label": "let the drawer finish sliding in (agent-browser clicks without waiting for a moving element to settle)"},
     {"cmd": ["find", "role", "link", "click", "--name", "Open skill branch-coverage-rubric"], "label": "open the full page"},
     {"cmd": ["wait", "--url", "/skills/"], "label": "navigate to the skill page"},
     {"cmd": ["wait", "--text", "Configuration"], "label": "the Config tab opens"},

@@ -62,6 +62,20 @@ other imported repos they land on the wrong repo and fail — not a UI bug.
 Use `../scripts/e2e.sh`, which boots an empty, freshly-seeded Postgres.
 Where: `specs/02-repo-pulls-detail.flow.json:6`, and the same first step in flows 04 and 05.
 
+### 2026-09-21 — `agent-browser` clicks a sliding element where it was, not where it lands
+`find role link click` computes the target's box once and clicks there, without waiting for
+the element to stop moving. The kit `Drawer` slides in over 0.2 s (`ddslidein`, from
+`translateX(100%)`), so a click right after `wait --text <drawer content>` hits empty footer
+space: the drawer stays open, the URL never changes, and `wait --url` times out (CI run
+35635507763, flow 10). Reproduced on a production build with Playwright: the "Open" link was
+at x≈1575–1733 when its text appeared (viewport 1280, final x≈1173); a coordinate click there
+did nothing, `locator.click()` (waits for stability) and a click after 300 ms both navigated.
+Fix: a `["wait", "500"]` step after the drawer opens and before clicking inside it. Related:
+`--name` is a case-insensitive substring by default, so a card named `x` also matches its
+"Delete skill x" button — add `--exact` when a name is a prefix of another control's name.
+Where: `specs/10-skills.flow.json:8-10`, `../client/src/vendor/ui/kit/Drawer.tsx` (animation),
+`../client/src/vendor/ui/styles.css:296` (`@keyframes ddslidein`).
+
 ## Open Questions
 
 ## Session Notes
