@@ -4,6 +4,8 @@ export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 export const MAX_ARCHIVE_ENTRIES = 200;
 /** The chosen markdown file, uncompressed. */
 export const MAX_SKILL_FILE_BYTES = 1024 * 1024;
+/** Mirrors `SkillInput.body` (max 200_000 chars) so a previewed skill can always be saved. */
+export const MAX_SKILL_BODY_CHARS = 200_000;
 /** Everything in the archive, uncompressed, as declared by the headers. */
 export const MAX_ARCHIVE_TOTAL_BYTES = 10 * 1024 * 1024;
 

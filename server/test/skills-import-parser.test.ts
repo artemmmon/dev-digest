@@ -68,6 +68,11 @@ describe('parseSkillImport — .md', () => {
     expect(() => preview('a.md', md('---\nname: x\n---\n'))).toThrow(/empty/);
   });
 
+  it('rejects a body longer than a skill can be saved with', () => {
+    const body = 'a'.repeat(200_001); // under the byte cap, over SkillInput.body
+    expect(() => preview('big.md', md(body))).toThrow(/longer than 200000 characters/);
+  });
+
   it('rejects other file types', () => {
     expect(() => preview('a.txt', md('hi'))).toThrow(/\.md and \.zip/);
     expect(() => preview('a.tar.gz', md('hi'))).toThrow(/\.md and \.zip/);
@@ -143,6 +148,12 @@ describe('parseSkillImport — .zip', () => {
   it('rejects an oversized skill file', () => {
     const zip = zipSync({ 'SKILL.md': new Uint8Array(1024 * 1024 + 1).fill(97) });
     expect(() => preview('s.zip', zip)).toThrow(/too large/);
+  });
+
+  it('refuses to inflate an entry past the size it is asked to allow', () => {
+    const zip = zipSync({ 'SKILL.md': new Uint8Array(1000).fill(97) });
+    expect(archive.readText(zip, 'SKILL.md', 1000)).toHaveLength(1000);
+    expect(() => archive.readText(zip, 'SKILL.md', 999)).toThrow(/too large/);
   });
 
   it('rejects bytes that are not a zip', () => {

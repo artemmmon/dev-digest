@@ -31,6 +31,7 @@ export function SkillList({
   const t = useTranslations("skills");
   const [search, setSearch] = React.useState("");
   const list = filterSkills(skills, search);
+  const noMatch = !loading && skills.length > 0 && list.length === 0;
 
   return (
     <div style={s.column}>
@@ -80,11 +81,12 @@ export function SkillList({
               onToggle={(enabled) => onToggle(sk.id, enabled)}
             />
           ))}
-          {skills.length > 0 && list.length === 0 && (
-            <li style={s.noMatch}>{t("page.noMatch", { q: search.trim() })}</li>
-          )}
         </ul>
       )}
+      {/* Always mounted so screen readers announce the text when it appears. */}
+      <p role="status" aria-live="polite" style={noMatch ? s.noMatch : undefined}>
+        {noMatch ? t("page.noMatch", { q: search.trim() }) : null}
+      </p>
     </div>
   );
 }

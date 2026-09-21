@@ -13,35 +13,19 @@ import type { SkillDraft } from "../../../helpers";
 import { approxTokens } from "../../helpers";
 import { MarkdownCodeEditor } from "./_components/MarkdownCodeEditor";
 import { s } from "./styles";
+import type { ConfigForm } from "./types";
 
 export function ConfigTab({
   skill,
-  draft,
-  onDraft,
-  message,
-  onMessage,
-  dirty,
-  bodyChanged,
-  valid,
-  pending,
-  onSave,
-  onDiscard,
+  form,
   onToggle,
 }: {
   skill: Skill | null;
-  draft: SkillDraft;
-  onDraft: (draft: SkillDraft) => void;
-  message: string;
-  onMessage: (message: string) => void;
-  dirty: boolean;
-  bodyChanged: boolean;
-  valid: boolean;
-  pending: boolean;
-  onSave: () => void;
-  onDiscard: () => void;
+  form: ConfigForm;
   onToggle: (enabled: boolean) => void;
 }) {
   const t = useTranslations("skills");
+  const { draft, onDraft, message, onMessage, dirty, bodyChanged, valid, pending, onSave, onDiscard } = form;
   const set = <K extends keyof SkillDraft>(key: K, value: SkillDraft[K]) => onDraft({ ...draft, [key]: value });
   const typeOptions = SKILL_TYPES.map((v) => ({ value: v, label: t(`listItem.type.${v}`) }));
   // The server counted the saved body; an edit is estimated until it is saved.

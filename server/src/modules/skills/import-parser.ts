@@ -8,6 +8,7 @@ import {
   MAX_ARCHIVE_ENTRIES,
   MAX_ARCHIVE_TOTAL_BYTES,
   MAX_DESCRIPTION_CHARS,
+  MAX_SKILL_BODY_CHARS,
   MAX_SKILL_FILE_BYTES,
 } from './constants.js';
 import type { ArchiveEntry, ArchiveReader } from './ports.js';
@@ -93,6 +94,9 @@ function toPreview(sourceFile: string, text: string, ignored: SkillImportPreview
   const { fields, body } = parseFrontmatter(text);
   const trimmedBody = body.trim();
   if (!trimmedBody) throw new ValidationError('The skill file is empty');
+  if (trimmedBody.length > MAX_SKILL_BODY_CHARS) {
+    throw new ValidationError(`The skill body is longer than ${MAX_SKILL_BODY_CHARS} characters`);
+  }
 
   const name =
     fields.name?.trim() ||
@@ -181,7 +185,7 @@ export function parseSkillImport(input: ImportInput, archive: ArchiveReader): Sk
 
   let text: string;
   try {
-    text = archive.readText(input.bytes, chosen.path);
+    text = archive.readText(input.bytes, chosen.path, MAX_SKILL_FILE_BYTES);
   } catch {
     throw new ValidationError('The skill file could not be read from the archive');
   }

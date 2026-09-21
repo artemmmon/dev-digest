@@ -5,7 +5,9 @@ import { unzipSync } from 'fflate';
  *
  * Everything happens in memory. `list` only inspects entry headers (the filter
  * rejects every entry, so nothing is inflated); `readText` inflates the one entry
- * asked for. Nothing is written to disk and nothing is executed.
+ * asked for, and refuses one that is larger than `maxBytes` (header size checked
+ * before inflating, real size checked after, since a header can lie). Nothing is
+ * written to disk and nothing is executed.
  */
 
 export interface ZipEntry {
@@ -25,10 +27,17 @@ export class FflateZipReader {
     return entries;
   }
 
-  readText(bytes: Uint8Array, path: string): string {
-    const files = unzipSync(bytes, { filter: (f) => f.name === path });
+  readText(bytes: Uint8Array, path: string, maxBytes: number): string {
+    const files = unzipSync(bytes, {
+      filter: (f) => {
+        if (f.name !== path) return false;
+        if (f.originalSize > maxBytes) throw new Error(`Entry too large: ${path}`);
+        return true;
+      },
+    });
     const data = files[path];
     if (!data) throw new Error(`No such entry: ${path}`);
+    if (data.byteLength > maxBytes) throw new Error(`Entry too large: ${path}`);
     return new TextDecoder('utf-8', { fatal: false }).decode(data);
   }
 }

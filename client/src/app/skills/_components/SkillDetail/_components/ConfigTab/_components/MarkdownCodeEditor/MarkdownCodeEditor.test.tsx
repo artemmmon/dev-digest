@@ -8,16 +8,14 @@ afterEach(cleanup);
 
 describe("MarkdownCodeEditor", () => {
   it("numbers one row per line of the value", () => {
-    const { container } = render(<MarkdownCodeEditor value={"# Title\n\n- item"} onChange={() => {}} label="Body" />);
-    const numbers = Array.from(container.querySelectorAll(".tnum")).map((n) => n.textContent);
-    expect(numbers).toEqual(["1", "2", "3"]);
+    render(<MarkdownCodeEditor value={"# Title\n\n- item"} onChange={() => {}} label="Body" />);
+    // The numbers are aria-hidden, which getByText does not filter on.
+    expect(screen.getAllByText(/^\d+$/).map((n) => n.textContent)).toEqual(["1", "2", "3"]);
   });
 
   it("shows the placeholder as the only line while empty", () => {
-    const { container } = render(
-      <MarkdownCodeEditor value="" onChange={() => {}} label="Body" placeholder="# Rule" />,
-    );
-    expect(container.querySelectorAll(".tnum")).toHaveLength(1);
+    render(<MarkdownCodeEditor value="" onChange={() => {}} label="Body" placeholder="# Rule" />);
+    expect(screen.getAllByText(/^\d+$/)).toHaveLength(1);
     expect(screen.getByText("# Rule")).toBeInTheDocument();
   });
 

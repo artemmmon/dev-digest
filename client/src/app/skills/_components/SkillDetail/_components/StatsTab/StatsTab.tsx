@@ -7,9 +7,40 @@ import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ErrorState, Icon, Skeleton } from "@devdigest/ui";
-import type { Skill } from "@devdigest/shared";
+import type { Skill, SkillAgentUse } from "@devdigest/shared";
 import { useSkillAgents } from "@/lib/hooks/skills";
 import { s } from "./styles";
+
+/** The card body: one early return per data state, the list last. */
+function AgentsUsingList({
+  agents,
+  isError,
+  onRetry,
+}: {
+  agents: SkillAgentUse[] | undefined;
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  const t = useTranslations("skills");
+  if (isError) return <ErrorState body={t("stats.loadError")} onRetry={onRetry} />;
+  if (!agents) return <Skeleton height={40} />;
+  if (agents.length === 0) return <p style={s.muted}>{t("stats.none")}</p>;
+  return (
+    <ul style={s.list}>
+      {agents.map((a) => (
+        <li key={a.id} style={s.row}>
+          <span style={s.rowIcon}>
+            <Icon.Cpu size={13} />
+          </span>
+          <span style={s.rowName}>{a.name}</span>
+          <Link href={`/agents/${a.id}?tab=skills`} style={s.open} aria-label={t("stats.open", { name: a.name })}>
+            {t("stats.openLabel")}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function StatsTab({ skill }: { skill: Skill }) {
   const t = useTranslations("skills");
@@ -35,27 +66,7 @@ export function StatsTab({ skill }: { skill: Skill }) {
           <Icon.Cpu size={13} />
           {t("stats.agentsUsing")}
         </h3>
-        {isError ? (
-          <ErrorState body={t("stats.loadError")} onRetry={() => refetch()} />
-        ) : !agents ? (
-          <Skeleton height={40} />
-        ) : agents.length === 0 ? (
-          <p style={s.muted}>{t("stats.none")}</p>
-        ) : (
-          <ul style={s.list}>
-            {agents.map((a) => (
-              <li key={a.id} style={s.row}>
-                <span style={s.rowIcon}>
-                  <Icon.Cpu size={13} />
-                </span>
-                <span style={s.rowName}>{a.name}</span>
-                <Link href={`/agents/${a.id}?tab=skills`} style={s.open} aria-label={t("stats.open", { name: a.name })}>
-                  {t("stats.openLabel")}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        <AgentsUsingList agents={agents} isError={isError} onRetry={() => refetch()} />
       </div>
     </div>
   );

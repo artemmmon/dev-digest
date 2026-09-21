@@ -7,31 +7,20 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Button, ErrorState, Skeleton } from "@devdigest/ui";
 import type { Skill, SkillVersion } from "@devdigest/shared";
-import { useSkillVersions, useUpdateSkill } from "@/lib/hooks/skills";
-import { notify } from "@/lib/toast";
 import { dayOf, lineDiff } from "./helpers";
 import { s } from "./styles";
+import { useVersionsTab } from "./use-versions-tab";
 
 const SIGN = { same: " ", add: "+", del: "−" } as const;
 
 export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) {
   const t = useTranslations("skills");
-  const { data: versions, isError, refetch } = useSkillVersions(skill.id);
-  const update = useUpdateSkill();
-  const [open, setOpen] = React.useState<number | null>(null);
+  const { versions, isError, refetch, open, toggleDiff, restore, restoring } = useVersionsTab(skill);
 
   if (isError) return <ErrorState body={t("versions.loadError")} onRetry={() => refetch()} />;
   if (!versions) return <Skeleton height={120} />;
 
   const label = (v: SkillVersion) => v.message ?? (v.version === 1 ? t("versions.initial") : t("versions.untitled", { version: v.version }));
-  const restore = (v: SkillVersion) => {
-    if (!window.confirm(t("versions.restoreConfirm", { version: v.version }))) return;
-    // mutateAsync: the restore changes the version, which remounts the detail and drops per-call callbacks.
-    update
-      .mutateAsync({ id: skill.id, patch: { body: v.body, message: t("versions.restoredMessage", { version: v.version }) } })
-      .then((saved) => notify.success(t("versions.restoredToast", { from: v.version, to: saved.version })))
-      .catch(() => {});
-  };
 
   return (
     <div>
@@ -70,7 +59,7 @@ export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) 
                         icon="Eye"
                         aria-expanded={expanded}
                         aria-label={t("versions.diffLabel", { version: v.version })}
-                        onClick={() => setOpen(expanded ? null : v.version)}
+                        onClick={() => toggleDiff(v.version)}
                       >
                         {t("versions.diff")}
                       </Button>
@@ -80,7 +69,7 @@ export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) 
                         icon="History"
                         aria-label={t("versions.restoreLabel", { version: v.version })}
                         title={dirty ? t("versions.dirtyNote") : undefined}
-                        disabled={dirty || update.isPending}
+                        disabled={dirty || restoring}
                         onClick={() => restore(v)}
                       >
                         {t("versions.restore")}
@@ -92,9 +81,9 @@ export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) 
               {expanded && !current && (
                 <>
                   <div style={s.diffHint}>{t("versions.diffHint", { version: v.version })}</div>
-                  <div className="mono" style={s.diff}>
+                  <div className="mono" role="list" aria-label={t("versions.diffLabel", { version: v.version })} style={s.diff}>
                     {lineDiff(skill.body, v.body).map((l, i) => (
-                      <div key={i} data-kind={l.kind} style={s.line(l.kind)}>
+                      <div key={i} role="listitem" data-kind={l.kind} style={s.line(l.kind)}>
                         <span aria-hidden="true" style={s.sign}>
                           {SIGN[l.kind]}
                         </span>

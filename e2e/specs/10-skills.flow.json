@@ -16,6 +16,6 @@
     {"cmd": ["wait", "--url", "/agents/"], "label": "navigate to the editor route"},
     {"cmd": ["find", "role", "button", "click", "--name", "Skills"], "label": "open the Skills tab"},
     {"cmd": ["wait", "--text", "mocking-discipline"], "label": "a skill bound to the agent is listed"},
-    {"cmd": ["wait", "--text", "of 6 enabled"], "label": "the tab counts the enabled skills out of all six"}
+    {"cmd": ["wait", "--text", "of 5 enabled"], "label": "the tab counts the enabled skills out of all five seeded ones"}
   ]
 }

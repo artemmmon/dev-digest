@@ -184,7 +184,8 @@ export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
 
 export const SkillImportBody = z.object({
   filename: z.string().min(1).max(255),
-  content_base64: z.string().min(1),
+  // base64 of the 2 MiB import cap: ceil(2 * 1024 * 1024 / 3) * 4
+  content_base64: z.string().min(1).max(2_796_204),
 });
 export type SkillImportBody = z.infer<typeof SkillImportBody>;
 

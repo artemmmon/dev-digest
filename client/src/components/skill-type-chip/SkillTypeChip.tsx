@@ -6,23 +6,13 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import type { SkillType } from "@devdigest/shared";
 import { SKILL_TYPE_COLOR } from "./constants";
+import { s } from "./styles";
 
 export function SkillTypeChip({ type, compact }: { type: SkillType; compact?: boolean }) {
   const t = useTranslations("skills");
   const color = SKILL_TYPE_COLOR[type];
   return (
-    <span
-      className="mono"
-      style={{
-        fontSize: compact ? 10.5 : 11.5,
-        fontWeight: 600,
-        color,
-        background: color + "1a",
-        padding: compact ? "1px 6px" : "1px 8px",
-        borderRadius: 4,
-        whiteSpace: "nowrap",
-      }}
-    >
+    <span className="mono" style={s.chip(color, !!compact)}>
       {t(`listItem.type.${type}`)}
     </span>
   );

@@ -71,7 +71,8 @@ export interface ArchiveEntry {
  */
 export interface ArchiveReader {
   list(bytes: Uint8Array): ArchiveEntry[];
-  readText(bytes: Uint8Array, path: string): string;
+  /** Throws if the entry is missing or larger than `maxBytes` uncompressed. */
+  readText(bytes: Uint8Array, path: string, maxBytes: number): string;
 }
 
 /** Which agents use a skill. The agents module owns `agent_skills`, so this is a read port onto it. */

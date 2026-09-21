@@ -82,7 +82,12 @@ describe("SkillList", () => {
     expect(screen.getByText("mocking-discipline")).toBeInTheDocument();
     await user.clear(search);
     await user.type(search, "zzz");
-    expect(screen.getByText("No skills match “zzz”.")).toBeInTheDocument();
+    // Announced through a live region that stays mounted, so screen readers pick the change up.
+    const message = screen.getByText("No skills match “zzz”.");
+    expect(message).toHaveAttribute("role", "status");
+    expect(message).toHaveAttribute("aria-live", "polite");
+    await user.clear(search);
+    expect(screen.queryByText(/No skills match/)).not.toBeInTheDocument();
   });
 
   it("offers import and create-from-scratch in the Add menu", async () => {

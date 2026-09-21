@@ -46,20 +46,18 @@ describe("VersionsTab", () => {
 
   it("shows a diff against the current body: added lines come back, removed ones go away", async () => {
     const user = userEvent.setup();
-    const { container } = renderWithIntl(<VersionsTab skill={SKILL} dirty={false} />);
+    renderWithIntl(<VersionsTab skill={SKILL} dirty={false} />);
     await user.click(screen.getByRole("button", { name: "Show changes of v2" }));
-    const kinds = Array.from(container.querySelectorAll("[data-kind]")).map((e) => [
-      e.getAttribute("data-kind"),
-      e.textContent,
-    ]);
-    expect(kinds).toEqual([
-      ["same", " # Rule"],
-      ["same", " keep"],
-      ["del", "−new line"],
-      ["add", "+old line"],
+    // The sign in front of each line says what happens to it: " " kept, "−" goes away, "+" comes back.
+    const diff = screen.getByRole("list", { name: "Show changes of v2" });
+    expect(within(diff).getAllByRole("listitem").map((l) => l.textContent)).toEqual([
+      " # Rule",
+      " keep",
+      "−new line",
+      "+old line",
     ]);
     await user.click(screen.getByRole("button", { name: "Show changes of v2" }));
-    expect(container.querySelector("[data-kind]")).toBeNull();
+    expect(screen.queryByRole("list", { name: "Show changes of v2" })).not.toBeInTheDocument();
   });
 
   it("restores an older version as a new save, after asking", async () => {

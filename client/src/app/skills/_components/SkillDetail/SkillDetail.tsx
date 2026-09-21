@@ -121,16 +121,18 @@ export function SkillDetail({
         {active === "config" && (
           <ConfigTab
             skill={skill}
-            draft={draft}
-            onDraft={setDraft}
-            message={message}
-            onMessage={setMessage}
-            dirty={dirty}
-            bodyChanged={patch.body !== undefined}
-            valid={valid}
-            pending={pending}
-            onSave={save}
-            onDiscard={discard}
+            form={{
+              draft,
+              onDraft: setDraft,
+              message,
+              onMessage: setMessage,
+              dirty,
+              bodyChanged: patch.body !== undefined,
+              valid,
+              pending,
+              onSave: save,
+              onDiscard: discard,
+            }}
             onToggle={(enabled) => skill && toggle.mutate({ id: skill.id, enabled })}
           />
         )}
