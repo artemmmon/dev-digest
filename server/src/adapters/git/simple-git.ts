@@ -1,6 +1,6 @@
 import { simpleGit, type SimpleGit } from 'simple-git';
 import { dirname, join, resolve, sep } from 'node:path';
-import { mkdir, readFile, access, rm } from 'node:fs/promises';
+import { mkdir, readFile, access, rm, realpath } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type {
   GitClient,
@@ -188,7 +188,26 @@ export class SimpleGitClient implements GitClient {
   }
 
   async readFile(repo: RepoRef, path: string): Promise<string> {
-    return readFile(insideDir(this.clonePathFor(repo), path), 'utf8');
+    const root = this.clonePathFor(repo);
+    const target = insideDir(root, path);
+    // `insideDir` is lexical: a tracked symlink inside the clone could still point at a
+    // host file. Resolve links and check again before any bytes are read.
+    const real = await realpath(target);
+    insideDir(await realpath(root), real);
+    return readFile(real, 'utf8');
+  }
+
+  async listFiles(repo: RepoRef): Promise<string[]> {
+    // `-s` prints "<mode> <sha> <stage>\t<path>"; mode 120000 is a symlink.
+    const raw = await this.git(repo).raw(['ls-files', '-s', '-z']);
+    const out: string[] = [];
+    for (const entry of raw.split('\0')) {
+      const tab = entry.indexOf('\t');
+      if (tab === -1) continue;
+      if (entry.startsWith('120000 ')) continue;
+      out.push(entry.slice(tab + 1));
+    }
+    return out;
   }
 }
 
