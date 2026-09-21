@@ -66,6 +66,17 @@ describe('pickFallbackSamples', () => {
     expect(tops.size).toBe(3);
   });
 
+  it('samples platform scaffolding only after the hand-written code is used up', () => {
+    const paths = [
+      'lib/a.dart', 'lib/b.dart', 'server/x.dart',
+      'android/app/build.gradle.kts', 'ios/Runner/AppDelegate.swift',
+    ];
+    expect(pickFallbackSamples(paths, 3).sort()).toEqual(['lib/a.dart', 'lib/b.dart', 'server/x.dart']);
+    const five = pickFallbackSamples(paths, 5);
+    expect(five).toHaveLength(5);
+    expect(five.slice(0, 3).every((p) => !/^(android|ios)\//.test(p))).toBe(true);
+  });
+
   it('skips excluded paths and returns fewer when the repo has fewer', () => {
     const exclude = new Set(['lib/main.dart']);
     const picked = pickFallbackSamples(['lib/main.dart', 'lib/a.dart'], 5, exclude);

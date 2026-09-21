@@ -5,6 +5,7 @@ import {
   JUNK_DIR_PATTERN,
   LOCKFILE_PATTERN,
   MAX_CONFIG_FILES,
+  SCAFFOLD_DIR_PATTERN,
   SECRET_FILE_PATTERN,
   SOURCE_EXTENSIONS,
   TEST_PATH_PATTERN,
@@ -125,10 +126,13 @@ export function pickFallbackSamples(
   exclude: ReadonlySet<string> = new Set(),
 ): string[] {
   if (n <= 0) return [];
-  return roundRobin(
-    paths.filter((p) => !exclude.has(p) && isSampleableSource(p)),
+  const eligible = paths.filter((p) => !exclude.has(p) && isSampleableSource(p));
+  const own = roundRobin(
+    eligible.filter((p) => !SCAFFOLD_DIR_PATTERN.test(p)),
     n,
   );
+  if (own.length >= n) return own;
+  return [...own, ...roundRobin(eligible.filter((p) => SCAFFOLD_DIR_PATTERN.test(p)), n - own.length)];
 }
 
 /** A few test files, so the model sees how the repo tests. */

@@ -73,6 +73,12 @@ export const CONFIG_FILE_PATTERNS: readonly RegExp[] = [
   /^\.rubocop\.yml$/,
 ];
 
+/**
+ * Top-level folders that hold framework scaffolding (Flutter/RN platform shells; not `web/`, which is often a real app): sampled only
+ * when the hand-written code alone cannot fill the quota, so they don't crowd out `lib/` or `src/`.
+ */
+export const SCAFFOLD_DIR_PATTERN = /^(android|ios|macos|windows|linux)\//;
+
 /** Directories that never hold hand-written code worth learning conventions from. */
 export const JUNK_DIR_PATTERN =
   /(^|\/)(node_modules|vendor|dist|build|out|target|coverage|\.next|\.dart_tool|\.git|\.idea|\.venv|venv|__pycache__|Pods|generated|third_party|clones|migrations?)\//;
