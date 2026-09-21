@@ -2,6 +2,11 @@
 Status: done
 Lesson: L02
 
+> **Update (hw2):** the `/skills` UI described under **Scope → UI** changed. It is now a card grid
+> (name, type, description, toggle, `vN`, agent count, Delete → confirm dialog); a card opens a side
+> preview drawer; "Add" offers Create (modal) or Import (file or URL); a skill has its own page
+> `/skills/:id` with tabs Config / Preview / Stats / Versioning. The rest of this spec still holds.
+
 ## Goal
 Let a user keep review rules in one place and reuse them across agents. A **skill** is
 markdown text — name, directive description, type, body — stored in the DB. An agent
