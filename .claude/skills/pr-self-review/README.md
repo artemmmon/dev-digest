@@ -6,7 +6,7 @@ skill plus a correctness reviewer, verifies every CRITICAL, and stores a PASS/BL
 hook and a git `pre-push` hook enforce. Fixing findings, reviewing other people's PRs and protecting the Merge
 button on GitHub are out of scope.
 
-- **Version:** 1.1.0 (also in `SKILL.md` frontmatter → `metadata.version`)
+- **Version:** 1.2.0 (also in `SKILL.md` frontmatter → `metadata.version`)
 - **Sources verified:** 2026-09-19
 - **Related skills:** `onion-architecture`, `frontend-architecture`, `react-best-practices`, `next-best-practices`, `fastify-best-practices`, `drizzle-orm-patterns`, `postgresql-table-design`, `zod`, `typescript-expert`, `security`, `react-testing-library` (the rubrics it routes to)
 - **Companions outside this folder:** `.claude/agents/pr-skill-reviewer.md`, `.claude/agents/pr-finding-verifier.md`, `.claude/settings.json` (PreToolUse hook), `scripts/install-hooks.sh`, `.github/workflows/pr-self-review.yml`, `docs/pr-self-review.md`
@@ -17,6 +17,7 @@ button on GitHub are out of scope.
 |---|---|---|
 | 1.0.0 | 2026-09-19 | Initial version: 30 sources, 5 references, 6 scripts + 36 script tests, 2 subagents, PreToolUse + pre-push gate, 5 evals (see Evaluation log) |
 | 1.1.0 | 2026-09-19 | Review scope follows the remote: a never-pushed branch is reviewed as the whole pull request, a branch with an upstream only for what is unpushed (`scope` in `collect.json` and the verdict); 5 script tests; eval `incremental-push` |
+| 1.2.0 | 2026-09-21 | Auto-invocation off: `disable-model-invocation: true`; the review runs only when the user types `/pr-self-review`, and the gate tells Claude to ask for it instead of running it |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule, reference or check,
 **major** when a rule is reversed. Add a changelog row each time. Changing `routing.json` is a minor bump.

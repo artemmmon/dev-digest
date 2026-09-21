@@ -16,7 +16,7 @@ Design, sources and the evaluation log: [`.claude/skills/pr-self-review/README.m
 
    The Claude Code hook needs no install; it ships in `.claude/settings.json`.
 
-2. In Claude Code, run `/pr-self-review` (add `--base <ref>` to look at a different range; the gate still uses its own scope). It also runs on its own when you ask Claude to open a PR or push for review.
+2. In Claude Code, run `/pr-self-review` (add `--base <ref>` to look at a different range; the gate still uses its own scope). Claude never starts it on its own (`disable-model-invocation`): when a push is blocked, it asks you to run it.
 
 3. Read the report. On **PASS** open the PR. On **BLOCK** fix every CRITICAL and run the review again.
 

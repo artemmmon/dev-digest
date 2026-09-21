@@ -1,9 +1,10 @@
 ---
 name: pr-self-review
-description: Pre-PR self-review of the local changes on the current DevDigest branch. Maps every changed file to the project skills that apply (frontend-architecture, react-best-practices, next-best-practices, onion-architecture, fastify-best-practices, drizzle-orm-patterns, zod, security, ...), runs typecheck/lint/unit tests/arch checks, runs one read-only reviewer per skill plus a correctness reviewer, verifies every CRITICAL finding, and records a PASS or BLOCK verdict that a hook checks before git push, gh pr create and gh pr merge. Use before opening a pull request or pushing a branch for review, when the user says "self-review", "review my changes", "ready for PR" or "check before PR", and when the gate reports a missing or stale verdict, even if the user never names the skill. Not for reviewing someone else's PR (use code-review) and not for fixing the findings.
+description: Pre-PR self-review of the local changes on the current DevDigest branch. Maps every changed file to the project skills that apply (frontend-architecture, react-best-practices, next-best-practices, onion-architecture, fastify-best-practices, drizzle-orm-patterns, zod, security, ...), runs typecheck/lint/unit tests/arch checks, runs one read-only reviewer per skill plus a correctness reviewer, verifies every CRITICAL finding, and records a PASS or BLOCK verdict that a hook checks before git push, gh pr create and gh pr merge. Run it by hand as /pr-self-review before opening a pull request or pushing a branch for review, and when the gate reports a missing or stale verdict; Claude does not start it on its own. Not for reviewing someone else's PR (use code-review) and not for fixing the findings.
 argument-hint: "[--base <ref>]"
+disable-model-invocation: true
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # PR Self Review
@@ -88,9 +89,10 @@ Use Node ≥ 22 for step 2 (`run-checks.mjs` exits 4 otherwise; put a Node 22 bi
 
 ## Before opening a PR
 
-Asked to open a PR (or push for review)? Run this workflow first. PASS: open the PR, and remind the user the verdict
-is bound to the current content, so a later edit needs a rerun. BLOCK: show the CRITICALs and stop. The hooks enforce
-the same thing: if one blocks you, run the review instead of retrying the command ([gate.md](references/gate.md)).
+Asked to open a PR (or push for review)? This workflow comes first, and it is run by the user (`/pr-self-review`):
+Claude does not start it on its own. PASS: open the PR, and remind the user the verdict is bound to the current
+content, so a later edit needs a rerun. BLOCK: show the CRITICALs and stop. The hooks enforce the same thing: if one
+blocks you, do not retry the command; tell the user to run `/pr-self-review` ([gate.md](references/gate.md)).
 
 ## Check
 
