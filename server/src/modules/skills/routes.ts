@@ -6,6 +6,7 @@ import {
   SkillAgentUse,
   SkillImportBody,
   SkillImportPreview,
+  SkillImportUrlBody,
   SkillInput,
   SkillVersion,
 } from '@devdigest/shared';
@@ -26,6 +27,7 @@ import { SkillsService } from './service.js';
  *   PATCH  /skills/:id/enabled     → global on/off
  *   DELETE /skills/:id             → delete (agent bindings cascade)
  *   POST   /skills/import/preview  → read a .md / .zip, return the extracted core; saves nothing
+ *   POST   /skills/import/url      → same, fetching a public https URL to a .md / .zip first
  */
 
 const UpdateSkillBody = SkillInput.omit({ source: true })
@@ -41,6 +43,7 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
   const service = new SkillsService({
     skills: app.container.skillsRepo,
     archive: app.container.archive,
+    remote: app.container.httpFetcher,
     usage: app.container.agentsRepo,
     tokenizer: app.container.tokenizer,
   });
@@ -128,6 +131,15 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
     async (req) => {
       await getContext(app.container, req);
       return service.previewImport(req.body.filename, req.body.content_base64);
+    },
+  );
+
+  app.post(
+    '/skills/import/url',
+    { schema: { body: SkillImportUrlBody, response: { 200: SkillImportPreview } } },
+    async (req) => {
+      await getContext(app.container, req);
+      return service.previewImportFromUrl(req.body.url);
     },
   );
 }

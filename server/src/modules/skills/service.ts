@@ -1,8 +1,9 @@
 import type { Skill, SkillAgentUse, SkillImportPreview, SkillInput, SkillVersion } from '@devdigest/shared';
 import { ValidationError } from '../../platform/errors.js';
-import { MAX_IMPORT_BYTES } from './constants.js';
+import { MAX_IMPORT_BYTES, URL_FETCH_TIMEOUT_MS } from './constants.js';
 import { toSkillDto, toSkillVersionDto } from './helpers.js';
 import { parseSkillImport } from './import-parser.js';
+import { normalizeSkillUrl } from './url.js';
 import type { SkillRecord, SkillsServiceDeps } from './ports.js';
 
 /**
@@ -86,6 +87,18 @@ export class SkillsService {
   /** Extract the core of an uploaded file for confirmation. Saves nothing. */
   previewImport(filename: string, contentBase64: string): SkillImportPreview {
     const bytes = Uint8Array.from(Buffer.from(contentBase64, 'base64'));
+    if (bytes.byteLength === 0) throw new ValidationError('The file is empty');
+    if (bytes.byteLength > MAX_IMPORT_BYTES) throw new ValidationError('The file is too large');
+    return parseSkillImport({ filename, bytes }, this.deps.archive);
+  }
+
+  /** Same as `previewImport`, for a public https URL to a `.md` / `.zip`. Saves nothing. */
+  async previewImportFromUrl(rawUrl: string): Promise<SkillImportPreview> {
+    const { url, filename } = normalizeSkillUrl(rawUrl);
+    const bytes = await this.deps.remote.fetch(url, {
+      maxBytes: MAX_IMPORT_BYTES,
+      timeoutMs: URL_FETCH_TIMEOUT_MS,
+    });
     if (bytes.byteLength === 0) throw new ValidationError('The file is empty');
     if (bytes.byteLength > MAX_IMPORT_BYTES) throw new ValidationError('The file is too large');
     return parseSkillImport({ filename, bytes }, this.deps.archive);

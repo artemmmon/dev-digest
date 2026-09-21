@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { zipSync, strToU8 } from 'fflate';
+import { FflateZipReader } from '../src/adapters/archive/zip.js';
+import { ValidationError } from '../src/platform/errors.js';
 import { SkillsService } from '../src/modules/skills/service.js';
 import type {
   ArchiveReader,
   InsertSkill,
+  RemoteFileFetcher,
   SkillRecord,
   SkillStore,
   SkillUsageReader,
@@ -76,6 +80,12 @@ const noArchive: ArchiveReader = {
   readText: () => '',
 };
 
+const noRemote: RemoteFileFetcher = {
+  fetch: async () => {
+    throw new Error('no network in this test');
+  },
+};
+
 class FakeUsage implements SkillUsageReader {
   /** skill id → agents with an enabled binding */
   using = new Map<string, Array<{ id: string; name: string }>>();
@@ -87,11 +97,11 @@ class FakeUsage implements SkillUsageReader {
   }
 }
 
-function setup() {
+function setup(remote: RemoteFileFetcher = noRemote, archive: ArchiveReader = noArchive) {
   const skills = new InMemorySkillStore();
   const usage = new FakeUsage();
   const tokenizer = { count: (text: string) => text.split(/\s+/).filter(Boolean).length };
-  return { skills, usage, service: new SkillsService({ skills, archive: noArchive, usage, tokenizer }) };
+  return { skills, usage, service: new SkillsService({ skills, archive, remote, usage, tokenizer }) };
 }
 
 const NEW = {
@@ -196,5 +206,67 @@ describe('SkillsService', () => {
     expect(() => service.previewImport('a.zip', Buffer.from('xx').toString('base64'))).toThrow(
       /not a valid \.zip/,
     );
+  });
+});
+
+describe('SkillsService.previewImportFromUrl', () => {
+  /** Records what was requested and answers with fixed bytes. */
+  const fetcher = (bytes: Uint8Array) => {
+    const calls: Array<{ url: string; maxBytes: number; timeoutMs: number }> = [];
+    const remote: RemoteFileFetcher = {
+      fetch: async (url, o) => {
+        calls.push({ url: url.href, ...o });
+        return bytes;
+      },
+    };
+    return { remote, calls };
+  };
+
+  it('fetches a GitHub blob link as raw, previews the .md and saves nothing', async () => {
+    const { remote, calls } = fetcher(strToU8('---\nname: semver\ndescription: Use when versioning.\ntype: rubric\n---\n# Semver\nBump.'));
+    const { service, skills } = setup(remote);
+    const preview = await service.previewImportFromUrl(
+      'https://github.com/acme/skills/blob/main/semver/SKILL.md',
+    );
+    expect(preview).toMatchObject({ name: 'semver', type: 'rubric', source_file: 'SKILL.md', ignored_files: [] });
+    expect(calls).toEqual([
+      {
+        url: 'https://raw.githubusercontent.com/acme/skills/main/semver/SKILL.md',
+        maxBytes: 2 * 1024 * 1024,
+        timeoutMs: 10_000,
+      },
+    ]);
+    expect(skills.skills.size).toBe(0);
+  });
+
+  it('reads a .zip from a URL and lists the files it ignores', async () => {
+    const zip = zipSync({
+      'dep/SKILL.md': strToU8('---\nname: dep\ndescription: Use when deprecating.\n---\n# Dep\nBody.'),
+      'dep/scripts/run.sh': strToU8('echo hi'),
+    });
+    const { service } = setup(fetcher(zip).remote, new FflateZipReader());
+    expect(await service.previewImportFromUrl('https://example.com/dep.zip')).toMatchObject({
+      name: 'dep',
+      source_file: 'dep/SKILL.md',
+      ignored_files: [{ path: 'dep/scripts/run.sh', reason: 'executable' }],
+    });
+  });
+
+  it('rejects a bad URL before fetching, and an empty download', async () => {
+    const { remote, calls } = fetcher(new Uint8Array());
+    const { service } = setup(remote);
+    await expect(service.previewImportFromUrl('http://example.com/a.md')).rejects.toThrow(/https/);
+    await expect(service.previewImportFromUrl('https://example.com/a.txt')).rejects.toThrow(/\.md and \.zip/);
+    expect(calls).toHaveLength(0);
+    await expect(service.previewImportFromUrl('https://example.com/a.md')).rejects.toThrow(/empty/);
+  });
+
+  it('lets a fetcher failure through untouched', async () => {
+    const remote: RemoteFileFetcher = {
+      fetch: async () => {
+        throw new ValidationError('The URL points to a private or internal address');
+      },
+    };
+    await expect(setup(remote).service.previewImportFromUrl('https://example.com/a.md')).rejects.toThrow(/private/);
   });
 });

@@ -353,6 +353,31 @@ export class AgentsRepository implements AgentStore {
     return true;
   }
 
+  /**
+   * Bind one more skill as the last, enabled binding — e.g. a skill just created from accepted
+   * conventions. Already bound = no change. False = no such agent. Runs `setSkillsLocked`, so a
+   * new enabled skill bumps the agent version and snapshots it like any other skill-set change.
+   */
+  async appendSkill(workspaceId: string, agentId: string, skillId: string): Promise<boolean> {
+    return this.inTransaction((repo) => repo.appendSkillLocked(workspaceId, agentId, skillId));
+  }
+
+  private async appendSkillLocked(workspaceId: string, agentId: string, skillId: string): Promise<boolean> {
+    const [agent] = await this.db
+      .select({ id: t.agents.id })
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, agentId)))
+      .for('update');
+    if (!agent) return false;
+    const current = await this.linkedSkills(agentId);
+    if (current.some((l) => l.skillId === skillId)) return true;
+    const bindings = [
+      ...current.map((l) => ({ skillId: l.skillId, enabled: l.enabled })),
+      { skillId, enabled: true },
+    ];
+    return this.setSkillsLocked(workspaceId, agentId, bindings);
+  }
+
   /** Skills for the prompt: binding AND skill enabled, in binding order. */
   async resolvedSkills(agentId: string): Promise<ResolvedSkill[]> {
     return this.db

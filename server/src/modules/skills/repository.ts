@@ -101,6 +101,7 @@ export class SkillsRepository implements SkillStore {
           ...(patch.description !== undefined ? { description: patch.description } : {}),
           ...(patch.type !== undefined ? { type: patch.type } : {}),
           ...(patch.body !== undefined ? { body: patch.body } : {}),
+          ...(patch.evidenceFiles !== undefined ? { evidenceFiles: patch.evidenceFiles } : {}),
           ...(bodyChanged ? { version: nextVersion } : {}),
           updatedAt: new Date(),
         })
