@@ -22,7 +22,7 @@
     },
     "loading": {
       "title": "Scanning the repository…",
-      "body": "The model reads sampled files and proposes conventions with evidence. A scan can take up to a minute."
+      "body": "The model reads sampled files and proposes conventions with evidence. A scan can take a few minutes."
     },
     "sections": {
       "pending": "Pending review",
@@ -32,7 +32,7 @@
     "selection": "{selected} of {total} selected for the skill",
     "rescanConfirm": {
       "title": "ReScan this repository?",
-      "body": "The scan runs again and takes up to a minute. Pending candidates will be replaced with new ones. Accepted conventions are kept, and rejected ones stay rejected.",
+      "body": "The scan runs again and can take a few minutes. Pending candidates will be replaced with new ones. Accepted conventions are kept, and rejected ones stay rejected.",
       "confirm": "ReScan",
       "cancel": "Cancel"
     },

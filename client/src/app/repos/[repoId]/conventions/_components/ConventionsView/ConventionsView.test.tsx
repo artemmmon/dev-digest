@@ -146,13 +146,13 @@ describe("ConventionsView — scanning", () => {
 
     await user.click(await screen.findByRole("button", { name: "Run Scan" }));
     expect(h.post).toHaveBeenCalledWith("/repos/r1/conventions/extract");
-    expect(await screen.findByText(/up to a minute/)).toBeInTheDocument();
+    expect(await screen.findByText(/a few minutes/)).toBeInTheDocument();
 
     served.current = list([cand("a"), cand("b")]);
     finish({ candidates: [cand("a"), cand("b")], report: REPORT });
     expect(await screen.findByText("Rule a")).toBeInTheDocument();
     expect(screen.getByText("Rule b")).toBeInTheDocument();
-    expect(screen.queryByText(/up to a minute/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/a few minutes/)).not.toBeInTheDocument();
 
     const toggle = screen.getByRole("button", { name: /Scan report/ });
     expect(toggle).toHaveTextContent("3 sampled files · 2 kept of 5 proposed");

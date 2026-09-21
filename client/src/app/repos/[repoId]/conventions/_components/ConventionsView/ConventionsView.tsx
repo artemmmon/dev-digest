@@ -1,6 +1,6 @@
 /* /repos/:repoId/conventions — Conventions extractor (N7, hw2). Scan the repo, review the
    candidates (accept / reject / edit), turn the accepted ones into a skill. Data comes from
-   GET /repos/:id/conventions; the scan itself is a synchronous POST that takes up to a minute. */
+   GET /repos/:id/conventions; the scan itself is a synchronous POST that can take a few minutes. */
 "use client";
 
 import React from "react";
