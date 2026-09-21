@@ -151,6 +151,37 @@ the container passes `agentsRepo`, which satisfies it structurally (no import of
 query; `GET /skills/:id` and the mutations ask `agentsUsing` for one skill. `body_tokens` comes from the shared `Tokenizer`.
 Where: `src/modules/agents/repository.ts:82`, `src/modules/skills/service.ts:26`.
 
+### 2026-09-21 — Import from URL is SSRF-guarded at connect time, not by checking the URL string
+`POST /skills/import/url` takes a user URL, so `SafeHttpFetcher` (`adapters/http/`) checks the address the socket actually
+connects to: a custom `lookup` on `https.request` resolves the name and refuses when ANY answer is private, loopback,
+link-local (169.254.169.254), CGNAT, ULA, multicast or an IPv4-mapped/NAT64/6to4 form of those (`isBlockedAddress`, fail closed
+on anything unparseable). A pre-check of the host string cannot see DNS rebinding or a name that resolves to 127.0.0.1. Each of
+the <=3 redirects is re-validated (https, no credentials, port 443, no IP literal); one timer covers all hops; the body is a
+stream cut at `MAX_IMPORT_BYTES`. Pure URL rules (blob -> raw, .md/.zip) stay in `modules/skills/url.ts`; the adapter restates
+the https/credential/port rules because adapters may not import modules.
+Where: `src/adapters/http/safe-fetch.ts:36` (`createGuardedLookup`), `src/adapters/http/ip-guard.ts`.
+
+### 2026-09-21 — Import truncates a skill description to 300 chars although `SkillInput` allows 500
+`toPreview` cuts `description` at `MAX_DESCRIPTION_CHARS` (300), so a directive description longer than that loses its
+"Do NOT apply when ..." tail when the skill is imported (file or URL) but not when created by hand. Keep descriptions of
+importable skill samples under 300 chars (`docs/skill-samples/api-contract/*`).
+Where: `src/modules/skills/import-parser.ts:107`.
+
+### 2026-09-21 — Conventions evidence gate: the model may cite only what it saw, and the stored text is the file's
+A convention is kept only if its `file` is one of the files put in the prompt and its `snippet` occurs there
+(whitespace-collapsed, blank lines skipped, a copied `12| ` gutter stripped). The stored `evidence_line` /
+`evidence_snippet` are then SLICED FROM THE FILE (nearest match to the model's line, max 12 lines), so a card can
+never show code that is not in the repo; wrong lines are fixed, not trusted. `package.json` is shown only as a summary,
+so it is not citable. A model that answers confidence on a 0-100 scale is read as percent from 10 up (85 → 0.85).
+Where: `src/modules/conventions/verify.ts:86` (`verifyCandidates`), `src/modules/conventions/service.ts:146`.
+
+### 2026-09-21 — `ports.ts` is core, so a module's ports declare narrow structural types instead of importing another module
+`core-is-pure` lets `ports.ts` import only zod and other core, not `../repos/types.ts`. `conventions/ports.ts` therefore
+declares `RepoLookup`, `SkillWriter` and `AgentSkillBinder` itself and the container passes `reposRepo`, `skillsRepo`,
+`agentsRepo`, which satisfy them structurally. `appendSkill` lives on `AgentsRepository` and on that binder port only, not on
+`AgentStore`: the in-memory `AgentStore` fakes in `test/agents-service.test.ts` would stop compiling.
+Where: `src/modules/conventions/ports.ts:76`, `src/modules/agents/repository.ts:361`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -203,6 +234,14 @@ Where: `package.json:15`, `../.claude/skills/onion-architecture/assets/dependenc
 nothing is decompressed; `readText` then inflates one chosen entry. The import limits (200 entries, 1 MB file, 10 MB total)
 are checked against the DECLARED `originalSize`; a header that lies about its size is not covered by a test **(unverified)**.
 Where: `src/adapters/archive/zip.ts:19`, `src/modules/skills/import-parser.ts:141`.
+
+### 2026-09-21 — `dns.lookup` callback shape and IP literals when guarding an outbound connect
+`net.connect` calls a custom `lookup` with `{ all: true }` on Node 20+ (happy eyeballs) and expects an ARRAY of addresses;
+without `all` it expects `(err, address, family)`. The guard must answer both shapes, so it always resolves with `all: true`
+and adapts. `lookup` is never called for an IP-literal host (`https://169.254.169.254/`), so literals are rejected up front
+instead (`assertPublicHttpsUrl`, and `IP_LITERAL` in `url.ts`, which cannot import `node:net`: the application ring only allows
+`application-allowed-packages`). WHATWG `URL` already turns `2130706433` and `0x7f.1` into dotted form.
+Where: `src/adapters/http/safe-fetch.ts:36`, `src/modules/skills/url.ts:12`.
 
 ## Recurring Errors & Fixes
 
@@ -288,6 +327,13 @@ actually used, not their bodies. To reproduce an old run you would need `skill_v
 linked from `agent_runs`. Decide before L06 (eval) needs reproducible runs.
 Where: `src/modules/reviews/run-executor.ts:393` (`buildSkillBlocks`), `src/db/schema/skills.ts`.
 
+### 2026-09-21 — Conventions: `last_scan` is the newest row, and an edited accepted rule can come back
+There is no scans table: `last_scan` is the newest `conventions.created_at`, so a rescan that keeps nothing new does not
+move it. "Never re-suggest" compares word sets (Jaccard >= 0.8) against accepted/rejected rules as stored, so a rule the
+reviewer reworded may be proposed again in the model's original wording. A skill made from accepted rules is a snapshot;
+rejecting a rule later does not change it. Decide if a `scans` table (and matching by evidence) is worth it.
+Where: `src/modules/conventions/service.ts:70` (`list`), `src/modules/conventions/dedup.ts:33` (`dedupeCandidates`).
+
 ## Session Notes
 
 ### 2026-09-16 — Run Cost Badge (L01)
@@ -324,3 +370,9 @@ Onion slices for pulls, settings, repos, agents, reviews and repo-intel; dead co
 shims removed; response schemas on pulls/settings/repos/workspace; unit tests with fakes for the
 services. Client refactors are tracked separately in `../client/INSIGHTS.md`.
 Where: `src/modules/pulls/service.ts:1`.
+
+### 2026-09-21 — Conventions extractor (HW2, server)
+Added `modules/conventions/` (sampling, evidence gate, dedup, skill draft, five routes under `/repos/:id/conventions`),
+`conventionsDeps` in the container, `AgentsRepository.appendSkill` and `evidenceFiles` on skill insert/update. The scan is
+synchronous with an in-memory per-repo guard (409 `scan_in_progress`); a second API instance would not share it.
+Where: `src/modules/conventions/service.ts:96`.
