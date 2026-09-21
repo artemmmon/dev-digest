@@ -1,0 +1,29 @@
+{
+  "slug": "dev-digest-L02",
+  "projectRoot": "/Users/artemmmon/Work/projects/dev-digest",
+  "output": "hw/L02/demo-L02.mp4",
+  "order": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12"],
+  "healthUrls": ["http://localhost:3000", "http://localhost:3001/health"],
+  "video": { "fps": 30, "zoom": 1.25, "display": "1920x1080" },
+  "tts": {
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "voiceName": "Eric",
+    "model": "eleven_multilingual_v2",
+    "keychainService": "elevenlabs-api"
+  },
+  "vscode": {
+    "firstFile": "CLAUDE.md",
+    "hide": ["temp", "hw", "**/node_modules", "server/clones"]
+  },
+  "terminal": {
+    "fontSize": 14,
+    "init": "export PATH=/opt/homebrew/opt/node@22/bin:$PATH; cd /Users/artemmmon/Work/projects/dev-digest; clear"
+  },
+  "web": {
+    "baseUrl": "http://localhost:3000",
+    "apiUrl": "http://localhost:3001",
+    "repoId": "12e3f5b1-6c8d-45a9-9fca-1801eb6c2b32",
+    "prUrl": "https://github.com/artemmmon/dev-digest/pull/5"
+  },
+  "neverClick": ["Run Review", "Delete run", "Delete this review run"]
+}

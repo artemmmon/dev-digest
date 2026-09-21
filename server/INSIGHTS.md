@@ -298,6 +298,14 @@ from another branch: 19 rows in `drizzle.__drizzle_migrations` vs 13 files). Wit
 container stayed; keys live in `~/.devdigest/secrets.json`, so they survived. Repos must be re-added afterwards.
 Where: `src/db/migrations/meta/_journal.json:93`.
 
+### 2026-09-21 — Conventions scan fails about half the time on schema validation
+While filming the HW2 demo, `POST /repos/:id/conventions/extract` failed 3 of 6 times with `The model call failed: OpenRouter
+structured output failed schema validation for ConventionExtraction` (`deepseek/deepseek-v4-flash`, repo `artemmmon/cs2-lineups`).
+Pressing Run Scan again succeeded every time; good scans took 52-115 s. `maxRetries` on `completeStructured` did not save it
+**(unverified** whether it retries a schema failure or only transport errors). To do: log the rejected payload, then either retry
+the call once in `extract` or loosen/repair the field that fails. Until then a scan failure is not a reason to debug the repo.
+Where: `src/modules/conventions/service.ts:158`.
+
 ## Open Questions
 
 ### 2026-09-15 — Failed background job may crash the process (unverified)
@@ -376,3 +384,8 @@ Added `modules/conventions/` (sampling, evidence gate, dedup, skill draft, five 
 `conventionsDeps` in the container, `AgentsRepository.appendSkill` and `evidenceFiles` on skill insert/update. The scan is
 synchronous with an in-memory per-repo guard (409 `scan_in_progress`); a second API instance would not share it.
 Where: `src/modules/conventions/service.ts:96`.
+
+### 2026-09-21 — HW2 demo filming
+Six live scans of `artemmmon/cs2-lineups` for the demo video: half failed on structured-output validation (see Recurring
+Errors). No server code changed; the demo resets `conventions` rows with SQL because there is no delete route.
+Where: `src/modules/conventions/service.ts:158`.

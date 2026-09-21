@@ -150,6 +150,13 @@ Where: `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx:37`.
 "Versioning"). `SkillDetail` no longer has a draft mode. The e2e flow `10-skills.flow.json` follows this layout.
 Where: `src/app/skills/_components/SkillsListView/SkillsListView.tsx:22`, `src/app/skills/new/page.tsx:5`.
 
+### 2026-09-21 — Pages without `:repoId` show the first repo in a fresh browser profile
+`RepoProvider` resolves the active repo as URL path > `localStorage["dd-repo"]` > first repo from the API. On `/skills`,
+`/agents` and `/settings/*` a clean profile (Playwright, e2e, a demo recording) therefore shows the seeded `acme/payments-api`
+in the sidebar, even right after visiting another repo by URL: a visit by URL does not write `dd-repo`. Anything that needs a
+fixed repo off the repo routes must seed the key first (`context.addInitScript(() => localStorage.setItem("dd-repo", id))`),
+as `hw/L02/demo/scenes.mjs` does.
+Where: `src/lib/repo-context.tsx:48`.
 
 ## Tool & Library Notes
 
@@ -306,3 +313,8 @@ FindingsTab/page, jsx-a11y baseline removed (all clickable divs fixed), hardcode
 messages (home, addRepo, header, diff, toast…), per-segment titles, env module, deep relative
 imports → `@/`.
 Where: `src/app/layout.tsx:36`.
+
+### 2026-09-21 — HW2 demo filming
+The scan hint and the ReScan dialog now say "a few minutes" instead of "up to a minute" (measured 52-178 s); the view test
+matches the new wording. Added the fresh-profile repo fallback note under Codebase Patterns.
+Where: `messages/en/conventions.json:25`.
