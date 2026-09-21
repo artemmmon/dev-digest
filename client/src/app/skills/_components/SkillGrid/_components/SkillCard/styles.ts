@@ -1,11 +1,15 @@
 import type { CSSProperties } from "react";
 
-/** Co-located styles for SkillListItem (the cards of the design's Skills list). */
+/** Co-located styles for SkillCard (a tile of the skills grid). */
 export const s = {
-  item: { marginBottom: 8 } satisfies CSSProperties,
+  item: { display: "flex", minWidth: 0 } satisfies CSSProperties,
   card: (active: boolean, enabled: boolean): CSSProperties => ({
-    padding: 12,
-    borderRadius: 8,
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    padding: 14,
+    borderRadius: 10,
     cursor: "pointer",
     border: "1px solid " + (active ? "var(--border-strong)" : "var(--border)"),
     background: active ? "var(--bg-hover)" : "var(--bg-elevated)",
@@ -37,18 +41,24 @@ export const s = {
     color: "var(--text-muted)",
     marginTop: 4,
     lineHeight: 1.4,
-    whiteSpace: "nowrap",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
     overflow: "hidden",
-    textOverflow: "ellipsis",
   } satisfies CSSProperties,
-  metaRow: { display: "flex", gap: 8, marginTop: 8, alignItems: "center" } satisfies CSSProperties,
+  metaRow: { display: "flex", gap: 8, margin: "8px 0 12px", alignItems: "center" } satisfies CSSProperties,
   footer: {
-    marginTop: 9,
-    paddingTop: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginTop: "auto",
+    paddingTop: 10,
     borderTop: "1px solid var(--border)",
-    fontSize: 11,
+    fontSize: 11.5,
     color: "var(--text-muted)",
   } satisfies CSSProperties,
+  version: { fontWeight: 600, color: "var(--text-secondary)" } satisfies CSSProperties,
+  footerEnd: { marginLeft: "auto" } satisfies CSSProperties,
   source: {
     display: "inline-flex",
     alignItems: "center",

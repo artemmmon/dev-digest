@@ -55,6 +55,14 @@ export const s = {
     cursor: enabled ? "grab" : "default",
     flexShrink: 0,
   }),
+  /** Stands in for the grip on a disabled row so the names stay aligned; not focusable, not draggable. */
+  gripLocked: {
+    display: "inline-flex",
+    color: "var(--text-muted)",
+    opacity: 0.35,
+    flexShrink: 0,
+    cursor: "not-allowed",
+  } satisfies CSSProperties,
   nameCell: { flex: 1, minWidth: 0 } satisfies CSSProperties,
   name: { fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" } satisfies CSSProperties,
   muted: { fontSize: 13, color: "var(--text-muted)", padding: "6px 2px" } satisfies CSSProperties,

@@ -1,4 +1,5 @@
-/* ImportSkillModal — import a skill from a .md or .zip. Two steps: pick a file (the server
+/* ImportSkillModal — import a skill from a .md or .zip, uploaded ("From file") or fetched
+   by the server from a public https URL ("From URL"). Two steps: pick a source (the server
    extracts the skill's core and returns a preview — nothing is saved), then review and
    confirm. Only "Save skill" creates anything. Files inside an archive other than the
    skill's text are listed as not imported; executables are never run. */
@@ -6,14 +7,15 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, Button, Icon, Modal } from "@devdigest/ui";
-import type { Skill, SkillImportPreview } from "@devdigest/shared";
+import { Badge, Button, Icon, Modal, Tabs } from "@devdigest/ui";
+import type { Skill, SkillImportPreview, SkillSource } from "@devdigest/shared";
 import { ApiError } from "@/lib/api";
-import { useCreateSkill, usePreviewSkillImport } from "@/lib/hooks/skills";
+import { useCreateSkill, usePreviewSkillImport, usePreviewSkillImportUrl } from "@/lib/hooks/skills";
 import { useToast } from "@/lib/toast";
 import { draftFromPreview, type SkillDraft } from "../helpers";
 import { SkillForm } from "../SkillForm";
-import { ACCEPT } from "./constants";
+import { UrlPicker } from "./_components/UrlPicker";
+import { ACCEPT, IMPORT_TABS, type ImportTab } from "./constants";
 import { checkPickedFile, readFileAsBase64 } from "./helpers";
 import { s } from "./styles";
 
@@ -28,8 +30,11 @@ export function ImportSkillModal({
   const toast = useToast();
   const fileInput = React.useRef<HTMLInputElement>(null);
   const preview = usePreviewSkillImport();
+  const previewUrl = usePreviewSkillImportUrl();
   const create = useCreateSkill();
+  const [tab, setTab] = React.useState<ImportTab>("file");
   const [picked, setPicked] = React.useState<SkillImportPreview | null>(null);
+  const [source, setSource] = React.useState<Extract<SkillSource, "imported_file" | "imported_url">>("imported_file");
   const [error, setError] = React.useState<string | null>(null);
   const [reading, setReading] = React.useState<string | null>(null);
 
@@ -49,6 +54,7 @@ export function ImportSkillModal({
         {
           onSuccess: (p) => {
             setReading(null);
+            setSource("imported_file");
             setPicked(p);
           },
           onError: (e) => {
@@ -63,9 +69,28 @@ export function ImportSkillModal({
     }
   };
 
+  const onFetchUrl = (url: string) => {
+    setError(null);
+    previewUrl.mutate(
+      { url },
+      {
+        onSuccess: (p) => {
+          setSource("imported_url");
+          setPicked(p);
+        },
+        onError: (e) => setError(e instanceof ApiError ? e.message : t("import.urlTab.failed")),
+      },
+    );
+  };
+
+  const changeTab = (key: string) => {
+    setTab(key as ImportTab);
+    setError(null);
+  };
+
   const save = (draft: SkillDraft) =>
     create.mutate(
-      { ...draft, source: "imported_file" },
+      { ...draft, source },
       {
         onSuccess: (skill) => {
           toast.success(t("import.confirmed", { name: skill.name }));
@@ -76,8 +101,18 @@ export function ImportSkillModal({
 
   return (
     <Modal width={760} title={t("import.title")} subtitle={t("import.subtitle")} onClose={onClose}>
+      {picked === null && (
+        <Tabs
+          pad="0 24px"
+          value={tab}
+          onChange={changeTab}
+          tabs={IMPORT_TABS.map((key) => ({ key, label: t(`import.tabs.${key}`) }))}
+        />
+      )}
       <div style={s.body}>
-        {picked === null ? (
+        {picked === null && tab === "url" ? (
+          <UrlPicker pending={previewUrl.isPending} error={error} onFetch={onFetchUrl} />
+        ) : picked === null ? (
           <div style={s.pick}>
             <Icon.Upload size={22} style={{ color: "var(--text-muted)" }} />
             <input
@@ -138,7 +173,7 @@ export function ImportSkillModal({
               pending={create.isPending}
               onSubmit={save}
               onCancel={() => setPicked(null)}
-              cancelLabel={t("import.back")}
+              cancelLabel={t(source === "imported_url" ? "import.backUrl" : "import.back")}
             />
           </>
         )}

@@ -3,14 +3,14 @@
     "crumbLab": "Skills Lab",
     "crumbSkills": "Skills",
     "heading": "Skills",
-    "addSkill": "Add Skill",
+    "addSkill": "Add",
     "searchPlaceholder": "Search skills…",
     "loadError": "Could not load skills.",
     "menu": {
-      "fromFile": "Import from file",
+      "import": "Import",
       "fromUrl": "Import from URL",
       "community": "Search community skills…",
-      "create": "Create from scratch"
+      "create": "Create"
     },
     "empty": {
       "title": "No skills yet",
@@ -18,7 +18,26 @@
       "cta": "Create a skill"
     },
     "noMatch": "No skills match “{q}”.",
-    "toggleLabel": "Enable skill {name}"
+    "toggleLabel": "Enable skill {name}",
+    "back": "Skills",
+    "detailLoadError": "Could not load this skill. It may have been deleted."
+  },
+  "card": {
+    "deleteLabel": "Delete skill {name}"
+  },
+  "create": {
+    "title": "Create a skill",
+    "subtitle": "Name it, say when it applies, and write the rule. You can edit it and keep its versions afterwards."
+  },
+  "previewDrawer": {
+    "open": "Open",
+    "openLabel": "Open skill {name}",
+    "type": "Type",
+    "version": "Version",
+    "source": "Source",
+    "agents": "Agents",
+    "body": "Body",
+    "noBody": "This skill has no body yet."
   },
   "drawer": {
     "title": "Add a skill",
@@ -112,7 +131,19 @@
   },
   "import": {
     "title": "Import a skill",
-    "subtitle": "Upload a markdown file or a zip archive. You review it before anything is saved.",
+    "subtitle": "Upload a markdown file or a zip archive, or fetch one from a URL. You review it before anything is saved.",
+    "tabs": {
+      "file": "From file",
+      "url": "From URL"
+    },
+    "urlTab": {
+      "label": "Skill URL",
+      "placeholder": "https://github.com/owner/repo/blob/main/skill/SKILL.md",
+      "hint": "A public https link to a .md or .zip. GitHub file links work. Fetched by the server, never run.",
+      "fetch": "Fetch",
+      "fetching": "Fetching…",
+      "failed": "The URL could not be fetched."
+    },
     "pick": "Choose a file",
     "pickHint": ".md or .zip · up to 2 MB",
     "reading": "Reading {name}…",
@@ -132,18 +163,19 @@
     "confirm": "Save skill",
     "confirmed": "Imported “{name}”",
     "back": "Choose another file",
+    "backUrl": "Use another URL",
     "cancel": "Cancel"
   },
   "detail": {
-    "newTitle": "New skill",
     "version": "v{version}",
     "delete": "Delete skill",
+    "deleteTitle": "Delete skill?",
     "deleteConfirm": "Delete skill \"{name}\"? Agents that use it lose it. This cannot be undone.",
     "tabs": {
       "config": "Config",
       "preview": "Preview",
       "stats": "Stats",
-      "versions": "Versions"
+      "versions": "Versioning"
     },
     "discardConfirm": "Discard your unsaved changes?"
   },
@@ -186,6 +218,7 @@
     "diffHint": "What restoring v{version} would change: green lines come back, red lines go away.",
     "restore": "Restore",
     "restoreLabel": "Restore v{version}",
+    "restoreTitle": "Restore version?",
     "restoreConfirm": "Restore v{version}? Its text is saved again as a new version; nothing is deleted.",
     "restoredMessage": "Restored v{version}",
     "restoredToast": "Restored v{from} as v{to}",

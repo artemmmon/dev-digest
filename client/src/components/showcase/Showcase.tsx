@@ -113,7 +113,7 @@ export function Gallery() {
         <ConfidenceNum value={0.6} />
         <MonoLink>src/config.ts:12</MonoLink>
         <Kbd>⌘K</Kbd>
-        <Toggle on={toggle} onChange={setToggle} />
+        <Toggle on={toggle} onChange={setToggle} label="Demo toggle" />
       </Group>
 
       <Group title="Progress & Score">

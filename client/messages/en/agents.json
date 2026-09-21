@@ -3,6 +3,7 @@
     "noDescription": "No description",
     "skillCount": "{count} skills",
     "delete": "Delete agent",
+    "deleteTitle": "Delete agent?",
     "deleteConfirm": "Delete agent \"{name}\"? This cannot be undone."
   },
   "list": {
@@ -93,13 +94,15 @@
     "title": "Skills",
     "enabledCount": "{linked} of {total} enabled",
     "filterPlaceholder": "Filter skills…",
-    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Drag to reorder.",
+    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Drag enabled skills to reorder; switching one on puts it last among the enabled.",
+    "toggleLabel": "Use {name} in this agent",
     "noSkills": "There are no skills yet.",
     "create": "Create a skill",
     "globallyOff": "disabled globally",
     "globallyOffTitle": "This skill is switched off for all agents, so it is not added to the prompt.",
     "loadError": "Could not load skills.",
     "dragHandle": "Drag to reorder, or press ↑ / ↓",
+    "dragLocked": "Only enabled skills can be reordered",
     "moveHandle": "Move {name}",
     "noMatch": "No skills match “{q}”."
   },

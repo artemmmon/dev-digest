@@ -1,12 +1,13 @@
 /* VersionsTab — every saved body of a skill, newest first, with the message written at save time.
    Diff compares a version with the current body; Restore saves that body again as a NEW version
-   (history is never rewritten), so it is blocked while the Config tab has unsaved edits. */
+   (history is never rewritten), so it is blocked while the Config tab has unsaved edits, and asks first. */
 "use client";
 
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Button, ErrorState, Skeleton } from "@devdigest/ui";
 import type { Skill, SkillVersion } from "@devdigest/shared";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { dayOf, lineDiff } from "./helpers";
 import { s } from "./styles";
 import { useVersionsTab } from "./use-versions-tab";
@@ -15,7 +16,8 @@ const SIGN = { same: " ", add: "+", del: "−" } as const;
 
 export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) {
   const t = useTranslations("skills");
-  const { versions, isError, refetch, open, toggleDiff, restore, restoring } = useVersionsTab(skill);
+  const { versions, isError, refetch, open, toggleDiff, asking, askRestore, cancelRestore, restore, restoring } =
+    useVersionsTab(skill);
 
   if (isError) return <ErrorState body={t("versions.loadError")} onRetry={() => refetch()} />;
   if (!versions) return <Skeleton height={120} />;
@@ -70,7 +72,7 @@ export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) 
                         aria-label={t("versions.restoreLabel", { version: v.version })}
                         title={dirty ? t("versions.dirtyNote") : undefined}
                         disabled={dirty || restoring}
-                        onClick={() => restore(v)}
+                        onClick={() => askRestore(v)}
                       >
                         {t("versions.restore")}
                       </Button>
@@ -97,6 +99,16 @@ export function VersionsTab({ skill, dirty }: { skill: Skill; dirty: boolean }) 
           );
         })}
       </ul>
+      {asking && (
+        <ConfirmDialog
+          title={t("versions.restoreTitle")}
+          body={t("versions.restoreConfirm", { version: asking.version })}
+          confirmLabel={t("versions.restore")}
+          pending={restoring}
+          onConfirm={restore}
+          onCancel={cancelRestore}
+        />
+      )}
     </div>
   );
 }

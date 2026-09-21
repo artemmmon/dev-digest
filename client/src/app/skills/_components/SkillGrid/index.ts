@@ -1,1 +1,1 @@
-export { SkillList, SkillList as default } from "./SkillList";
+export { SkillGrid, SkillGrid as default } from "./SkillGrid";

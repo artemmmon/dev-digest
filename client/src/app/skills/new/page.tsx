@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/* Route: /skills/new — the editor is part of /skills now; this keeps old links working. */
+/* Route: /skills/new — creating a skill is a dialog on /skills now; this keeps old links working. */
 export default function NewSkillPage() {
-  redirect("/skills?skill=new");
+  redirect("/skills?create=1");
 }
