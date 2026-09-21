@@ -24,6 +24,9 @@ import { estimateCost } from '../adapters/llm/pricing.js';
 import { PriceBook } from './price-book.js';
 import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
+import { SkillsRepository } from '../modules/skills/repository.js';
+import type { ArchiveReader } from '../modules/skills/ports.js';
+import { FflateZipReader } from '../adapters/archive/zip.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
 import type { ReviewDeps } from '../modules/reviews/deps.js';
@@ -62,6 +65,8 @@ export interface ContainerOverrides {
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  /** .zip reader for skill import; tests inject a fake. */
+  archive?: ArchiveReader;
   sourceParser?: SourceParser;
   repoFiles?: RepoFiles;
 }
@@ -84,6 +89,8 @@ export class Container {
   // runs). Constructed here, in the composition root, so consuming modules use
   // `container.agentsRepo` instead of reaching into another module's folder.
   private _agentsRepo?: AgentsRepository;
+  private _skillsRepo?: SkillsRepository;
+  private _archive?: ArchiveReader;
   private _reviewRepo?: ReviewRepository;
   private _pullsRepo?: PullsRepository;
   private _settingsRepo?: SettingsRepository;
@@ -117,6 +124,16 @@ export class Container {
     return (this._agentsRepo ??= new AgentsRepository(this.db));
   }
 
+  get skillsRepo(): SkillsRepository {
+    return (this._skillsRepo ??= new SkillsRepository(this.db));
+  }
+
+  /** In-memory .zip reader for skill import. */
+  get archive(): ArchiveReader {
+    if (this.overrides.archive) return this.overrides.archive;
+    return (this._archive ??= new FflateZipReader());
+  }
+
   get reposRepo(): RepoRepository {
     return (this._reposRepo ??= new RepoRepository(this.db));
   }
@@ -138,6 +155,7 @@ export class Container {
       llm: (provider) => this.llm(provider),
       repoIntel: this.repoIntel,
       bus: this.runBus,
+      tokenizer: this.tokenizer,
     };
   }
 

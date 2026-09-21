@@ -87,6 +87,32 @@ areas are left to them (no double toggle). Used by PRRow, FindingCard, PromptBlo
 plain buttons where the header holds no other control (TraceSection, ToolCallRow, FileCard).
 Where: `src/lib/interactive.ts:1`.
 
+### 2026-09-21 — A code-style editor is rows + a transparent textarea over them, in ONE scroll container
+`MarkdownCodeEditor` renders the coloured lines as ordinary rows (gutter number + text) that set the height, and lays a
+`color: transparent` `<textarea>` absolutely over the text column. Font, line height, `pre-wrap` and right padding must be
+identical, so wrapped lines take the same height in both; then one scrolling parent moves everything and no scroll syncing is
+needed (a textarea-as-scroller needs JS to sync the gutter and misaligns numbers on wrapped lines). Empty value: the
+placeholder is drawn as the first row, because `::placeholder` inherits the transparent colour in Firefox.
+Where: `src/app/skills/_components/SkillDetail/_components/ConfigTab/_components/MarkdownCodeEditor/styles.ts:35`.
+
+### 2026-09-21 — Mutations that a caller follows with a selection resolve after the list refetch
+`/skills` keeps the selection in `?skill=<id>`. `useCreateSkill` / `useDeleteSkill` return the `invalidateQueries` promise
+from `onSuccess`, so the per-call `onSuccess` (select the new skill / fall back) runs once the list already has (or no
+longer has) the row; otherwise the page briefly falls back to the first skill. Keep that if you add a mutation that navigates.
+Where: `src/lib/hooks/skills.ts:34`.
+
+### 2026-09-21 — `docs/design/` can be OLDER than the screens the user has in front of them
+The export in `docs/design/src` showed the Skills Lab as list + one editor + Eval panel and no Versions/Stats/Preview tabs;
+the user's current design had cards and five tabs. The sidebar was also missed: `chrome.jsx` groups nav into WORKSPACE /
+SKILLS LAB / GLOBAL, we had put everything under WORKSPACE. Before building a screen: read `chrome.jsx` for the nav, and
+ask whether the export is the latest (`scripts/unpack-design.mjs` re-imports it) — a missing tab is a red flag, not a scope cut.
+Where: `docs/design/src/chrome.jsx:4`, `src/vendor/ui/nav.ts:22`.
+
+### 2026-09-21 — Two `useSearchParamState` setters in one handler undo each other; use `useSearchParamsUpdate`
+Each setter builds the next URL from the `search` snapshot of its own render, so `setSkill(id); setTab(null)` navigates
+twice and the second drops the first. `/skills` moves `?skill=` and `?tab=` together with `useSearchParamsUpdate`.
+Where: `src/lib/use-search-param-state.ts:45`.
+
 
 ## Tool & Library Notes
 
@@ -125,6 +151,39 @@ tsconfig.json` afterwards. Also: don't put zod in `src/config/env.ts`; it is in 
 (+12 kB first-load JS).
 Where: `next.config.mjs:9`, `src/config/env.ts:1`.
 
+### 2026-09-21 — The kit's `Markdown` had no heading or list styles; a skill body rendered as flat text
+The global reset in `vendor/ui/styles.css` zeroes `h1–h4` margins and list styles, and the `Markdown` primitive only
+styled `p`, `strong`, `code` and `a`. Findings never needed more; a skill body (a whole document) did. Block styles now
+live under `.dd-md`; add new markdown elements there, not as inline styles in the component.
+Where: `src/vendor/ui/styles.css:222`.
+
+### 2026-09-21 — `File.arrayBuffer()` does not exist in jsdom; read uploads with `FileReader`
+The import dialog first used `await file.arrayBuffer()`: fine in browsers, but every jsdom test showed "could not be
+read". `readFileAsBase64` uses `FileReader.readAsArrayBuffer`, which both have. Base64 is built in 32 KB chunks so
+`String.fromCharCode(...bytes)` does not overflow the stack on a 2 MB zip.
+Where: `src/app/skills/_components/ImportSkillModal/helpers.ts:24`.
+
+### 2026-09-21 — Native HTML5 drag-and-drop for the skill order: what it needs and what it can't do
+`SkillsTab` reorders with `draggable` rows, no library. `onDragStart` calls `dataTransfer.setData` (Firefox starts no
+drag without it) and guards `dataTransfer` (jsdom has none); `onDragOver` must `preventDefault()` or `drop` never fires.
+Indexes are positions in the FULL bindings list, so a drop is right while the filter hides rows. No touch support on
+mobile: the ↑/↓ buttons are the fallback and the keyboard path. `userEvent` cannot drag — tests use `fireEvent`.
+The browser-pane `left_click_drag` does not start a native drag either (it sends plain mouse events); dispatch
+`DragEvent`s with a `DataTransfer` from `javascript_tool` to check it in a real browser.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.tsx:108`.
+
+### 2026-09-21 — Supersedes "Native HTML5 drag-and-drop for the skill order": the ↑/↓ buttons are gone
+The Skills tab is now one list of all skills (checkbox = used by the agent). The keyboard path is the grip, a real
+`<button aria-label="Move <name>">`: ArrowUp/ArrowDown call `moveBinding`. Moving a row down makes React re-insert the
+focused node, which can blur it **(unverified: not tested without the fix)**, so `SkillsTab` re-focuses the grip in a layout effect after each keyboard move.
+The rest of the DnD notes (setData for Firefox, `preventDefault` on dragover, `fireEvent` in tests) still hold.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.tsx:42`.
+
+### 2026-09-21 — Per-call `mutate(..., { onSuccess })` callbacks are dropped when the component remounts
+SkillDetail is keyed by `id:version`, so a save that changes the body (or a restore) remounts it before the per-call callbacks
+run, and the "Saved …" toast and draft reset never happened. Use `mutateAsync(...).then(...)` (a promise settles regardless of
+the observer) and the module-level `notify` toast; errors are toasted by the MutationCache, so end the chain with `.catch(() => {})`.
+Where: `src/app/skills/_components/SkillDetail/SkillDetail.tsx:76`.
 
 ## Recurring Errors & Fixes
 
@@ -160,6 +219,12 @@ Where: `client/eslint.config.mjs:13`.
 ### 2026-09-19 — Supersedes "`pnpm lint` fails with thousands of errors after a local e2e run"
 Fixed: `.next-*/**` is now in the ESLint `ignores`, so a clone that has run `./scripts/e2e.sh` lints clean.
 Where: `eslint.config.mjs:15`.
+
+### 2026-09-21 — `next dev` with `NEXT_DIST_DIR` rewrites `tsconfig.json` and `next-env.d.ts`
+Running a second dev server on an alternate dist dir (to leave `.next` alone) made Next add its `types` include to
+`tsconfig.json` (reformatting the whole file) and point `next-env.d.ts` at the alternate dir. Neither is part of the
+change: stop the server, `git checkout tsconfig.json next-env.d.ts`, delete the alternate dist dir before committing.
+Where: `next-env.d.ts:3`.
 
 ## Open Questions
 

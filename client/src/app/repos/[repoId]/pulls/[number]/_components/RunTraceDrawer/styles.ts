@@ -65,6 +65,18 @@ export const s = {
   promptHead: { display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", cursor: "pointer" } satisfies CSSProperties,
   promptDot: (color: string): CSSProperties => ({ width: 7, height: 7, borderRadius: 2, background: color }),
   promptLabel: { fontSize: 13, fontWeight: 600 } satisfies CSSProperties,
+  // ---- SkillBlockRows (one row per skill block inside the prompt) ----
+  skillRows: {
+    margin: "-2px 0 10px 14px",
+    paddingLeft: 12,
+    borderLeft: "2px solid var(--border)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  } satisfies CSSProperties,
+  skillRow: { display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 } satisfies CSSProperties,
+  skillRowName: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } satisfies CSSProperties,
+  skillRowTotal: { display: "flex", gap: 10, fontSize: 12, color: "var(--text-muted)", marginTop: 2 } satisfies CSSProperties,
   promptToggle: { marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
   promptPre: {
     margin: 0,

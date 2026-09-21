@@ -1,0 +1,43 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  body: { padding: 24 } satisfies CSSProperties,
+  pick: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+    padding: "36px 20px",
+    borderRadius: 10,
+    border: "1.5px dashed var(--border-strong)",
+    background: "var(--bg-surface)",
+    textAlign: "center",
+  } satisfies CSSProperties,
+  pickHint: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+  error: { fontSize: 13, color: "var(--crit)", marginTop: 12 } satisfies CSSProperties,
+  trust: {
+    display: "flex",
+    gap: 10,
+    padding: "12px 14px",
+    borderRadius: 8,
+    border: "1px solid var(--warn)",
+    background: "var(--warn-bg)",
+    fontSize: 13,
+    lineHeight: 1.5,
+    marginBottom: 18,
+  } satisfies CSSProperties,
+  trustTitle: { fontWeight: 700, marginBottom: 2 } satisfies CSSProperties,
+  sourceFile: { fontSize: 12, color: "var(--text-muted)", marginBottom: 14 } satisfies CSSProperties,
+  ignored: {
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg-surface)",
+    marginBottom: 20,
+  } satisfies CSSProperties,
+  ignoredTitle: { fontSize: 13, fontWeight: 700, marginBottom: 2 } satisfies CSSProperties,
+  ignoredHint: { fontSize: 12, color: "var(--text-muted)", marginBottom: 8 } satisfies CSSProperties,
+  ignoredList: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 } satisfies CSSProperties,
+  ignoredRow: { display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 } satisfies CSSProperties,
+  ignoredPath: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } satisfies CSSProperties,
+} as const;

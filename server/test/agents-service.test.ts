@@ -6,6 +6,8 @@ import type {
   AgentStore,
   AgentVersionRecord,
   InsertAgent,
+  ResolvedSkill,
+  SkillBinding,
   SkillLink,
   UpdateAgent,
 } from '../src/modules/agents/ports.js';
@@ -76,10 +78,18 @@ class InMemoryAgentStore implements AgentStore {
     return this.links.get(agentId) ?? [];
   }
   async linkSkill(agentId: string, skillId: string, order: number) {
-    this.links.set(agentId, [...(this.links.get(agentId) ?? []), { skillId, order }]);
+    this.links.set(agentId, [...(this.links.get(agentId) ?? []), { skillId, order, enabled: true }]);
   }
-  async setSkills(agentId: string, skillIds: string[]) {
-    this.links.set(agentId, skillIds.map((skillId, order) => ({ skillId, order })));
+  async setSkills(ws: string, agentId: string, bindings: SkillBinding[]) {
+    if (!(await this.getById(ws, agentId))) return false;
+    this.links.set(
+      agentId,
+      bindings.map((b, order) => ({ skillId: b.skillId, order, enabled: b.enabled })),
+    );
+    return true;
+  }
+  async resolvedSkills(): Promise<ResolvedSkill[]> {
+    return [];
   }
   async skillIdsInWorkspace(_ws: string, ids: string[]) {
     return new Set(ids.filter((id) => this.knownSkills.has(id)));
@@ -135,9 +145,45 @@ describe('AgentsService', () => {
     });
 
     expect(await service.setSkills('ws', agent.id, ['s2', 's1'])).toEqual([
-      { agent_id: agent.id, skill_id: 's2', order: 0 },
-      { agent_id: agent.id, skill_id: 's1', order: 1 },
+      { agent_id: agent.id, skill_id: 's2', order: 0, enabled: true },
+      { agent_id: agent.id, skill_id: 's1', order: 1, enabled: true },
     ]);
+  });
+
+  it('setBindings keeps the per-agent switch and the array order', async () => {
+    const { service, agents } = setup();
+    agents.knownSkills.add('s1');
+    agents.knownSkills.add('s2');
+    const agent = await service.create('ws', NEW);
+
+    const links = await service.setBindings('ws', agent.id, [
+      { skill_id: 's2', enabled: false },
+      { skill_id: 's1', enabled: true },
+    ]);
+    expect(links?.map((l) => [l.skill_id, l.order, l.enabled])).toEqual([
+      ['s2', 0, false],
+      ['s1', 1, true],
+    ]);
+
+    // the legacy id-list setter reorders but does not switch anything back on
+    const reordered = await service.setSkills('ws', agent.id, ['s1', 's2']);
+    expect(reordered?.map((l) => [l.skill_id, l.enabled])).toEqual([
+      ['s1', true],
+      ['s2', false],
+    ]);
+  });
+
+  it('setBindings rejects a duplicate skill and an unknown agent', async () => {
+    const { service, agents } = setup();
+    agents.knownSkills.add('s1');
+    const agent = await service.create('ws', NEW);
+    await expect(
+      service.setBindings('ws', agent.id, [
+        { skill_id: 's1', enabled: true },
+        { skill_id: 's1', enabled: false },
+      ]),
+    ).rejects.toMatchObject({ code: 'validation_error' });
+    expect(await service.setBindings('ws', 'missing', [])).toBeUndefined();
   });
 
   it('linkSkill appends by default', async () => {

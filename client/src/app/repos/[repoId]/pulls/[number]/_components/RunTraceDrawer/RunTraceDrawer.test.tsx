@@ -49,6 +49,30 @@ describe("A5 Run Trace drawer (smoke)", () => {
     expect(screen.getByText("Tool calls")).toBeInTheDocument();
   });
 
+  it("lists each skill block of the prompt with its tokens", async () => {
+    TRACE.prompt_assembly.skill_blocks = [
+      { skill_id: "s1", name: "branch-coverage-rubric", tokens: 210 },
+      { skill_id: "s2", name: "mocking-discipline", tokens: 145 },
+    ];
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByText("Prompt assembly"));
+    const rows = screen.getByRole("list", { name: "Skill blocks in the prompt" });
+    expect(rows).toHaveTextContent("branch-coverage-rubric");
+    expect(rows).toHaveTextContent("210 tok");
+    expect(rows).toHaveTextContent("mocking-discipline");
+    expect(rows).toHaveTextContent("Skills add 355 tokens to the prompt");
+    TRACE.prompt_assembly.skill_blocks = undefined;
+  });
+
+  it("shows no skill rows for a trace saved before per-skill accounting", async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+    await user.click(screen.getByText("Prompt assembly"));
+    expect(screen.getByText("Skills (dynamic)")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Skill blocks in the prompt" })).not.toBeInTheDocument();
+  });
+
   it("switches to the live log tab", async () => {
     const user = userEvent.setup();
     renderDrawer();

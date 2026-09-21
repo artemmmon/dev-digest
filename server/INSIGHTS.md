@@ -30,6 +30,13 @@ Fix: mock every provider used in the file. The existing test "run all enabled ag
 Where: `test/reviews.it.test.ts:372` ("run all enabled agents"), `test/helpers/runs.ts:14`
 (`waitForPrRuns`).
 
+### 2026-09-21 — A review of a PR nobody has opened yet reviews an EMPTY diff and reports "approve"
+`loadDiff` tries `git diff base...head` on the clone, then falls back to `pr_files` patches. A freshly imported repo has
+neither: the clone holds only `main` (the PR head commit is missing) and `pr_files` is filled the first time
+`GET /pulls/:id` runs (the PR page). `POST /pulls/:id/review` straight after import therefore logs "0 changed file(s)" and
+the model answers "approve, no changes". Open the PR (or `GET /pulls/:id`) once before reviewing it from a script.
+Where: `src/modules/reviews/diff-loader.ts:11` (`loadDiff`).
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Queue state is in-memory only
@@ -121,6 +128,28 @@ The parser was an adapter file but is pure and is what grounding depends on, so 
 its `src`, because its tests borrow the server mocks, which import it through that alias.
 Where: `../reviewer-core/src/diff.ts:1`, `../reviewer-core/vitest.config.ts:12`.
 
+### 2026-09-21 — An agent's version moves when its prompt's skill set moves, not on every binding edit
+`AgentsRepository.setSkills` locks the agent row, replaces `agent_skills`, and bumps `agents.version` (plus an
+`agent_versions` snapshot) only when the ENABLED, ordered skill ids differ from before. Muting a binding that was already
+off, or re-saving the same list, leaves the version alone. The snapshot holds ids of enabled bindings, not bodies, so
+editing a skill's body does not version the agents that use it (see Open Questions).
+Where: `src/modules/agents/repository.ts:295` (`setSkillsLocked`).
+
+### 2026-09-21 — A narrow skill narrows the agent: `route-breaking-change-rubric` made API Contract approve a new API client
+With the lean prompt (role + severity/verdict only) the rubric in the skill becomes the agent's whole notion of the job.
+`route-breaking-change-rubric` compares an OLD and a NEW route signature; on a PR that only ADDS an API client (no old
+contract in the diff) API Contract returned `approve`/100 in 2 of 2 runs, while the same agent without skills found a
+silent `[]` on error, a crash on non-404 statuses and a wrong map. On a PR that really breaks a route (renamed param,
+array → object, dropped field) skills and no-skills found the same three breaks, so an obvious break does not separate
+them. Write a skill for a class of input, and say in its `description` when it does NOT apply.
+Where: `src/db/seed-skills.ts:89` (`ROUTE_BREAKING_CHANGE_RUBRIC`).
+
+### 2026-09-21 — "Used by N agents" is a read port the agents repository implements, not a join in the skills module
+`agent_skills` belongs to the agents module, so `SkillsService` takes a `SkillUsageReader` (`agentCounts`, `agentsUsing`) and
+the container passes `agentsRepo`, which satisfies it structurally (no import of the skills port). Only bindings with
+`enabled = true` count — an agent whose binding is muted does not "use" the skill. `GET /skills` computes counts in one grouped
+query; `GET /skills/:id` and the mutations ask `agentsUsing` for one skill. `body_tokens` comes from the shared `Tokenizer`.
+Where: `src/modules/agents/repository.ts:82`, `src/modules/skills/service.ts:26`.
 
 ## Tool & Library Notes
 
@@ -169,6 +198,11 @@ Two things the rules do not see: application code importing `platform/resilience
 `platform/run-logger.ts`, and `RepoIntelService` taking the concrete `RepoIntelRepository` class.
 Where: `package.json:15`, `../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:1`.
 
+### 2026-09-21 — Listing a zip without inflating it: `unzipSync` with a filter that returns false
+`FflateZipReader.list` passes a `filter` that records `{name, originalSize}` and returns `false`, so headers are read and
+nothing is decompressed; `readText` then inflates one chosen entry. The import limits (200 entries, 1 MB file, 10 MB total)
+are checked against the DECLARED `originalSize`; a header that lies about its size is not covered by a test **(unverified)**.
+Where: `src/adapters/archive/zip.ts:19`, `src/modules/skills/import-parser.ts:141`.
 
 ## Recurring Errors & Fixes
 
@@ -218,6 +252,12 @@ Where: `src/db/migrations/0011_low_stark_industries.sql:1`.
 test belongs in a `*.it.test.ts`, so it moved to `routes.it.test.ts`.
 Where: `test/routes.it.test.ts:221`, `src/modules/reviews/routes.ts:38`.
 
+### 2026-09-21 — Supersedes "Local dev DB is ahead of this branch's migrations": the dev schema was reset
+Migration `0012` failed on the dev DB with `column "enabled" of relation "agent_skills" already exists` (the volume came
+from another branch: 19 rows in `drizzle.__drizzle_migrations` vs 13 files). With the owner's OK the schema was dropped
+(`DROP SCHEMA public, drizzle CASCADE; CREATE SCHEMA public`), then `pnpm db:migrate` and `pnpm db:seed`. The volume and
+container stayed; keys live in `~/.devdigest/secrets.json`, so they survived. Repos must be re-added afterwards.
+Where: `src/db/migrations/meta/_journal.json:93`.
 
 ## Open Questions
 
@@ -241,6 +281,12 @@ queries. Fine at seed scale; if the table grows, add the index in `db/schema/rev
 and regenerate with `pnpm db:generate` (never hand-write the migration).
 Where: `src/db/schema/reviews.ts:28`, `src/db/migrations/0000_init.sql:378`,
 `src/modules/pulls/routes.ts:163` (the `IN (latest review ids)` read).
+
+### 2026-09-21 — Should editing a skill body version the agents bound to it?
+Today it does not: agent snapshots store skill ids only, and a run's trace records the skill blocks (name, tokens) it
+actually used, not their bodies. To reproduce an old run you would need `skill_versions`, which is written but not
+linked from `agent_runs`. Decide before L06 (eval) needs reproducible runs.
+Where: `src/modules/reviews/run-executor.ts:393` (`buildSkillBlocks`), `src/db/schema/skills.ts`.
 
 ## Session Notes
 

@@ -85,6 +85,20 @@
       "when": 1789763449962,
       "tag": "0011_low_stark_industries",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789993169118,
+      "tag": "0012_glossy_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790004814501,
+      "tag": "0013_slimy_captain_cross",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ affected packages under **Design**.
 <!-- one line per spec: - [NN-name](NN-name.md) — status — packages -->
 - [01-run-cost-badge](01-run-cost-badge.md) — done — server, client
 - [02-findings-severity](02-findings-severity.md) — done — server, client
+- [03-skills](03-skills.md) — done — server, client
 
 Per-package slices of these two live in `server/specs/`, `client/specs/`,
 `reviewer-core/specs/` and `e2e/specs/`.

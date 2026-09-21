@@ -16,6 +16,8 @@ export interface ReviewDeps {
   repoIntel: RepoIntel;
   /** Live run-event bus (Live Log, cancellation). */
   bus: RunBusPort;
+  /** Token counter for the per-skill breakdown in the run trace. */
+  tokenizer: { count(text: string): number };
 }
 
 /** The repo a PR belongs to — enough to run git against its clone. */

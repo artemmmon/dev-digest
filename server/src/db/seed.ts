@@ -6,7 +6,10 @@ import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
+  TEST_QUALITY_REVIEWER_PROMPT,
+  API_CONTRACT_REVIEWER_PROMPT,
 } from './seed-prompts.js';
+import { API_CONTRACT_SKILLS, TEST_QUALITY_SKILLS, type SeedSkill } from './seed-skills.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -18,11 +21,12 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, and the three built-in agents (General + Security +
- * Performance), all on the default openrouter/deepseek-v4-flash provider+model.
+ * with a few findings, and the five built-in agents (General, Security, Performance,
+ * Test Quality, API Contract), all on the default openrouter/deepseek-v4-flash
+ * provider+model. Test Quality and API Contract come with their skills already bound.
  *
- * Course lessons populate the other tables (skills, conventions, memory, eval,
- * …) once their features are built — they start empty here.
+ * Course lessons populate the other tables (conventions, memory, eval, …) once
+ * their features are built — they start empty here.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -211,6 +215,29 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description:
+        'Checks that a PR\'s tests would catch a regression: uncovered branches, missed corner cases, over-mocking, flakes.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
+    {
+      workspaceId,
+      name: 'API Contract Reviewer',
+      description: 'Finds breaking changes to routes and zod contracts before callers hit them.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: API_CONTRACT_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   for (const a of seedAgents) {
     const [existing] = await db
@@ -219,6 +246,45 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, a.name)));
     if (!existing) await db.insert(t.agents).values(a);
   }
+
+  // ---- built-in skills + their bindings (idempotent by name) ----
+  const skillIdByName = new Map<string, string>();
+  const ensureSkill = async (s: SeedSkill): Promise<string> => {
+    const cached = skillIdByName.get(s.name);
+    if (cached) return cached;
+    const [existing] = await db
+      .select()
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, s.name)));
+    let id = existing?.id;
+    if (!id) {
+      const [row] = await db
+        .insert(t.skills)
+        .values({ workspaceId, ...s, source: 'manual', enabled: true, version: 1 })
+        .returning();
+      id = row!.id;
+      await db.insert(t.skillVersions).values({ skillId: id, version: 1, body: s.body });
+    }
+    skillIdByName.set(s.name, id);
+    return id;
+  };
+  const bindSkills = async (agentName: string, list: SeedSkill[]) => {
+    const [agent] = await db
+      .select()
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, agentName)));
+    if (!agent) return;
+    // Only seed bindings for an agent that has none, so edits made in the UI survive a re-seed.
+    const bound = await db.select().from(t.agentSkills).where(eq(t.agentSkills.agentId, agent.id));
+    if (bound.length > 0) return;
+    const ids: string[] = [];
+    for (const s of list) ids.push(await ensureSkill(s));
+    await db
+      .insert(t.agentSkills)
+      .values(ids.map((skillId, order) => ({ agentId: agent.id, skillId, order, enabled: true })));
+  };
+  await bindSkills('Test Quality Reviewer', TEST_QUALITY_SKILLS);
+  await bindSkills('API Contract Reviewer', API_CONTRACT_SKILLS);
 
   return { workspaceId, userId };
 }

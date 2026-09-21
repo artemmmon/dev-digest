@@ -19,6 +19,8 @@ export interface AgentRecord {
   version: number;
   createdBy: string | null;
   createdAt: Date;
+  /** Skills that reach the prompt (binding and skill both enabled); set by `list` only. */
+  skillCount?: number;
 }
 
 /** An immutable config snapshot; `configJson` is untyped jsonb, parsed at the DTO boundary. */
@@ -61,6 +63,20 @@ export interface UpdateAgent {
 export interface SkillLink {
   skillId: string;
   order: number;
+  enabled: boolean;
+}
+
+/** A requested binding; its position in the array becomes its `order`. */
+export interface SkillBinding {
+  skillId: string;
+  enabled: boolean;
+}
+
+/** A skill as the prompt needs it: enabled binding, enabled skill, in order. */
+export interface ResolvedSkill {
+  id: string;
+  name: string;
+  body: string;
 }
 
 /** Workspace-scoped agent persistence (agents, agent_versions, agent_skills). */
@@ -80,8 +96,13 @@ export interface AgentStore {
   getVersion(agentId: string, version: number): Promise<AgentVersionRecord | undefined>;
   linkedSkills(agentId: string): Promise<SkillLink[]>;
   linkSkill(agentId: string, skillId: string, order: number): Promise<void>;
-  /** Replace the whole set, order = index (atomic). */
-  setSkills(agentId: string, skillIds: string[]): Promise<void>;
+  /**
+   * Replace the whole set, order = index (atomic, agent row-locked). When the enabled,
+   * ordered list changes it bumps the agent version and snapshots it. False = no such agent.
+   */
+  setSkills(workspaceId: string, agentId: string, bindings: SkillBinding[]): Promise<boolean>;
+  /** Skills to put in the prompt, in binding order: binding AND skill enabled. */
+  resolvedSkills(agentId: string): Promise<ResolvedSkill[]>;
   /** The subset of `skillIds` that exist in the workspace. */
   skillIdsInWorkspace(workspaceId: string, skillIds: string[]): Promise<Set<string>>;
 }

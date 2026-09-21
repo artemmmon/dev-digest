@@ -33,4 +33,13 @@ export const keys = {
 
   agents: () => ["agents"] as const,
   agent: (id: Id) => ["agent", id] as const,
+
+  skills: () => ["skills"] as const,
+  skill: (id: Id) => ["skill", id] as const,
+  /** Every per-skill query (detail, versions, agents) — a prefix of `skill(id)`. */
+  skillScope: () => ["skill"] as const,
+  skillVersions: (id: Id) => ["skill", id, "versions"] as const,
+  skillAgents: (id: Id) => ["skill", id, "agents"] as const,
+  /** An agent's skill bindings (order + per-agent switch). */
+  agentSkills: (agentId: Id) => ["agent-skills", agentId] as const,
 };

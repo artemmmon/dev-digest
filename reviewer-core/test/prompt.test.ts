@@ -65,6 +65,30 @@ describe('assemblePrompt — ## PR description', () => {
   });
 });
 
+describe('assemblePrompt — ## Skills / rules', () => {
+  it('renders skill blocks in the given order between the PR description and the diff', () => {
+    const { messages, assembly } = assemblePrompt({
+      system: 'sys',
+      diff: 'D',
+      prDescription: 'why',
+      skills: ['### Skill: first\nA', '### Skill: second\nB'],
+    });
+    const user = messages[1]!.content;
+    expect(user.indexOf('## PR description')).toBeLessThan(user.indexOf('## Skills / rules'));
+    expect(user.indexOf('### Skill: first')).toBeLessThan(user.indexOf('### Skill: second'));
+    expect(user.indexOf('### Skill: second')).toBeLessThan(user.indexOf('## Diff to review'));
+    expect(assembly.skills).toBe('### Skill: first\nA\n\n### Skill: second\nB');
+  });
+
+  it('leaves no section when there are no skills', () => {
+    for (const skills of [undefined, []]) {
+      const { messages, assembly } = assemblePrompt({ system: 'sys', diff: 'D', skills });
+      expect(messages[1]!.content).not.toContain('## Skills / rules');
+      expect(assembly.skills).toBeNull();
+    }
+  });
+});
+
 describe('wrapUntrusted', () => {
   it.each(['</untrusted>', '</UNTRUSTED>', '</ untrusted >', '</Untrusted\n>'])(
     'cannot be closed early with %j',

@@ -138,23 +138,50 @@ export class AgentsService {
   /** Linked skills for an agent as AgentSkillLink[] (ordered). */
   async skillLinks(agentId: string): Promise<AgentSkillLink[]> {
     const links = await this.repo.linkedSkills(agentId);
-    return links.map((l) => ({ agent_id: agentId, skill_id: l.skillId, order: l.order }));
+    return links.map((l) => ({
+      agent_id: agentId,
+      skill_id: l.skillId,
+      order: l.order,
+      enabled: l.enabled,
+    }));
   }
 
   /**
-   * Set / reorder the agent's linked skills. If `skillIds` is provided, replaces
-   * the whole set in that order. Returns the resulting ordered links.
+   * Set / reorder the agent's linked skills. Replaces the whole set in the given order
+   * and keeps each skill's existing on/off switch (new links start on).
    */
   async setSkills(
     workspaceId: string,
     agentId: string,
     skillIds: string[],
   ): Promise<AgentSkillLink[] | undefined> {
+    const existing = new Map((await this.repo.linkedSkills(agentId)).map((l) => [l.skillId, l.enabled]));
+    return this.setBindings(
+      workspaceId,
+      agentId,
+      skillIds.map((skill_id) => ({ skill_id, enabled: existing.get(skill_id) ?? true })),
+    );
+  }
+
+  /** Replace the agent's bindings: array order is the prompt order, `enabled` the per-agent switch. */
+  async setBindings(
+    workspaceId: string,
+    agentId: string,
+    bindings: Array<{ skill_id: string; enabled: boolean }>,
+  ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
-    await this.requireWorkspaceSkills(workspaceId, skillIds);
-    await this.repo.setSkills(agentId, skillIds);
-    return this.skillLinks(agentId);
+    const ids = bindings.map((b) => b.skill_id);
+    if (new Set(ids).size !== ids.length) {
+      throw new ValidationError('A skill can be bound to an agent only once');
+    }
+    await this.requireWorkspaceSkills(workspaceId, ids);
+    const ok = await this.repo.setSkills(
+      workspaceId,
+      agentId,
+      bindings.map((b) => ({ skillId: b.skill_id, enabled: b.enabled })),
+    );
+    return ok ? this.skillLinks(agentId) : undefined;
   }
 
   /** Link a single skill (append or set order) — additive to existing links. */

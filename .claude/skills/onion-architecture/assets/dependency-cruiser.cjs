@@ -35,6 +35,7 @@ const SDK_PKGS = [
   '@vscode/ripgrep',
   'dependency-cruiser',
   'js-tiktoken',
+  'fflate',
 ];
 
 /**

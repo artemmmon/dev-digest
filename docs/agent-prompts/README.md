@@ -9,6 +9,8 @@ in the DB). The canonical, reviewable copies live next to this file:
 - [`general-reviewer.md`](./general-reviewer.md)
 - [`security-reviewer.md`](./security-reviewer.md)
 - [`performance-reviewer.md`](./performance-reviewer.md)
+- [`test-quality-reviewer.md`](./test-quality-reviewer.md)
+- [`api-contract-reviewer.md`](./api-contract-reviewer.md)
 
 > The DB is the source of truth at run time. These files are the human-readable
 > originals — when you change a prompt, edit the file here **and** push it to the
@@ -38,7 +40,7 @@ delimiter-wrapped (`prompt.ts:104-122`):
 ```
 <task line, e.g. "Review PR #7 '…'">
 ## PR description        (untrusted, author-controlled, truncated to 4000 chars)
-## Skills / rules        (linked skill bodies)
+## Skills / rules        (bound skills, one `### Skill: <name>` block each, in binding order)
 ## Relevant memory       (curated memory items)
 ## Repo skeleton         (untrusted, repo-derived)
 ## Project context       (untrusted spec chunks)
@@ -46,7 +48,30 @@ delimiter-wrapped (`prompt.ts:104-122`):
 ## Diff to review        (untrusted)
 ```
 
-Sections with no content are omitted. Everything repo- or author-derived is wrapped
+Sections with no content are omitted.
+
+### Skills
+
+A skill is reusable text bound to an agent (agent editor → **Skills** tab). Only skills
+whose binding **and** global switch are on reach the prompt, in the order shown in the
+tab, each as its own block:
+
+```
+## Skills / rules
+### Skill: branch-coverage-rubric
+<body>
+
+### Skill: mocking-discipline
+<body>
+```
+
+The run trace (`prompt_assembly.skill_blocks`) lists each block with its token count, and
+the live log has one `skill "<name>" attached (N token(s))` line per block. A skill is
+text only — it can steer the model but never runs anything. An imported skill is someone
+else's instructions in your agent's prompt, so read it before you save it.
+
+Because the skills carry the detailed rubric, the reviewer prompts above stay short: a
+role, the priorities, and the severity / verdict / discipline blocks. Everything repo- or author-derived is wrapped
 in `<untrusted source="…">…</untrusted>` so the model can tell instructions
 (system) from data (user).
 

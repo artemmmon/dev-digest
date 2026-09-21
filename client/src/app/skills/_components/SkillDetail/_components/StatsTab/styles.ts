@@ -1,0 +1,58 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for StatsTab (the parts of the design's Stats screen that have real data). */
+export const s = {
+  stats: { display: "flex", gap: 14, marginBottom: 18 } satisfies CSSProperties,
+  stat: {
+    width: 200,
+    padding: 15,
+    borderRadius: 9,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+  } satisfies CSSProperties,
+  statLabel: { fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.03em" } satisfies CSSProperties,
+  statValue: { display: "flex", alignItems: "baseline", gap: 6, marginTop: 10 } satisfies CSSProperties,
+  statNumber: { fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em" } satisfies CSSProperties,
+  statUnit: { fontSize: 14, color: "var(--text-muted)" } satisfies CSSProperties,
+  card: {
+    maxWidth: 520,
+    padding: 15,
+    borderRadius: 9,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+  } satisfies CSSProperties,
+  cardTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "var(--text-muted)",
+    margin: "0 0 12px",
+  } satisfies CSSProperties,
+  list: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 } satisfies CSSProperties,
+  row: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "8px 10px",
+    borderRadius: 7,
+    border: "1px solid var(--border)",
+    background: "var(--bg-surface)",
+  } satisfies CSSProperties,
+  rowIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    background: "var(--accent-bg)",
+    color: "var(--accent)",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  rowName: { flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600 } satisfies CSSProperties,
+  open: { fontSize: 12.5, color: "var(--text-muted)" } satisfies CSSProperties,
+  muted: { fontSize: 13, color: "var(--text-muted)" } satisfies CSSProperties,
+} as const;

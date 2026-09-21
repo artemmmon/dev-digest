@@ -1,4 +1,4 @@
-import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type { AgentRecord } from '../agents/types.js';
@@ -196,6 +196,10 @@ export class ReviewRunExecutor {
 
       const task = taskLine(pull) + rankNote;
 
+      // L02 — skills. Only bindings that are on AND whose skill is on reach the prompt,
+      // in binding order, so a disabled skill leaves no block and no log line.
+      const skillBlocks = await this.buildSkillBlocks(agent.id, runLog);
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -210,6 +214,7 @@ export class ReviewRunExecutor {
         strategy: agent.strategy ?? REVIEW_STRATEGY,
         // T1.3 — pass the callers digest only when we built one. assemblePrompt
         // omits the section when this is empty/undefined.
+        ...(skillBlocks.length > 0 ? { skills: skillBlocks.map((b) => b.text) } : {}),
         ...(callersDigest ? { callers: callersDigest } : {}),
         // T3 — repo skeleton, same omit-when-empty contract.
         ...(repoMap ? { repoMap } : {}),
@@ -283,7 +288,12 @@ export class ReviewRunExecutor {
           findings: findingRows.length,
           grounding,
         },
-        prompt_assembly: outcome.assembly,
+        prompt_assembly: {
+          ...outcome.assembly,
+          ...(skillBlocks.length > 0
+            ? { skill_blocks: skillBlocks.map(({ text: _text, ...block }): SkillBlock => block) }
+            : {}),
+        },
         tool_calls: outcome.chunks.map((c) => ({
           tool: 'review_file',
           args: c.label,
@@ -370,6 +380,27 @@ export class ReviewRunExecutor {
     }
     runLog.info(`callers digest: ${rows.length} caller signature(s) attached`);
     return out.join('\n');
+  }
+
+  /**
+   * L02 — the agent's skills as prompt blocks (`### Skill: <name>` + body), in binding
+   * order, each with its token cost. One log line per attached skill.
+   */
+  private async buildSkillBlocks(
+    agentId: string,
+    runLog: RunLogger,
+  ): Promise<Array<SkillBlock & { text: string }>> {
+    const skills = await this.deps.agents.resolvedSkills(agentId);
+    if (skills.length === 0) {
+      runLog.info('skills: none attached');
+      return [];
+    }
+    const blocks = skills.map((s) => {
+      const text = `### Skill: ${s.name}\n${s.body}`;
+      return { skill_id: s.id, name: s.name, tokens: this.deps.tokenizer.count(text), text };
+    });
+    for (const b of blocks) runLog.info(`skill "${b.name}" attached (${b.tokens} token(s))`);
+    return blocks;
   }
 
   /**
