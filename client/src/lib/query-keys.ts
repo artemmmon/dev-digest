@@ -40,6 +40,8 @@ export const keys = {
   skillScope: () => ["skill"] as const,
   skillVersions: (id: Id) => ["skill", id, "versions"] as const,
   skillAgents: (id: Id) => ["skill", id, "agents"] as const,
+  /** A repo's convention candidates + last scan (the Conventions page). */
+  conventions: (repoId: Id) => ["conventions", repoId] as const,
   /** An agent's skill bindings (order + per-agent switch). */
   agentSkills: (agentId: Id) => ["agent-skills", agentId] as const,
 };
