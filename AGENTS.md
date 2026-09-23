@@ -50,7 +50,9 @@ Every package exposes the same three checks: `typecheck` · `lint` · `test`.
 
 ## Cross-package rules
 - Zod contracts are **copied**, not shared: `server/src/vendor/shared` (canonical,
-  also read by reviewer-core) and `client/src/vendor/shared`, kept byte-identical.
+  also read by reviewer-core) and `client/src/vendor/shared`, kept content-identical
+  (the client copy has `.js` stripped from relative imports — its bundler can't
+  resolve them for a cold runtime import; the server needs them for Node ESM).
   Edit the server copy, then `./scripts/shared-contracts.sh sync`; CI runs `check`.
 - Cross-package imports go through tsconfig path aliases (`@devdigest/shared`,
   `@devdigest/reviewer-core`), never relative `../../other-package` paths.

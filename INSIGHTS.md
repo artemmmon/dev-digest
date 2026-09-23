@@ -103,6 +103,18 @@ computation). Put it once in `server/src/vendor/shared/contracts/languages.ts`
 extension map that would drift the moment someone adds a language to only one side.
 Where: `server/src/vendor/shared/contracts/languages.ts:1`.
 
+### 2026-09-23 — Supersedes "`vendor/shared` copies have diverged" and "Supersedes 'vendor/shared copies have diverged'"
+The two copies are no longer literally byte-identical: `sync` now also strips the `.js` extension
+from every relative import/export in the CLIENT copy only (server keeps it — Node's `NodeNext` ESM
+requires it). Root cause: Next's webpack/Turbopack, in this project's version, cannot resolve a
+`.js`-extension relative import to a `.ts` file for a client runtime import reaching `vendor/shared`
+for the first time (`client/INSIGHTS.md`, 2026-09-23) — `tsc`/vitest handle it fine, which is why
+nobody hit this until a client file first imported a real value (not just a type) from the barrel.
+`check` now diffs the client copy against a NORMALISED (same stripping applied) copy of the
+server's, so it still fails on any REAL content drift while tolerating this one intentional,
+mechanical difference.
+Where: `scripts/shared-contracts.sh` (`strip_js_extensions`).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source

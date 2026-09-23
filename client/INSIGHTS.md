@@ -37,6 +37,28 @@ from this barrel, so **verify `pnpm dev` actually serves that tab on your machin
 it works outside `vitest` (which resolves the same barrel fine — its own resolver, unaffected).
 Where: `src/components/diff-viewer/helpers.ts:2`, `src/vendor/shared/index.ts` (barrel), `next.config.mjs`.
 
+### 2026-09-23 — Supersedes "`next build`/`next dev` fail to resolve `@devdigest/shared`'s barrel the FIRST time a client file imports a real value from it" — confirmed root cause and fix
+Root cause found: every relative import inside `vendor/shared` uses an explicit `.js` extension
+(`export * from './contracts/findings.js'`, `import { Provider } from './knowledge.js'`, …) — required
+for the SERVER copy, which `tsx`/Node run as real ESM (`NodeNext` resolution mandates the extension).
+`tsc` (client `moduleResolution: "Bundler"`) and Vite/esbuild (vitest) both map `.js` → `.ts` for these
+imports without complaint, so nothing caught it — but Next's webpack/Turbopack, in THIS Next 15.5.19
+install, does not, and every existing client import of the barrel was `import type`, which is erased
+before bundling, so no runtime import had ever reached this codepath before `diff-viewer/helpers.ts`.
+Confirmed by a controlled test: stripping the `.js` extension from every relative import in a scratch
+copy of `client/src/vendor/shared` (barrel + every contract file's internal cross-imports + `adapters.ts`)
+made a real `pnpm dev` fully load the PR detail page's Files-changed tab (chip and all) — first
+uncached load, no error, verified via the browser, not just curl. Restored to the synced state
+afterward; NOT shipped as-is because it would silently diverge from the server's canonical copy on
+every future sync.
+**The real fix belongs in `scripts/shared-contracts.sh`**: teach `sync` to strip `.js` extensions from
+relative-import specifiers ONLY in the copy it writes to `client/`, keeping the server's copy (and
+Node's requirement) untouched — and teach `check` to compare after the same normalisation, so CI still
+catches a real content drift without flagging this one intentional, mechanical difference. This is an
+architecture decision (the two copies stop being literally byte-identical, though they stay
+semantically identical), so it needs sign-off before implementing, not just for someone to hit next.
+Where: `../scripts/shared-contracts.sh`, `src/vendor/shared/index.ts`, `../server/src/vendor/shared/contracts/platform.ts:2` (`import { Provider } from './knowledge.js'`, one of several internal `.js` cross-imports needing the same treatment).
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Local `vendor/shared` lags behind the server
