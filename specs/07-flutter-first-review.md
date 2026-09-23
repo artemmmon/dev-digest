@@ -1,5 +1,5 @@
 # Flutter-first review: applies_to gating + the Flutter pack
-Status: in progress (part 1 — applies_to gating — done; part 2 — Flutter skill pack, Flutter Reviewer, neutral prompts — pending)
+Status: done
 
 ## Goal
 Make skills and agents stack-aware. Today every enabled skill is injected into every
@@ -24,9 +24,33 @@ polluting other stacks' reviews.
   Skill form, the Skill detail Config tab, and the Agent editor Config tab; a chip on
   `SkillCard`/`AgentCard` showing the first glob (+N).
 
-**Out (part 2)**
-- The actual Flutter/Dart skill pack, the Flutter Reviewer agent, and neutralising the
-  Node/Fastify assumptions baked into the General/Performance prompts.
+## Scope — part 2 (done)
+**In**
+- 12 new seeded skills: 8 Flutter/Dart-only (`flutter-async-context-safety`,
+  `flutter-resource-disposal`, `bloc-cubit-conventions`, `dart-null-safety-and-types`,
+  `dart-async-correctness`, `flutter-platform-and-assets`, `dart-codegen-sources`,
+  `flutter-ui-accessibility-and-theming`) bound only to the new **Flutter Reviewer**
+  agent; `flutter-widget-testing` joins Test Quality; `flutter-rebuild-performance` joins
+  Performance; `node-ts-correctness` joins General; `node-fastify-drizzle-performance`
+  joins Performance. State-management guidance assumes Bloc/Cubit where one is needed
+  (`bloc-cubit-conventions` explicitly says not to apply without a Bloc/Cubit in the
+  diff); everything else is state-management-neutral.
+- **Flutter Reviewer** agent: `repoIntel: false` (the indexer is JS/TS-only, so a Dart
+  repo's skeleton/callers digest is always empty), `applies_to: ['*.dart',
+  'pubspec.yaml', '*.arb']`, its own prompt (`FLUTTER_REVIEWER_PROMPT`).
+- General and Performance prompts stop assuming Node/Fastify/Drizzle/pgvector — they
+  infer the stack from the diff, and the removed specifics move into
+  `node-ts-correctness` / `node-fastify-drizzle-performance` (gated to TS/JS).
+- A guarded, idempotent seed migration for an EXISTING database: new skills/agent insert
+  by name as before; a skill CREATED this run is appended (`AgentsRepository.appendSkill`)
+  to already-configured agents (Test Quality, Performance, General) without disturbing a
+  binding the user removed; General/Performance's prompt is replaced only if it's still
+  byte-identical to the pre-Flutter-first text (`seed-prompts-legacy.ts`) — a customised
+  prompt is left alone and logged; `zod-contract-conventions` gets TS/JS `applies_to`
+  only if the row has never been edited (`updated_at = created_at`).
+
+**Out**
+- Dart in repo-intel (ast-grep has no built-in Dart grammar) — unchanged from spec 05/06.
 
 ## Design
 Packages: server, client. Contracts (`server/src/vendor/shared/contracts/knowledge.ts`):
@@ -74,6 +98,12 @@ boundary (`@/lib/applies-to-presets`'s `parseAppliesTo`, shared by skills and ag
   `skipped_agents`, and gets no run — but running it explicitly by id still works.
 - A PR with no `pr_files` yet still runs every enabled agent (fail open).
 - Saving a skill/agent form without touching "Applies to" never bumps the agent version.
+- A fresh `pnpm db:seed` creates Flutter Reviewer with its 8 skills, in order; a second
+  run changes nothing (`server/test/seed.it.test.ts`).
+- On a Flutter PR, running Flutter Reviewer surfaces its Dart-specific findings; on a
+  TS-only PR, its Dart skills (and Flutter Reviewer itself, under "Run all") are skipped.
+- Re-seeding a database where General/Performance were hand-edited leaves those prompts
+  untouched; re-seeding one still on the original text upgrades and versions it.
 
 ## Open questions
-- None outstanding for part 1.
+- None outstanding.

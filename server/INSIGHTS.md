@@ -287,6 +287,31 @@ block right there. Hit once in `diff-filter.ts` (phase 05) and again in
 "`dir` + slash + `**`" / "`**` + slash + `name`", never the literal 2-character sequence.
 Where: `src/modules/reviews/diff-filter.ts:17`, `src/modules/reviews/applicability.ts:5`.
 
+### 2026-09-23 — A guarded prompt upgrade must check "already up to date" before "customised", or a fresh install is misreported
+`seed.ts`'s `upgradePromptIfLegacy` only had one branch at first: `systemPrompt !== legacy
+→ skip, logged as "customised"`. On a FRESH database the newly-inserted agent's
+`systemPrompt` is already the NEW (neutral) prompt — which also isn't equal to `legacy` —
+so every fresh install logged "skipped … — customised prompt" for General/Performance,
+which is false (nobody customised anything; there was simply nothing to upgrade). Fixed
+by checking `systemPrompt === next` (already current) FIRST and returning silently, before
+the "does it match the old text" check that decides "upgrade" vs "genuinely customised".
+Any future guarded-upgrade helper needs the same three-way branch (current / legacy /
+other), not a two-way one.
+Where: `src/db/seed.ts` (`upgradePromptIfLegacy`).
+
+### 2026-09-23 — `pnpm typecheck` never sees `server/test/**` — a wrong field name in a test only fails at runtime
+`server/tsconfig.json`'s `include` is `["src/**/*.ts"]`; vitest itself runs tests through
+esbuild (types stripped, not checked), so a test file's type errors surface only when the
+test actually executes and hits the wrong shape at runtime (here: passing `{skill_id: ...}`
+where `SkillBinding` needs `{skillId: ...}` — a real Postgres NOT NULL violation, not a
+compile error, and ESLint's `no-unused-vars` catches unrelated slips like a stray unused
+`const` in a test, but not this). `pnpm lint` DOES run over `test/**` (eslint has no
+tsconfig-style `include` restriction) — so lint catches unused-variable mistakes in tests
+that typecheck silently allows, but neither one catches a field-name mismatch; only running
+the test does. Don't trust `pnpm typecheck` passing as proof a new `*.it.test.ts` compiles
+correctly — run it.
+Where: `tsconfig.json:28` (`include`), `test/seed.it.test.ts` (where this was caught).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

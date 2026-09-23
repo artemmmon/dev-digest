@@ -113,7 +113,11 @@ through `SecretsProvider` (`~/.devdigest/secrets.json`, mode `0600`, with
 
 Migrations are **not** applied on boot — run `pnpm db:migrate` (pgvector is
 enabled by migration `0000`). `pnpm db:seed` is idempotent demo data
-(`acme/payments-api`, PR #482, the five built-in agents and the skills bound to Test Quality / API Contract).
+(`acme/payments-api`, PR #482, the six built-in agents — including Flutter Reviewer —
+and the skills bound to Test Quality / API Contract / Flutter Reviewer / General /
+Performance). Re-seeding an existing DB upgrades General/Performance's prompt only if
+it's still the original text, and appends a newly-added skill to an already-configured
+agent without disturbing bindings you've since removed (`specs/07-flutter-first-review.md`).
 
 ## Review context (non-obvious)
 

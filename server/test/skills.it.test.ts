@@ -381,7 +381,9 @@ d('skills (Testcontainers pg)', () => {
       return (await new AgentsRepository(pg.handle.db).resolvedSkills(agent!.id)).map((s) => s.name);
     };
 
-    const tq = ['branch-coverage-rubric', 'mocking-discipline', 'flaky-test-patterns'];
+    // flutter-widget-testing (spec 07, part 2) joins Test Quality's original three —
+    // appended, not re-seeded via bindSkills, since the agent already had bindings.
+    const tq = ['branch-coverage-rubric', 'mocking-discipline', 'flaky-test-patterns', 'flutter-widget-testing'];
     const api = ['route-breaking-change-rubric', 'zod-contract-conventions'];
     expect(await boundNames('Test Quality Reviewer')).toEqual(tq);
     expect(await boundNames('API Contract Reviewer')).toEqual(api);
