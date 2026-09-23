@@ -5,6 +5,7 @@ import {
   Agent,
   AgentSkillLink,
   AgentVersion,
+  AppliesTo,
   CiFailOn,
   Provider,
   ReviewStrategy,
@@ -49,6 +50,7 @@ const CreateAgentBody = z.object({
   strategy: ReviewStrategy.optional(),
   ci_fail_on: CiFailOn.optional(),
   repo_intel: z.boolean().optional(),
+  applies_to: AppliesTo.nullish(),
   enabled: z.boolean().optional(),
 });
 
@@ -62,6 +64,7 @@ const UpdateAgentBody = z.object({
   strategy: ReviewStrategy.optional(),
   ci_fail_on: CiFailOn.optional(),
   repo_intel: z.boolean().optional(),
+  applies_to: AppliesTo.nullish(),
   enabled: z.boolean().optional(),
 });
 
@@ -113,6 +116,7 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
         ...(body.strategy !== undefined ? { strategy: body.strategy } : {}),
         ...(body.ci_fail_on !== undefined ? { ci_fail_on: body.ci_fail_on } : {}),
         ...(body.repo_intel !== undefined ? { repo_intel: body.repo_intel } : {}),
+        ...(body.applies_to !== undefined ? { applies_to: body.applies_to } : {}),
         ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
       },
       userId,

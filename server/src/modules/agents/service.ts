@@ -9,7 +9,7 @@ import type {
 } from '@devdigest/shared';
 import type { AgentsServiceDeps } from './ports.js';
 import { ValidationError } from '../../platform/errors.js';
-import { toAgentDto, toAgentVersionDto } from './helpers.js';
+import { toAgentDto, toAgentVersionDto, normalizeAppliesTo } from './helpers.js';
 
 /**
  * A2 — agents service. Business logic for the Agents tab + Agent Editor.
@@ -32,6 +32,7 @@ export interface CreateAgentInput {
   strategy?: ReviewStrategy;
   ci_fail_on?: CiFailOn;
   repo_intel?: boolean;
+  applies_to?: string[] | null;
   enabled?: boolean;
 }
 
@@ -45,6 +46,7 @@ export interface UpdateAgentInput {
   strategy?: ReviewStrategy;
   ci_fail_on?: CiFailOn;
   repo_intel?: boolean;
+  applies_to?: string[] | null;
   enabled?: boolean;
 }
 
@@ -82,6 +84,7 @@ export class AgentsService {
       ...(input.strategy !== undefined ? { strategy: input.strategy } : {}),
       ...(input.ci_fail_on !== undefined ? { ciFailOn: input.ci_fail_on } : {}),
       ...(input.repo_intel !== undefined ? { repoIntel: input.repo_intel } : {}),
+      ...(input.applies_to !== undefined ? { appliesTo: normalizeAppliesTo(input.applies_to) } : {}),
       enabled: input.enabled,
       createdBy: userId ?? null,
     });
@@ -103,6 +106,7 @@ export class AgentsService {
       ...(patch.strategy !== undefined ? { strategy: patch.strategy } : {}),
       ...(patch.ci_fail_on !== undefined ? { ciFailOn: patch.ci_fail_on } : {}),
       ...(patch.repo_intel !== undefined ? { repoIntel: patch.repo_intel } : {}),
+      ...(patch.applies_to !== undefined ? { appliesTo: normalizeAppliesTo(patch.applies_to) } : {}),
       ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
     });
     return row ? toAgentDto(row) : undefined;

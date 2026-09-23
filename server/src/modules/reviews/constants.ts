@@ -21,9 +21,9 @@ export const REVIEW_STRATEGY = 'single-pass' as const;
  * finding about a file that does not exist, which citation grounding then dropped —
  * a full-price run that persisted nothing.
  *
- * Pattern forms (see `diff-filter.ts`): `dir/**` prefix, `**` + `/name` basename,
- * `*.ext` extension, or an exact path. Keep the list small and only for files
- * nobody authors by hand.
+ * Pattern forms (see `diff-filter.ts`): `dir` + slash + `**` prefix, `**` + slash + `name`
+ * basename (name may itself have wildcards or more slashes), `*.ext`-style wildcard, or
+ * an exact path. Keep the list small and only for files nobody authors by hand.
  */
 export const REVIEW_EXCLUDED_PATHS: string[] = [
   'client/docs/design/**', // unpacked Claude Design export — mock data, not code
@@ -32,4 +32,23 @@ export const REVIEW_EXCLUDED_PATHS: string[] = [
   '**/pnpm-lock.yaml', // one per package — this repo is not a pnpm workspace
   '**/package-lock.json',
   '*.lock',
+
+  // Dart/Flutter codegen (`build_runner`) — never authored by hand, reviewing it burns
+  // context and risks findings against generated code (`INSIGHTS.md` rationale above).
+  '*.g.dart',
+  '*.freezed.dart',
+  '*.gr.dart', // auto_route
+  '*.mocks.dart', // mockito/build_runner
+  '*.gen.dart',
+  '*.config.dart', // injectable
+  '*.pb.dart', // protobuf
+  '*.pbenum.dart',
+  '*.pbjson.dart',
+  '*.pbserver.dart',
+  '**/generated/**', // intl_utils and other codegen output directories
+  '**/l10n/app_localizations*.dart', // flutter gen-l10n output
+  '**/GeneratedPluginRegistrant.*', // Flutter tool output (Android/iOS/desktop)
+  '**/generated_plugin_registrant.*',
+  '**/Flutter/ephemeral/**', // Flutter tool scratch dir (iOS/macOS runner)
+  '**/Generated.xcconfig',
 ];

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { Finding, Verdict } from './findings.js';
-import { Intent, SmartDiff } from './brief.js';
+import { Finding, Verdict } from './findings';
+import { Intent, SmartDiff } from './brief';
 
 /**
  * A2 — Review-Core API surface contracts. These extend the core
@@ -52,10 +52,18 @@ export const ReviewRunTarget = z.object({
 });
 export type ReviewRunTarget = z.infer<typeof ReviewRunTarget>;
 
+/** An enabled agent a "Run all" skipped: its `applies_to` matched none of the PR's changed files. */
+export const SkippedAgent = z.object({
+  agent_id: z.string(),
+  agent_name: z.string(),
+});
+export type SkippedAgent = z.infer<typeof SkippedAgent>;
+
 export const ReviewRunResponse = z.object({
   pr_id: z.string(),
   runs: z.array(ReviewRunTarget),
   reviews: z.array(ReviewRecord),
+  skipped_agents: z.array(SkippedAgent),
 });
 export type ReviewRunResponse = z.infer<typeof ReviewRunResponse>;
 

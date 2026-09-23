@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { Badge, Button, Icon, SelectInput, TextInput, Toggle } from "@devdigest/ui";
 import type { Skill, SkillType } from "@devdigest/shared";
 import { EXTERNAL_SOURCES } from "@/components/skill-type-chip";
-import { SKILL_TYPES } from "../../../constants";
+import { APPLIES_TO_PRESETS, SKILL_TYPES } from "../../../constants";
 import type { SkillDraft } from "../../../helpers";
 import { approxTokens } from "../../helpers";
 import { MarkdownCodeEditor } from "./_components/MarkdownCodeEditor";
@@ -96,6 +96,35 @@ export function ConfigTab({
             mono={false}
           />
         </label>
+
+        <div style={s.field}>
+          <span style={s.label}>{t("form.appliesTo")}</span>
+          <TextInput
+            value={draft.appliesTo}
+            onChange={(v) => set("appliesTo", v)}
+            placeholder={t("form.appliesToPlaceholder")}
+            mono
+          />
+          <span style={s.hint}>{t("form.appliesToHint")}</span>
+          <div style={s.presetBar}>
+            {APPLIES_TO_PRESETS.map((p) => (
+              <Button
+                key={p.key}
+                kind="tertiary"
+                size="sm"
+                type="button"
+                onClick={() => set("appliesTo", p.value)}
+              >
+                {t(`form.appliesToPresets.${p.key}`)}
+              </Button>
+            ))}
+            {draft.appliesTo.trim() !== "" && (
+              <Button kind="tertiary" size="sm" type="button" onClick={() => set("appliesTo", "")}>
+                {t("form.appliesToPresets.clear")}
+              </Button>
+            )}
+          </div>
+        </div>
 
         <div style={{ ...s.field, marginBottom: 0 }}>
           <span style={s.label}>

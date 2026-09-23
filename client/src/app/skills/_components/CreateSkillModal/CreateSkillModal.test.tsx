@@ -56,7 +56,7 @@ describe("CreateSkillModal", () => {
     await fill(user);
     await user.click(screen.getByRole("button", { name: "Create skill" }));
     expect(h.create).toHaveBeenCalledWith(
-      { name: "my-skill", description: "Use when X: do Y.", type: "rubric", body: "# Rule" },
+      { name: "my-skill", description: "Use when X: do Y.", type: "rubric", body: "# Rule", applies_to: null },
       expect.anything(),
     );
     act(() => h.create.mock.calls[0]![1].onSuccess(CREATED));

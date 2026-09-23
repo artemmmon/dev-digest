@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 export const s = {
   form: { display: "flex", flexDirection: "column" } satisfies CSSProperties,
   modeBar: { display: "flex", gap: 6 } satisfies CSSProperties,
+  presetBar: { display: "flex", gap: 6, flexWrap: "wrap" } satisfies CSSProperties,
   preview: {
     minHeight: 200,
     padding: "10px 14px",

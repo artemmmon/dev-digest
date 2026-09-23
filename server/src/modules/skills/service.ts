@@ -1,7 +1,7 @@
 import type { Skill, SkillAgentUse, SkillImportPreview, SkillInput, SkillVersion } from '@devdigest/shared';
 import { ValidationError } from '../../platform/errors.js';
 import { MAX_IMPORT_BYTES, URL_FETCH_TIMEOUT_MS } from './constants.js';
-import { toSkillDto, toSkillVersionDto } from './helpers.js';
+import { toSkillDto, toSkillVersionDto, normalizeAppliesTo } from './helpers.js';
 import { parseSkillImport } from './import-parser.js';
 import { normalizeSkillUrl } from './url.js';
 import type { SkillRecord, SkillsServiceDeps } from './ports.js';
@@ -11,7 +11,9 @@ import type { SkillRecord, SkillsServiceDeps } from './ports.js';
  * markdown body. Nothing here executes a skill or anything inside an import.
  */
 
-export type UpdateSkillInput = Partial<Pick<SkillInput, 'name' | 'description' | 'type' | 'body'>> & {
+export type UpdateSkillInput = Partial<
+  Pick<SkillInput, 'name' | 'description' | 'type' | 'body' | 'applies_to'>
+> & {
   /** What changed; stored with the new version when the body changes. */
   message?: string;
 };
@@ -60,6 +62,7 @@ export class SkillsService {
       type: input.type,
       source: input.source ?? 'manual',
       body: input.body,
+      appliesTo: normalizeAppliesTo(input.applies_to),
     });
     return this.toDto(workspaceId, row);
   }
@@ -70,6 +73,7 @@ export class SkillsService {
       ...(patch.description !== undefined ? { description: patch.description } : {}),
       ...(patch.type !== undefined ? { type: patch.type } : {}),
       ...(patch.body !== undefined ? { body: patch.body } : {}),
+      ...(patch.applies_to !== undefined ? { appliesTo: normalizeAppliesTo(patch.applies_to) } : {}),
       ...(patch.message !== undefined ? { message: patch.message } : {}),
     });
     return row && this.toDto(workspaceId, row);

@@ -11,6 +11,7 @@ in the DB). The canonical, reviewable copies live next to this file:
 - [`performance-reviewer.md`](./performance-reviewer.md)
 - [`test-quality-reviewer.md`](./test-quality-reviewer.md)
 - [`api-contract-reviewer.md`](./api-contract-reviewer.md)
+- [`flutter-reviewer.md`](./flutter-reviewer.md)
 
 > The DB is the source of truth at run time. These files are the human-readable
 > originals — when you change a prompt, edit the file here **and** push it to the
@@ -69,6 +70,14 @@ The run trace (`prompt_assembly.skill_blocks`) lists each block with its token c
 the live log has one `skill "<name>" attached (N token(s))` line per block. A skill is
 text only — it can steer the model but never runs anything. An imported skill is someone
 else's instructions in your agent's prompt, so read it before you save it.
+
+A skill can also be scoped with **Applies to** — one or more glob patterns (`*.dart`,
+`test/**`, …) over the PR's changed files. A scoped skill whose globs match none of them
+is left out of the prompt entirely and logs `skill "<name>" skipped — applies to …; no
+changed file matches` instead — so a Dart rubric never reaches a TS-only PR's prompt, and
+vice versa. Empty/unset = always applies. An agent can carry the same scope (Agent editor
+→ Config → Applies to): a "Run all" review then skips that agent altogether on a PR it
+doesn't apply to, reported in the response's `skipped_agents`.
 
 Because the skills carry the detailed rubric, the reviewer prompts above stay short: a
 role, the priorities, and the severity / verdict / discipline blocks. Everything repo- or author-derived is wrapped

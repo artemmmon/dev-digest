@@ -9,7 +9,7 @@ import { z } from 'zod';
  * shaped that line. Rendered as the `WhyTimeline` drawer (keyboard `w`).
  *
  * Owned by A3. Added as a NEW contract file; the barrel is wired by the
- * orchestrator (export * from './contracts/why.js').
+ * orchestrator (export * from './contracts/why').
  */
 
 export const WhyEvent = z.object({

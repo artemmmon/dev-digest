@@ -1,5 +1,22 @@
 /** Pure helpers for the DiffViewer. */
+import { languageOf, isGeneratedPath } from "@devdigest/shared";
 import { HUNK_HEADER_RE } from "./constants";
+
+export interface FileChip {
+  /** Short label for the chip, e.g. `dart`, `tsx`, `yaml`. */
+  label: string;
+  /** Full name for the tooltip, e.g. `Dart`, `TypeScript (TSX)`. */
+  name: string;
+  /** True for a build-step output (`*.g.dart`, …) — never authored by hand. */
+  generated: boolean;
+}
+
+/** Language/format chip for one changed file, or `null` when nothing is recognised. */
+export function fileChip(path: string): FileChip | null {
+  const info = languageOf(path);
+  if (!info) return null;
+  return { label: info.label, name: info.name, generated: isGeneratedPath(path) };
+}
 
 export interface Line {
   kind: "add" | "del" | "ctx" | "hunk";

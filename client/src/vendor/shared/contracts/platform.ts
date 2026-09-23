@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Provider } from './knowledge.js';
+import { Provider } from './knowledge';
 
 /**
  * Platform / scaffolding DTOs owned by F1:
@@ -143,6 +143,35 @@ export const RepoInput = z.object({
 });
 export type RepoInput = z.infer<typeof RepoInput>;
 
+/** One manifest's framework, e.g. `{ name: 'Next.js', path: 'client' }` (path '' = repo root). */
+export const RepoStackFramework = z.object({
+  name: z.string(),
+  path: z.string(),
+});
+export type RepoStackFramework = z.infer<typeof RepoStackFramework>;
+
+/** A code language's share of the repo's (non-generated, non-scaffold) source files, 0..1. */
+export const RepoStackLanguage = z.object({
+  name: z.string(),
+  share: z.number().min(0).max(1),
+});
+export type RepoStackLanguage = z.infer<typeof RepoStackLanguage>;
+
+/**
+ * Auto-detected tech stack of a repo, from its manifests and tracked files —
+ * `frameworks[0]` is the primary one (most code under its manifest's folder);
+ * further entries are a monorepo's other apps. Stored once per clone/refresh
+ * (`modules/repos/stack.ts`); every field is additive-safe (`.nullish()` on
+ * `Repo.stack` itself), so an old stored row still round-trips.
+ */
+export const RepoStack = z.object({
+  frameworks: z.array(RepoStackFramework),
+  languages: z.array(RepoStackLanguage),
+  packages: z.array(z.string()),
+  detected_at: z.string(),
+});
+export type RepoStack = z.infer<typeof RepoStack>;
+
 export const Repo = z.object({
   id: z.string(),
   workspace_id: z.string(),
@@ -153,6 +182,8 @@ export const Repo = z.object({
   clone_path: z.string().nullable(),
   last_polled_at: z.string().nullable(),
   created_by: z.string().nullable(),
+  /** `null` = not detected yet (detection runs after the first clone completes). */
+  stack: RepoStack.nullish(),
 });
 export type Repo = z.infer<typeof Repo>;
 

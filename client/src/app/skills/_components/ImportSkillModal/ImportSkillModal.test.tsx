@@ -84,7 +84,14 @@ describe("ImportSkillModal", () => {
     await user.click(screen.getByRole("button", { name: "Save skill" }));
 
     expect(h.createMutate).toHaveBeenCalledWith(
-      { name: "renamed", description: PREVIEW.description, type: "rubric", body: PREVIEW.body, source: "imported_file" },
+      {
+        name: "renamed",
+        description: PREVIEW.description,
+        type: "rubric",
+        body: PREVIEW.body,
+        applies_to: null,
+        source: "imported_file",
+      },
       expect.any(Object),
     );
     expect(onSaved).toHaveBeenCalledWith({ id: "new", name: "renamed" });
@@ -162,7 +169,14 @@ describe("ImportSkillModal - From URL", () => {
     await user.click(await screen.findByRole("button", { name: "Save skill" }));
 
     expect(h.createMutate).toHaveBeenCalledWith(
-      { name: "boundary-cases", description: PREVIEW.description, type: "rubric", body: PREVIEW.body, source: "imported_url" },
+      {
+        name: "boundary-cases",
+        description: PREVIEW.description,
+        type: "rubric",
+        body: PREVIEW.body,
+        applies_to: null,
+        source: "imported_url",
+      },
       expect.any(Object),
     );
   });

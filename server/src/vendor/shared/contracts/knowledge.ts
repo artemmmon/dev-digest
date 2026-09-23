@@ -124,6 +124,16 @@ export const SkillSource = z.enum([
 ]);
 export type SkillSource = z.infer<typeof SkillSource>;
 
+/**
+ * Path globs (`modules/reviews/diff-filter.ts`'s matcher — `*.dart`, `test/**`, an
+ * exact path, …) over a PR's changed files. Null/empty = always applies. Shared by
+ * `Skill`/`SkillInput`/`SkillImportPreview` and `Agent`/`AgentVersionConfig`: a
+ * skill or a whole agent can be scoped to the stack it's written for, so a Dart
+ * rubric never fires on a TS-only PR and vice versa.
+ */
+export const AppliesTo = z.array(z.string().trim().min(1).max(200)).max(30);
+export type AppliesTo = z.infer<typeof AppliesTo>;
+
 export const Skill = z.object({
   id: z.string(),
   name: z.string(),
@@ -134,6 +144,7 @@ export const Skill = z.object({
   enabled: z.boolean(),
   version: z.number().int(),
   evidence_files: z.array(z.string()).nullish(),
+  applies_to: AppliesTo.nullish(),
   /** Agents with an enabled binding to this skill. */
   agent_count: z.number().int().nullish(),
   /** Tokens the body adds to a prompt. */
@@ -161,6 +172,7 @@ export const SkillInput = z.object({
   type: SkillType,
   body: z.string().min(1).max(200_000),
   source: SkillSource.optional(),
+  applies_to: AppliesTo.nullish(),
 });
 export type SkillInput = z.infer<typeof SkillInput>;
 
@@ -179,6 +191,7 @@ export const SkillImportPreview = z.object({
   body: z.string(),
   source_file: z.string(),
   ignored_files: z.array(IgnoredFile),
+  applies_to: AppliesTo.nullish(),
 });
 export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
 
@@ -360,6 +373,10 @@ export const Agent = z.object({
   // Inject repo-intel context (repo skeleton + callers + rank note) into this
   // agent's review prompt. Default on; gated again by the global flag.
   repo_intel: z.boolean().default(true),
+  // Glob-over-changed-files gate (see `AppliesTo`): a "Run all" review skips this
+  // agent when the PR touches none of these paths. An explicitly chosen agent
+  // always runs regardless. Null/empty = always applies.
+  applies_to: AppliesTo.nullish(),
   // Enabled skill bindings; drives the "N skills" badge on the agent card.
   skill_count: z.number().int().nullish(),
 });
@@ -392,6 +409,7 @@ export const AgentVersionConfig = z.object({
   strategy: ReviewStrategy,
   ci_fail_on: CiFailOn,
   repo_intel: z.boolean(),
+  applies_to: AppliesTo.nullish(),
   skills: z.array(z.string()),
 });
 export type AgentVersionConfig = z.infer<typeof AgentVersionConfig>;

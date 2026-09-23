@@ -9,6 +9,56 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 
 ## What Doesn't Work
 
+### 2026-09-23 — `next build`/`next dev` (webpack AND Turbopack) fail to resolve `@devdigest/shared`'s barrel the FIRST time a client file imports a real value from it
+Every existing client import of `@devdigest/shared` is `import type {...}` (`src/lib/types.ts`,
+`src/lib/hooks/{skills,conventions,reviews}.ts`) — type-only imports get elided before bundling, so
+they never actually ask Next's bundler to resolve the barrel at runtime. `components/diff-viewer/
+helpers.ts` imports `languageOf`/`isGeneratedPath` as real values — the first runtime import from
+this barrel anywhere in the client — and both `next build` and `next dev` then fail with `Module not
+found: Can't resolve './contracts/findings.js'` (+ `review-api.js`, `brief.js`, `knowledge.js`,
+`trace.js` — always exactly these 5, always the barrel's first 5 `export *` lines, out of 13; not a
+size or cross-import property of those 5 specifically, see below). Turbopack instead reports
+`languageOf was not found … the module has no exports at all`, i.e. it treats the barrel's
+`export *` re-exports as unresolvable too, just with different phrasing.
+**Ruled out** (each independently reproduced/tested): the actual content of `languages.ts` or my
+`platform.ts` edit (a bare pre-existing `import { Severity } from "@devdigest/shared"` in a throwaway
+probe page reproduces the identical 5-file failure with ZERO of my files involved); system load/
+concurrency (identical result under low load, 5 clean attempts); cross-file imports among the 5
+(`trace.ts` has no incoming imports from other contracts and still fails; `platform.ts` imports
+`knowledge.ts` directly and does NOT fail). It is deterministic and positional (barrel export order),
+not content-dependent. A deep import bypassing the barrel
+(`@devdigest/shared/contracts/languages.js`, using the `@devdigest/shared/*` wildcard tsconfig path)
+does NOT work around it either — that specific alias form fails to resolve at all under webpack,
+a second, independent gap.
+**Status:** unresolved, needs real Next.js build diagnostics (`next build --turbopack`, upstream
+issue search, or a maintainer with `NEXT_WEBPACK_LOGGING`) — out of scope for a feature PR. The
+`Files changed` tab's language chip (spec 05) is the first feature to depend on a runtime import
+from this barrel, so **verify `pnpm dev` actually serves that tab on your machine** before trusting
+it works outside `vitest` (which resolves the same barrel fine — its own resolver, unaffected).
+Where: `src/components/diff-viewer/helpers.ts:2`, `src/vendor/shared/index.ts` (barrel), `next.config.mjs`.
+
+### 2026-09-23 — Supersedes "`next build`/`next dev` fail to resolve `@devdigest/shared`'s barrel the FIRST time a client file imports a real value from it" — confirmed root cause and fix
+Root cause found: every relative import inside `vendor/shared` uses an explicit `.js` extension
+(`export * from './contracts/findings.js'`, `import { Provider } from './knowledge.js'`, …) — required
+for the SERVER copy, which `tsx`/Node run as real ESM (`NodeNext` resolution mandates the extension).
+`tsc` (client `moduleResolution: "Bundler"`) and Vite/esbuild (vitest) both map `.js` → `.ts` for these
+imports without complaint, so nothing caught it — but Next's webpack/Turbopack, in THIS Next 15.5.19
+install, does not, and every existing client import of the barrel was `import type`, which is erased
+before bundling, so no runtime import had ever reached this codepath before `diff-viewer/helpers.ts`.
+Confirmed by a controlled test: stripping the `.js` extension from every relative import in a scratch
+copy of `client/src/vendor/shared` (barrel + every contract file's internal cross-imports + `adapters.ts`)
+made a real `pnpm dev` fully load the PR detail page's Files-changed tab (chip and all) — first
+uncached load, no error, verified via the browser, not just curl. Restored to the synced state
+afterward; NOT shipped as-is because it would silently diverge from the server's canonical copy on
+every future sync.
+**The real fix belongs in `scripts/shared-contracts.sh`**: teach `sync` to strip `.js` extensions from
+relative-import specifiers ONLY in the copy it writes to `client/`, keeping the server's copy (and
+Node's requirement) untouched — and teach `check` to compare after the same normalisation, so CI still
+catches a real content drift without flagging this one intentional, mechanical difference. This is an
+architecture decision (the two copies stop being literally byte-identical, though they stay
+semantically identical), so it needs sign-off before implementing, not just for someone to hit next.
+Where: `../scripts/shared-contracts.sh`, `src/vendor/shared/index.ts`, `../server/src/vendor/shared/contracts/platform.ts:2` (`import { Provider } from './knowledge.js'`, one of several internal `.js` cross-imports needing the same treatment).
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Local `vendor/shared` lags behind the server
@@ -158,6 +208,28 @@ fixed repo off the repo routes must seed the key first (`context.addInitScript((
 as `hw/L02/demo/scenes.mjs` does.
 Where: `src/lib/repo-context.tsx:48`.
 
+### 2026-09-23 — A chip inside `FileCard`'s `<button>` header widens its accessible name, not a problem here
+The new per-file language chip (`fileChip`, `components/diff-viewer/helpers.ts`) renders as a
+`<span>` between the file icon and the path, inside the same `<button>` as the whole header
+(`FileCard.tsx`). The button's accessible name is the concatenation of all its text content, so
+it becomes e.g. `dart src/main.dart +4 −0` instead of just the path — harmless (still names the
+file), but worth knowing before adding a `title`/tooltip to a chip elsewhere inside a clickable
+row: it does NOT override the name, it just prepends visible text to it.
+Where: `src/components/diff-viewer/FileCard/FileCard.tsx:64`.
+
+### 2026-09-23 — The Agent editor's Config tab always PUTs the full config; the Skill detail Config tab PUTs only what's dirty
+Two forms that look alike save differently: `SkillDetail`'s ConfigTab diffs the draft
+against the loaded skill (`changedFields`) and sends only the changed keys, so an
+unrelated no-op save is a true no-op. The Agent editor's ConfigTab has no such diff — its
+`save()` always builds and sends every field from local `useState`, unconditionally, on
+every click. This matters for anything added to `AgentRecord` that isn't a plain scalar
+(e.g. `applies_to: string[]`): the SERVER'S comparison, not the client's, is what decides
+whether "nothing changed" actually bumps the version — see the `isConfigChange`/
+`sameAppliesTo` entry in `server/INSIGHTS.md`. Don't assume adding a field to one form's
+save payload is safe just because the other form's dirty-diffing would have protected it.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/ConfigTab/ConfigTab.tsx:46`
+(`save`), `src/app/skills/_components/SkillDetail/SkillDetail.tsx:50` (`changedFields`, for contrast).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -235,6 +307,14 @@ the review step (`SkillForm`, trust note, ignored files) is shared and saving se
 `silent` so the modal shows the server's 422 message inline (`ApiError.message`); `new ApiError(message, status, code)` — message
 comes FIRST, easy to swap in tests. The kit `Tabs` renders plain `<button>`s (no `role="tab"`), so tests use `getByRole("button")`.
 Where: `src/app/skills/_components/ImportSkillModal/ImportSkillModal.tsx:105`, `src/lib/hooks/skills.ts` (`usePreviewSkillImportUrl`).
+
+### 2026-09-23 — `renderWithIntl`'s `container` is never truly empty: `ToastProvider` always mounts its host div
+Asserting "this component renders nothing" with `expect(container).toBeEmptyDOMElement()` fails
+even for a component returning `null`, because `renderWithIntl` wraps every test in a `ToastProvider`
+that renders a fixed-position `role="status"` div as a sibling — always present, whether or not any
+toast has fired. Assert `expect(container).toHaveTextContent("")` (or query for the specific absent
+element) instead of checking the whole container is empty.
+Where: `src/test/render.tsx:22`, `src/components/repo-stack/RepoStackLabel.test.tsx`.
 
 ## Recurring Errors & Fixes
 

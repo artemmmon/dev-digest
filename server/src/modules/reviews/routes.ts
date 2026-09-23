@@ -37,7 +37,7 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     async (req) => {
       const { workspaceId } = await getContext(container, req);
       const body = req.body;
-      const targets = await service.resolveTargets(workspaceId, {
+      const { targets, skipped } = await service.resolveTargets(workspaceId, req.params.id, {
         ...(body.agentId !== undefined ? { agentId: body.agentId } : {}),
         ...(body.all !== undefined ? { all: body.all } : {}),
       });
@@ -47,7 +47,7 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
         targets,
         req.log,
       );
-      return { pr_id: req.params.id, runs, reviews };
+      return { pr_id: req.params.id, runs, reviews, skipped_agents: skipped };
     },
   );
 

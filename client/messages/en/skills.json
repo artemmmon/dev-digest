@@ -97,7 +97,8 @@
       "imported_file": "Imported file"
     },
     "noDescription": "No description",
-    "agents": "{count, plural, one {# agent} other {# agents}}"
+    "agents": "{count, plural, one {# agent} other {# agents}}",
+    "appliesTo": "Applies to: {globs}"
   },
   "preview": {
     "untrustedBadge": "untrusted source",
@@ -116,6 +117,15 @@
     "descriptionHint": "The description is the skill's interface: write it as a directive that says when to apply the skill and what to do, e.g. “Use when reviewing tests: flag every branch no test reaches.”",
     "descriptionPlaceholder": "Use when reviewing … : flag …",
     "type": "Type",
+    "appliesTo": "Applies to",
+    "appliesToHint": "Glob patterns over the PR's changed files (e.g. *.dart, test/**). The skill is used only when a changed file matches. Empty = always.",
+    "appliesToPlaceholder": "*.dart, pubspec.yaml",
+    "appliesToPresets": {
+      "flutter": "Flutter/Dart",
+      "typescript": "TypeScript/JS",
+      "python": "Python",
+      "clear": "Clear"
+    },
     "body": "Body (Markdown)",
     "bodyPlaceholder": "# Rule\nDescribe how to apply the rule…",
     "write": "Write",

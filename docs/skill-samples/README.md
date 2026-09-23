@@ -2,6 +2,10 @@
 
 Skills that are **not** seeded, so you can try the import flow end to end.
 
+A `SKILL.md`'s frontmatter can also carry `applies_to: *.dart, pubspec.yaml` (or the
+`globs:` alias, for drop-in compatibility with Cursor-style `.mdc` rule files) — a comma
+list of glob patterns over a PR's changed files. Omit it for a skill that always applies.
+
 ## boundary-cases
 
 A `SKILL.md` (frontmatter + markdown body) plus a `scripts/check.sh`. The script is

@@ -23,8 +23,27 @@ export function toAgentDto(row: AgentRecord): Agent {
     strategy: row.strategy as ReviewStrategy,
     ci_fail_on: row.ciFailOn as CiFailOn,
     repo_intel: row.repoIntel,
+    applies_to: row.appliesTo,
     skill_count: row.skillCount ?? null,
   };
+}
+
+/**
+ * Trim, dedupe and drop empty entries; an empty result is `null` ("always applies"),
+ * never `[]`. Duplicated from `modules/skills/helpers.ts` on purpose — a two-line pure
+ * function isn't worth a shared port between two feature modules (onion-architecture).
+ */
+export function normalizeAppliesTo(patterns: string[] | null | undefined): string[] | null {
+  if (!patterns) return null;
+  const cleaned = [...new Set(patterns.map((p) => p.trim()).filter(Boolean))];
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+function sameAppliesTo(a: string[] | null | undefined, b: string[] | null | undefined): boolean {
+  const an = a ?? null;
+  const bn = b ?? null;
+  if (an === null || bn === null) return an === bn;
+  return an.length === bn.length && an.every((v, i) => v === bn[i]);
 }
 
 /**
@@ -53,6 +72,7 @@ export interface ConfigChangePatch {
   strategy?: ReviewStrategy;
   ciFailOn?: CiFailOn;
   repoIntel?: boolean;
+  appliesTo?: string[] | null;
 }
 
 /**
@@ -70,6 +90,7 @@ export function isConfigChange(
     | 'strategy'
     | 'ciFailOn'
     | 'repoIntel'
+    | 'appliesTo'
   >,
   patch: ConfigChangePatch,
 ): boolean {
@@ -82,6 +103,7 @@ export function isConfigChange(
     (patch.strategy !== undefined && patch.strategy !== existing.strategy) ||
     (patch.ciFailOn !== undefined && patch.ciFailOn !== existing.ciFailOn) ||
     (patch.repoIntel !== undefined && patch.repoIntel !== existing.repoIntel) ||
+    (patch.appliesTo !== undefined && !sameAppliesTo(patch.appliesTo, existing.appliesTo)) ||
     patch.outputSchema !== undefined
   );
 }

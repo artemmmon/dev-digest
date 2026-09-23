@@ -1,5 +1,6 @@
 # Contract drift — server/src/vendor/shared (canonical) and client/src/vendor/shared
-# must be byte-identical. Fix a failure with ./scripts/shared-contracts.sh sync.
+# must stay content-identical (client relative imports lose their `.js` extension,
+# stripped by `sync`). Fix a failure with ./scripts/shared-contracts.sh sync.
 name: shared contracts
 
 on:

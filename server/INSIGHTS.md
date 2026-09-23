@@ -194,6 +194,124 @@ declares `RepoLookup`, `SkillWriter` and `AgentSkillBinder` itself and the conta
 `AgentStore`: the in-memory `AgentStore` fakes in `test/agents-service.test.ts` would stop compiling.
 Where: `src/modules/conventions/ports.ts:76`, `src/modules/agents/repository.ts:361`.
 
+### 2026-09-23 — Flutter-first pass 1: `matchesAny`'s four hardcoded forms couldn't express a wildcard filename nested under a fixed directory
+Excluding Dart codegen needed patterns like `**/l10n/app_localizations*.dart` and `**/generated/**`
+(a directory anywhere, not a same-named prefix — `generated_helpers/` must NOT match `**/generated/**`).
+The old `matchesAny` only had four literal branches (`dir/**`, `**/name` exact, `*.ext` suffix, exact
+path), so it was replaced with a small compiled-regex glob (still just `*`/`?`/`**` and rooted-vs-`**/`
+anchoring, no full minimatch). One deliberate wart kept for backward compat: a bare pattern with
+**no** `/` and **no** wildcard (e.g. a literal filename) is an EXACT full-path match, not a
+basename-anywhere match — `pnpm-lock.yaml` as a pattern does not match `client/pnpm-lock.yaml` (see
+the existing test for that pattern). Everything else (any wildcard, or a leading `**/`) matches at any
+depth. `applies_to` gating for skills/agents (spec 07) will reuse this same matcher.
+Where: `src/modules/reviews/diff-filter.ts:17` (`compilePattern`).
+
+### 2026-09-23 — A constant needed by two modules that don't import each other goes in `vendor/shared`, not one module re-exporting to the other
+The repo-stack detector (spec 06, `modules/repos/`) needs the same generated/junk/lockfile/scaffold
+patterns the conventions extractor already had in `modules/conventions/constants.ts`. Onion rules
+forbid one feature module importing another's internals, so the patterns moved to
+`@devdigest/shared` (`contracts/languages.ts`, new — also holds the ext→language table the client
+diff-viewer chip uses) and `conventions/constants.ts` now re-exports them, unchanged for its own
+callers (`sampling.ts`'s import of `./constants.js` didn't need to change).
+Where: `src/vendor/shared/contracts/languages.ts:1`, `src/modules/conventions/constants.ts:4`.
+
+### 2026-09-23 — Repo-stack detection rides the existing `clone` job; `Refresh` doesn't move HEAD, so a re-detect is only as fresh as the last fetch
+`RepoService.detectAndStoreStack` runs at the end of `runCloneJob`, after `updateClonePath` — this
+covers both Add (fresh clone) and the Refresh button (same job, re-enqueued) for free, no new job
+kind needed. But `SimpleGitClient.clone` on an EXISTING clone directory only runs `git fetch`
+(remote-tracking refs), never `git reset`/checkout — only `git.sync` (used by repo-intel's resync)
+moves local HEAD. So Refresh re-detects the stack from whatever commit is currently checked out,
+not necessarily origin's latest. Acceptable: a repo's stack (Flutter vs Next.js, its key packages)
+changes on the order of months, not per-PR, and `POST /repos/:id/resync` gives an exact way to force
+a real HEAD advance first.
+Where: `src/modules/repos/service.ts:49` (`runCloneJob`), `src/adapters/git/simple-git.ts:106`.
+
+### 2026-09-23 — jsonb read through `safeParse`, not `unknown`: an old/foreign `stack` row can never fail response serialization
+`agents.output_schema` (existing code) is stored and read as opaque `unknown` — nothing validates
+it. `repos.stack` takes the opposite, stricter approach on purpose: `RepoRepository.toRecord` runs
+the raw jsonb through `RepoStack.safeParse` and falls back to `null` on any mismatch, because this
+field IS meant to satisfy a fixed contract that ships in `GET /repos`'s response schema
+(`fastify-type-provider-zod` — a shape mismatch there is a 500, not a client-side surprise). The
+fallback also means a future `RepoStack` shape change degrades gracefully for already-stored rows
+instead of breaking the endpoint; only `.nullish()` new fields keep the OLD data itself readable as
+non-null, per the `run_traces` jsonb rule elsewhere in this file.
+Where: `src/modules/repos/repository.ts:16` (`parseStack`).
+
+### 2026-09-23 — Boot-time backfill is fire-and-forget and explicitly skipped under `NODE_ENV=test`
+`backfillMissingStacks()` (repos cloned before stack detection existed) is called from
+`repos/routes.ts` at plugin registration, matching where `registerCloneJobHandler()` already runs —
+but UNLIKE the boot-time stale-run reaper in `app.ts` (which IS awaited, because it's a fast,
+single DB query gating readiness), this is never awaited: a slow git read for one stale repo must
+not delay every other repo or hold up `app.listen()`. It's skipped entirely when
+`container.config.nodeEnv === 'test'`, because otherwise every test that builds a real `RepoRepository`
+against `pg.handle.db` (most `*.it.test.ts` files) would get a background query racing its own
+assertions and DB teardown — the same reason `registerCloneJobHandler` doesn't fire a clone on boot.
+Where: `src/modules/repos/routes.ts:29`, `src/app.ts:80` (the reaper, for contrast).
+
+### 2026-09-23 — `applies_to` gating (spec 07): fails open on missing signal, reuses the diff-filter matcher, and reads `pr_files` — not the live diff
+Three deliberate choices worth knowing before touching this: (1) **fail open**, not
+fail closed — `matchesAppliesTo` returns `true` whenever it has no changed-file signal to
+judge against (empty `pr_files`, or every path excluded), so a PR nobody has opened yet
+never silently loses a scoped skill/agent; the alternative (skip when unsure) would make a
+brand-new PR's first review miss whatever agents happen to have `applies_to` set. (2) it
+reuses `modules/reviews/diff-filter.ts`'s glob matcher rather than inventing a second
+pattern language — the same `*.dart`/`dir/**` vocabulary already used for
+`REVIEW_EXCLUDED_PATHS` gates skills and agents too. (3) agent-level gating
+(`ReviewService.resolveTargets`) reads `getPrFiles(prId)` — the PERSISTED file list from
+the last import/refresh — not the live `git diff`, because gating decides which agents
+even get a `runId` before the (slower, per-agent) diff load happens; skill-level gating
+inside `run-executor.ts` DOES use the loaded diff's paths, since the diff is already in
+hand there and it's the authoritative, already-exclusion-filtered set.
+Where: `src/modules/reviews/applicability.ts`, `src/modules/reviews/service.ts:59`
+(`resolveTargets`), `src/modules/reviews/run-executor.ts` (`buildSkillBlocks`).
+
+### 2026-09-23 — `isConfigChange`-style comparisons must not use `!==` on an array field
+`AgentsRepository`'s config-change check compares most fields with plain `!==`, which
+works for strings/booleans but is WRONG for `appliesTo: string[] | null`: two arrays are
+never `===` even when equal, so a naive `patch.appliesTo !== existing.appliesTo` would
+bump the agent's version (and write a wasted `agent_versions` snapshot) on every save that
+merely round-trips the same globs — and the Agent editor's Config tab always sends the
+FULL config on save (no dirty-diffing, unlike the Skill detail Config tab), so this would
+have fired on every single save, not just ones that touched the field. Fixed with a small
+element-wise `sameAppliesTo` helper instead of `!==`. Same trap awaits any future array or
+object field added to `isConfigChange`.
+Where: `src/modules/agents/helpers.ts` (`sameAppliesTo`, `isConfigChange`).
+
+### 2026-09-23 — A literal `**/` inside a `/** */` JSDoc block closes the comment early — twice now
+Writing gitignore-glob syntax examples straight into a doc comment (`` `**/name` ``,
+`` `dir/**` ``) breaks the file with cryptic parser errors (`TS1443: Module declaration
+names may only use ' or " quoted strings`, `TS1160: Unterminated template literal`) far
+below the actual typo, because the literal `*/` inside the backticks closes the `/** */`
+block right there. Hit once in `diff-filter.ts` (phase 05) and again in
+`applicability.ts` (spec 07) before this got written down. Spell it out instead:
+"`dir` + slash + `**`" / "`**` + slash + `name`", never the literal 2-character sequence.
+Where: `src/modules/reviews/diff-filter.ts:17`, `src/modules/reviews/applicability.ts:5`.
+
+### 2026-09-23 — A guarded prompt upgrade must check "already up to date" before "customised", or a fresh install is misreported
+`seed.ts`'s `upgradePromptIfLegacy` only had one branch at first: `systemPrompt !== legacy
+→ skip, logged as "customised"`. On a FRESH database the newly-inserted agent's
+`systemPrompt` is already the NEW (neutral) prompt — which also isn't equal to `legacy` —
+so every fresh install logged "skipped … — customised prompt" for General/Performance,
+which is false (nobody customised anything; there was simply nothing to upgrade). Fixed
+by checking `systemPrompt === next` (already current) FIRST and returning silently, before
+the "does it match the old text" check that decides "upgrade" vs "genuinely customised".
+Any future guarded-upgrade helper needs the same three-way branch (current / legacy /
+other), not a two-way one.
+Where: `src/db/seed.ts` (`upgradePromptIfLegacy`).
+
+### 2026-09-23 — `pnpm typecheck` never sees `server/test/**` — a wrong field name in a test only fails at runtime
+`server/tsconfig.json`'s `include` is `["src/**/*.ts"]`; vitest itself runs tests through
+esbuild (types stripped, not checked), so a test file's type errors surface only when the
+test actually executes and hits the wrong shape at runtime (here: passing `{skill_id: ...}`
+where `SkillBinding` needs `{skillId: ...}` — a real Postgres NOT NULL violation, not a
+compile error, and ESLint's `no-unused-vars` catches unrelated slips like a stray unused
+`const` in a test, but not this). `pnpm lint` DOES run over `test/**` (eslint has no
+tsconfig-style `include` restriction) — so lint catches unused-variable mistakes in tests
+that typecheck silently allows, but neither one catches a field-name mismatch; only running
+the test does. Don't trust `pnpm typecheck` passing as proof a new `*.it.test.ts` compiles
+correctly — run it.
+Where: `tsconfig.json:28` (`include`), `test/seed.it.test.ts` (where this was caught).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

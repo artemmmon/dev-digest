@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { Button, Dropdown, type DropdownItemDef } from "@devdigest/ui";
 import { useAgents } from "@/lib/hooks/agents";
 import { useRunReview } from "@/lib/hooks/reviews";
+import { useToast } from "@/lib/toast";
 import { DROPDOWN_WIDTH } from "./constants";
 
 export function RunReviewDropdown({
@@ -33,6 +34,7 @@ export function RunReviewDropdown({
 }) {
   const t = useTranslations("prReview");
   const router = useRouter();
+  const toast = useToast();
   const { data: agents } = useAgents();
   const run = useRunReview();
   const all = agents ?? [];
@@ -43,6 +45,15 @@ export function RunReviewDropdown({
     try {
       const res = await run.mutateAsync({ prId, ...opts });
       onRunsStarted?.(res.runs.map((r) => r.run_id));
+      // "Run all" can skip an agent whose applies_to matched none of this PR's
+      // changed files (spec 07) — say so, so "why didn't my agent run" has an answer.
+      if (res.skipped_agents.length > 0) {
+        toast.info(
+          t("runReview.skippedAgents", {
+            names: res.skipped_agents.map((a) => a.agent_name).join(", "),
+          }),
+        );
+      }
     } finally {
       onRunSettled?.();
     }

@@ -7,7 +7,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Button, FormField, Markdown, SelectInput, Textarea, TextInput } from "@devdigest/ui";
 import type { SkillType } from "@devdigest/shared";
-import { SKILL_TYPES } from "../constants";
+import { APPLIES_TO_PRESETS, SKILL_TYPES } from "../constants";
 import { isDraftValid, type SkillDraft } from "../helpers";
 import { BODY_ROWS } from "./constants";
 import { s } from "./styles";
@@ -69,6 +69,38 @@ export function SkillForm({
           onChange={(v) => set("type", v as SkillType)}
           options={typeOptions}
           mono={false}
+        />
+      </FormField>
+      <FormField
+        label={t("form.appliesTo")}
+        hint={t("form.appliesToHint")}
+        right={
+          <div style={s.presetBar}>
+            {APPLIES_TO_PRESETS.map((p) => (
+              <Button
+                key={p.key}
+                kind="tertiary"
+                size="sm"
+                type="button"
+                onClick={() => set("appliesTo", p.value)}
+              >
+                {t(`form.appliesToPresets.${p.key}`)}
+              </Button>
+            ))}
+            {draft.appliesTo.trim() !== "" && (
+              <Button kind="tertiary" size="sm" type="button" onClick={() => set("appliesTo", "")}>
+                {t("form.appliesToPresets.clear")}
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <TextInput
+          value={draft.appliesTo}
+          onChange={(v) => set("appliesTo", v)}
+          placeholder={t("form.appliesToPlaceholder")}
+          mono
+          aria-label={t("form.appliesTo")}
         />
       </FormField>
       <FormField

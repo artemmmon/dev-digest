@@ -26,6 +26,9 @@ export const skills = pgTable('skills', {
   enabled: boolean('enabled').notNull().default(true),
   version: integer('version').notNull().default(1),
   evidenceFiles: jsonb('evidence_files').$type<string[]>(),
+  // Glob patterns (`modules/reviews/diff-filter.ts` matcher) over the PR's changed
+  // files; null/empty = always applies. Lets a Dart-only skill skip a TS-only PR.
+  appliesTo: jsonb('applies_to').$type<string[]>(),
   createdAt: now(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

@@ -381,7 +381,9 @@ d('skills (Testcontainers pg)', () => {
       return (await new AgentsRepository(pg.handle.db).resolvedSkills(agent!.id)).map((s) => s.name);
     };
 
-    const tq = ['branch-coverage-rubric', 'mocking-discipline', 'flaky-test-patterns'];
+    // flutter-widget-testing (spec 07, part 2) joins Test Quality's original three —
+    // appended, not re-seeded via bindSkills, since the agent already had bindings.
+    const tq = ['branch-coverage-rubric', 'mocking-discipline', 'flaky-test-patterns', 'flutter-widget-testing'];
     const api = ['route-breaking-change-rubric', 'zod-contract-conventions'];
     expect(await boundNames('Test Quality Reviewer')).toEqual(tq);
     expect(await boundNames('API Contract Reviewer')).toEqual(api);
@@ -484,6 +486,107 @@ d('skills (Testcontainers pg)', () => {
     expect(trace2.prompt_assembly.skills ?? null).toBeNull();
     expect(trace2.prompt_assembly.skill_blocks ?? null).toBeNull();
     expect(trace2.log.some((l: { msg: string }) => l.msg === 'skills: none attached')).toBe(true);
+    await app.close();
+  });
+
+  it('applies_to (spec 07): a Dart-scoped skill is skipped on a TS-only PR and a Dart-scoped agent is skipped from "all"', async () => {
+    const app = await makeApp();
+    const agent = await newAgent(app, 'applies-to-agent');
+    const tsSkill = await newSkill(app, 'applies-to-ts-skill');
+    const dartSkillRes = await app.inject({
+      method: 'POST',
+      url: '/skills',
+      payload: { ...skillBody('applies-to-dart-skill'), applies_to: ['*.dart'] },
+    });
+    const dartSkill = dartSkillRes.json() as { id: string; name: string };
+
+    await app.inject({
+      method: 'PUT',
+      url: `/agents/${agent.id}/skills`,
+      payload: {
+        skills: [
+          { skill_id: tsSkill.id, enabled: true },
+          { skill_id: dartSkill.id, enabled: true },
+        ],
+      },
+    });
+
+    const [repo] = await pg.handle.db
+      .insert(t.repos)
+      .values({ workspaceId, owner: 'acme', name: 'applies-to-repo', fullName: 'acme/applies-to-repo' })
+      .returning();
+    const [pr] = await pg.handle.db
+      .insert(t.pullRequests)
+      .values({
+        workspaceId,
+        repoId: repo!.id,
+        number: 8,
+        title: 'TS-only change',
+        author: 'dev',
+        branch: 'feat/ts',
+        base: 'main',
+        headSha: 'def456',
+        additions: 1,
+        deletions: 0,
+        filesCount: 1,
+        status: 'needs_review',
+      })
+      .returning();
+    await pg.handle.db.insert(t.prFiles).values({
+      prId: pr!.id,
+      path: 'src/config.ts',
+      additions: 1,
+      deletions: 0,
+      patch: '@@ -10,3 +10,4 @@\n   port: 3000,\n+  retries: 3,\n   redisUrl: x,',
+    });
+
+    // Skill-level gate: the Dart skill is left out of the prompt on a TS-only PR.
+    const res = await app.inject({
+      method: 'POST',
+      url: `/pulls/${pr!.id}/review`,
+      payload: { agentId: agent.id },
+    });
+    expect(res.statusCode).toBe(200);
+    await waitForPrRuns(pg.handle.db, pr!.id, { expected: 1 });
+
+    const runId = res.json().runs[0].run_id as string;
+    const trace = (await app.inject({ method: 'GET', url: `/runs/${runId}/trace` })).json();
+    expect(trace.prompt_assembly.skill_blocks.map((b: { name: string }) => b.name)).toEqual([
+      'applies-to-ts-skill',
+    ]);
+    expect(
+      trace.log.some((l: { msg: string }) =>
+        l.msg.includes('applies-to-dart-skill') && l.msg.includes('skipped'),
+      ),
+    ).toBe(true);
+
+    // Agent-level gate: an enabled agent scoped to *.dart is left out of "all" on this
+    // TS-only PR, reported in skipped_agents, and gets no run at all.
+    const dartAgent = await app.inject({
+      method: 'POST',
+      url: '/agents',
+      payload: {
+        name: 'applies-to-dart-agent',
+        provider: 'openai',
+        model: 'gpt-4.1',
+        system_prompt: 'review',
+        applies_to: ['*.dart'],
+      },
+    });
+    const before = res.json().runs.length;
+    const allRes = await app.inject({
+      method: 'POST',
+      url: `/pulls/${pr!.id}/review`,
+      payload: { all: true },
+    });
+    expect(allRes.statusCode).toBe(200);
+    const allBody = allRes.json();
+    expect(allBody.skipped_agents).toContainEqual({
+      agent_id: dartAgent.json().id,
+      agent_name: 'applies-to-dart-agent',
+    });
+    expect(allBody.runs.some((r: { agent_id: string }) => r.agent_id === dartAgent.json().id)).toBe(false);
+    await waitForPrRuns(pg.handle.db, pr!.id, { expected: before + allBody.runs.length });
     await app.close();
   });
 });

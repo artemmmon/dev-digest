@@ -2,6 +2,7 @@
 
 import type { RepoSummary } from "@devdigest/ui";
 import type { Repo } from "../../lib/types";
+import { primaryFramework } from "../repo-stack";
 
 /** Map a lib `Repo` to the `RepoSummary` shape the AppFrame shell context expects. */
 export function toShellRepo(r: Repo): RepoSummary {
@@ -10,6 +11,7 @@ export function toShellRepo(r: Repo): RepoSummary {
     full_name: r.full_name,
     default_branch: r.default_branch,
     syncedLabel: r.last_polled_at ? "synced" : "not synced",
+    stackLabel: primaryFramework(r.stack) ?? undefined,
   };
 }
 

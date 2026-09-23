@@ -4,6 +4,7 @@
   "steps": [
     { "cmd": ["open", "{BASE}/agents"], "label": "load the agents page" },
     { "cmd": ["wait", "--url", "/agents"], "label": "agents route reached" },
-    { "cmd": ["wait", "--text", "Security Reviewer"], "label": "seeded agent card is visible" }
+    { "cmd": ["wait", "--text", "Security Reviewer"], "label": "seeded agent card is visible" },
+    { "cmd": ["wait", "--text", "Flutter Reviewer"], "label": "the Flutter-first seeded agent card is visible" }
   ]
 }

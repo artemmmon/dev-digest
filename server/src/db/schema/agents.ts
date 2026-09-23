@@ -31,6 +31,10 @@ export const agents = pgTable(
     // + file-rank note) injected into the prompt. Default on; the global
     // REPO_INTEL_ENABLED flag is the second gate (facade degrades when off).
     repoIntel: boolean('repo_intel').notNull().default(true),
+    // Same glob-over-changed-files gate as `skills.applies_to` — when `all: true`
+    // review runs, an agent whose globs match none of the PR's files is skipped
+    // (an explicitly chosen agent always runs). Null/empty = always applies.
+    appliesTo: jsonb('applies_to').$type<string[]>(),
     enabled: boolean('enabled').notNull().default(true),
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by').references(() => users.id),

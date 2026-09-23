@@ -7,6 +7,7 @@ import type { Agent, CiFailOn, Provider, ReviewStrategy } from "@devdigest/share
 import { useUpdateAgent, useProviderModels } from "@/lib/hooks/agents";
 import { useToast } from "@/lib/toast";
 import { toModelOptions } from "@/lib/model-label";
+import { APPLIES_TO_PRESETS, parseAppliesTo } from "@/lib/applies-to-presets";
 import { CI_FAIL_ON_VALUES, OUTPUT_SCHEMA_VALUE, PROVIDER_OPTIONS, STRATEGY_VALUES } from "./constants";
 import { s } from "./styles";
 
@@ -27,6 +28,7 @@ export function ConfigTab({ agent }: { agent: Agent }) {
   const [strategy, setStrategy] = React.useState<ReviewStrategy>(agent.strategy);
   const [ciFailOn, setCiFailOn] = React.useState<CiFailOn>(agent.ci_fail_on);
   const [repoIntel, setRepoIntel] = React.useState(agent.repo_intel);
+  const [appliesTo, setAppliesTo] = React.useState((agent.applies_to ?? []).join(", "));
   const [enabled, setEnabled] = React.useState(agent.enabled);
 
   const { data: models } = useProviderModels(provider);
@@ -56,6 +58,7 @@ export function ConfigTab({ agent }: { agent: Agent }) {
           strategy,
           ci_fail_on: ciFailOn,
           repo_intel: repoIntel,
+          applies_to: parseAppliesTo(appliesTo),
           enabled,
         },
       },
@@ -119,6 +122,21 @@ export function ConfigTab({ agent }: { agent: Agent }) {
           <span className="sr-only">{t("config.repoIntel")}</span>
           <Toggle on={repoIntel} onChange={setRepoIntel} size={16} />
         </label>
+      </FormField>
+      <FormField label={t("config.appliesTo")} hint={t("config.appliesToHint")}>
+        <TextInput value={appliesTo} onChange={setAppliesTo} placeholder={t("config.appliesToPlaceholder")} mono />
+        <div style={s.presetBar}>
+          {APPLIES_TO_PRESETS.map((p) => (
+            <Button key={p.key} kind="tertiary" size="sm" onClick={() => setAppliesTo(p.value)}>
+              {t(`config.appliesToPresets.${p.key}`)}
+            </Button>
+          ))}
+          {appliesTo.trim() !== "" && (
+            <Button kind="tertiary" size="sm" onClick={() => setAppliesTo("")}>
+              {t("config.appliesToPresets.clear")}
+            </Button>
+          )}
+        </div>
       </FormField>
       <FormField label={t("config.systemPrompt")} hint={t("config.systemPromptHint")}>
         <Textarea value={systemPrompt} onChange={setSystemPrompt} rows={8} mono />

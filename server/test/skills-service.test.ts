@@ -126,6 +126,20 @@ describe('SkillsService', () => {
     );
   });
 
+  it('applies_to is trimmed, deduped, and an all-empty list is stored as null (not [])', async () => {
+    const { service } = setup();
+    const s = await service.create('ws', { ...NEW, applies_to: [' *.dart ', '*.dart', 'pubspec.yaml'] });
+    expect(s.applies_to).toEqual(['*.dart', 'pubspec.yaml']);
+
+    const cleared = await service.create('ws', { ...NEW, name: 'b', applies_to: ['  ', ''] });
+    expect(cleared.applies_to).toBeNull();
+
+    const updated = await service.update('ws', s.id, { applies_to: ['*.ts'] });
+    expect(updated?.applies_to).toEqual(['*.ts']);
+    const untouched = await service.update('ws', s.id, {});
+    expect(untouched?.applies_to).toEqual(['*.ts']); // omitted from the patch — left alone
+  });
+
   it('a changed body makes a new version; other edits and an identical body do not', async () => {
     const { service, skills } = setup();
     const s = await service.create('ws', NEW);

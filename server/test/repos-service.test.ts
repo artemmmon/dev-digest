@@ -27,6 +27,7 @@ class InMemoryRepoStore implements RepoStore {
       defaultBranch: 'main',
       clonePath: null,
       lastPolledAt: null,
+      stack: null,
     };
     this.rows.set(row.id, row);
     return row;
@@ -37,6 +38,13 @@ class InMemoryRepoStore implements RepoStore {
   async updateClonePath(id: string, path: string) {
     const r = this.rows.get(id);
     if (r) Object.assign(r, { clonePath: path, lastPolledAt: new Date() });
+  }
+  async updateStack(id: string, stack: RepoRecord['stack']) {
+    const r = this.rows.get(id);
+    if (r) r.stack = stack;
+  }
+  async listUnstacked() {
+    return [...this.rows.values()].filter((r) => r.clonePath !== null && r.stack === null);
   }
   async remove(ws: string, id: string) {
     const r = this.rows.get(id);

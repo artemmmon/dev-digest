@@ -1,4 +1,5 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull } from 'drizzle-orm';
+import { RepoStack } from '@devdigest/shared';
 import type { DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type { NewRepo, RepoRecord, RepoStore } from './ports.js';
@@ -11,6 +12,17 @@ import type { NewRepo, RepoRecord, RepoStore } from './ports.js';
 
 type RepoRow = typeof t.repos.$inferSelect;
 
+/**
+ * `stack` is a plain jsonb column (no `$type<>`), so a row from BEFORE this shape
+ * existed, or one hand-edited, must not break `GET /repos` — `safeParse` degrades
+ * anything unexpected to `null` instead of throwing out of response serialization.
+ */
+function parseStack(raw: unknown): RepoStack | null {
+  if (raw == null) return null;
+  const parsed = RepoStack.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 function toRecord(r: RepoRow): RepoRecord {
   return {
     id: r.id,
@@ -22,6 +34,7 @@ function toRecord(r: RepoRow): RepoRecord {
     clonePath: r.clonePath,
     lastPolledAt: r.lastPolledAt,
     createdBy: r.createdBy,
+    stack: parseStack(r.stack),
   };
 }
 
@@ -77,6 +90,18 @@ export class RepoRepository implements RepoStore {
       .update(t.repos)
       .set({ clonePath, lastPolledAt: new Date() })
       .where(eq(t.repos.id, repoId));
+  }
+
+  async updateStack(repoId: string, stack: RepoStack): Promise<void> {
+    await this.db.update(t.repos).set({ stack }).where(eq(t.repos.id, repoId));
+  }
+
+  async listUnstacked(): Promise<RepoRecord[]> {
+    const rows = await this.db
+      .select()
+      .from(t.repos)
+      .where(and(isNotNull(t.repos.clonePath), isNull(t.repos.stack)));
+    return rows.map(toRecord);
   }
 
   async remove(workspaceId: string, id: string): Promise<boolean> {

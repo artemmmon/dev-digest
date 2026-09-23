@@ -38,8 +38,10 @@ Naming is in `../AGENTS.md`; what follows is the shape of the code.
 - Import alias `@/*` → `src/*`.
 
 ## Gotchas
-- `src/vendor/shared` is a byte-identical copy of `server/src/vendor/shared` (server is
-  canonical). Never edit it here: change the server copy, run `../scripts/shared-contracts.sh sync`.
+- `src/vendor/shared` is a content-identical copy of `server/src/vendor/shared` (server is
+  canonical) — identical except relative imports lose their `.js` extension, which the
+  client's bundler can't resolve for a cold runtime import (`INSIGHTS.md`, 2026-09-23).
+  Never edit it here: change the server copy, run `../scripts/shared-contracts.sh sync`.
 - `messages/en/` already has namespaces for future lessons (eval, blast, memory…) —
   unused until the lesson lands; don't delete them.
 - `pnpm build` and `pnpm dev` share `.next`: building while dev runs makes every page 500

@@ -78,6 +78,16 @@ export function AgentCard({
               {t("card.skillCount", { count: skillCount })}
             </Badge>
           )}
+          {ag.applies_to && ag.applies_to.length > 0 && (
+            <span
+              className="mono"
+              style={s.appliesTo}
+              title={t("card.appliesTo", { globs: ag.applies_to.join(", ") })}
+            >
+              {ag.applies_to[0]}
+              {ag.applies_to.length > 1 ? ` +${ag.applies_to.length - 1}` : ""}
+            </span>
+          )}
         </div>
       </div>
       {confirming && (

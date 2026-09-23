@@ -40,6 +40,19 @@ describe("SkillCard", () => {
     expect(screen.getByRole("switch", { name: "Enable skill branch-coverage" })).toHaveAttribute("aria-checked", "true");
   });
 
+  it("shows the applies_to globs, with a +N for extra ones, or nothing when unscoped", () => {
+    setup({}, { ...SKILL, applies_to: ["*.dart"] });
+    expect(screen.getByText("*.dart")).toBeInTheDocument();
+    cleanup();
+
+    setup({}, { ...SKILL, applies_to: ["*.dart", "pubspec.yaml", "*.arb"] });
+    expect(screen.getByText("*.dart +2")).toBeInTheDocument();
+    cleanup();
+
+    setup({}, { ...SKILL, applies_to: null });
+    expect(screen.queryByText(/\*\.dart/)).not.toBeInTheDocument();
+  });
+
   it("selects on a click on the name or on the card body", async () => {
     const user = userEvent.setup();
     const p = setup();

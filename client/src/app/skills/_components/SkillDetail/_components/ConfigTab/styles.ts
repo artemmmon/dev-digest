@@ -31,6 +31,7 @@ export const s = {
   label: { fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" } satisfies CSSProperties,
   required: { color: "var(--crit)", marginLeft: 4 } satisfies CSSProperties,
   hint: { fontSize: 12, color: "var(--text-muted)", lineHeight: 1.45 } satisfies CSSProperties,
+  presetBar: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 } satisfies CSSProperties,
   box: {
     height: BODY_HEIGHT,
     display: "flex",

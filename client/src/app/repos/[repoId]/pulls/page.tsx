@@ -12,6 +12,7 @@ import {
   AutoTriggerStatus,
 } from "@devdigest/ui";
 import { usePageCrumb } from "@/components/app-shell";
+import { RepoStackLabel } from "@/components/repo-stack";
 import { useSearchParamState } from "@/lib/use-search-param-state";
 import { RepoNotFound } from "@/components/repo-not-found";
 import { usePulls, useRefreshRepo } from "@/lib/hooks";
@@ -73,6 +74,7 @@ export default function PullsPage() {
               ? t("list.summary", { open: openCount, needsReview: needsReviewCount })
               : t("list.loading")}
           </p>
+          <RepoStackLabel stack={activeRepo?.stack} />
         </div>
         <div style={s.headerActions}>
           <AutoTriggerStatus on={false} />

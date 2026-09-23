@@ -95,6 +95,25 @@ only the server copy, then run `./scripts/shared-contracts.sh sync`. Comment-onl
 too — identical files are what makes the check a plain `diff -r`.
 Where: `scripts/shared-contracts.sh:17`.
 
+### 2026-09-23 — One ext→language table in `vendor/shared`, not a client guess plus a server guess
+The Flutter-first work needs "what language/format is this file" in two unrelated places: the
+client diff-viewer chip (`FileCard`) and the server repo-stack detector (spec 06, language-share
+computation). Put it once in `server/src/vendor/shared/contracts/languages.ts`
+(`languageOf`/`isGeneratedPath`, synced to the client copy as usual) instead of a per-package
+extension map that would drift the moment someone adds a language to only one side.
+Where: `server/src/vendor/shared/contracts/languages.ts:1`.
+
+### 2026-09-23 — Supersedes "`vendor/shared` copies have diverged" and "Supersedes 'vendor/shared copies have diverged'"
+The two copies are no longer literally byte-identical: `sync` now also strips the `.js` extension
+from every relative import/export in the CLIENT copy only (server keeps it — Node's `NodeNext` ESM
+requires it). Root cause: Next's webpack/Turbopack, in this project's version, cannot resolve a
+`.js`-extension relative import to a `.ts` file for a client runtime import reaching `vendor/shared`
+for the first time (`client/INSIGHTS.md`, 2026-09-23) — `tsc`/vitest handle it fine, which is why
+nobody hit this until a client file first imported a real value (not just a type) from the barrel.
+`check` now diffs the client copy against a NORMALISED (same stripping applied) copy of the
+server's, so it still fails on any REAL content drift while tolerating this one intentional,
+mechanical difference.
+Where: `scripts/shared-contracts.sh` (`strip_js_extensions`).
 
 ## Tool & Library Notes
 
@@ -212,6 +231,20 @@ In the plugin repo's `evals/*/graders/*.md`, an `llm` grader with `target: trace
 last message instead. Run from a Claude Code Bash tool, every child failed with "OAuth session
 expired" — run `claude plugin eval . --no-publish` from your own terminal.
 Where: .claude/skills/devdigest-demo/SKILL.md:18
+
+### 2026-09-23 — Second checkout on alternate ports: "Can't reach DevDigest" with the API up
+The API's CORS allows only `http://localhost:${WEB_PORT}`, so moving the web port without
+also setting `WEB_PORT` in `server/.env` drops `access-control-allow-origin` and the UI errors.
+`client`'s `pnpm dev` hardcodes `-p 3000` (ignores `client/.env` WEB_PORT) — use
+`pnpm exec next dev -p <port>`; `tsx watch` does not reload `.env`, restart the API after edits.
+Where: `server/src/platform/config.ts:85`, `client/package.json:6`.
+
+### 2026-09-23 — Worktree sharing the DB: no stack label, missing seeded agents
+A worktree's `DEVDIGEST_CLONE_DIR=./clones` is empty, so stack detection (which resolves the
+clone by owner/name, not `repos.clone_path`) fails silently → "Stack not detected yet". Point it
+at the main checkout's absolute `server/clones` and restart the API (boot backfill re-detects).
+New agents/skills from a branch arrive only via `pnpm db:seed` — `--no-seed` hides them.
+Where: `server/src/modules/repos/service.ts:93`, `server/src/modules/repos/routes.ts:36`.
 
 ## Open Questions
 

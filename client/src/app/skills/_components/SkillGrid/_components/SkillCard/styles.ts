@@ -66,4 +66,11 @@ export const s = {
     fontSize: 10.5,
     color: "var(--text-muted)",
   } satisfies CSSProperties,
+  appliesTo: {
+    fontSize: 10.5,
+    color: "var(--text-muted)",
+    background: "var(--bg-hover)",
+    padding: "1px 6px",
+    borderRadius: 4,
+  } satisfies CSSProperties,
 } as const;

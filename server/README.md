@@ -105,6 +105,7 @@ flowchart TB
 | `REPO_INTEL_ENABLED` | `true` | repo skeleton + callers in the prompt; `false` → ripgrep-only |
 | `DEVDIGEST_CLONE_DIR` | `./clones` | imported-repo checkouts (git-ignored) |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
+| `SEED_DEMO` | `true` | `false` → `pnpm db:seed` skips the `acme/payments-api` demo repo, PR #482 and its review (`e2e.sh` forces `true`) |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 
 Secrets (API keys, `GITHUB_TOKEN`) are **not** part of `AppConfig` — they go
@@ -113,7 +114,11 @@ through `SecretsProvider` (`~/.devdigest/secrets.json`, mode `0600`, with
 
 Migrations are **not** applied on boot — run `pnpm db:migrate` (pgvector is
 enabled by migration `0000`). `pnpm db:seed` is idempotent demo data
-(`acme/payments-api`, PR #482, the five built-in agents and the skills bound to Test Quality / API Contract).
+(`acme/payments-api`, PR #482, the six built-in agents — including Flutter Reviewer —
+and the skills bound to Test Quality / API Contract / Flutter Reviewer / General /
+Performance). Re-seeding an existing DB upgrades General/Performance's prompt only if
+it's still the original text, and appends a newly-added skill to an already-configured
+agent without disturbing bindings you've since removed (`specs/07-flutter-first-review.md`).
 
 ## Review context (non-obvious)
 
