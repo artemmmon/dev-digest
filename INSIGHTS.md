@@ -148,6 +148,14 @@ installer that symlinks the hook then believes "a different hook already exists"
 directory and append `/pre-push`. Also `pwd -P`, or `/var` vs `/private/var` paths never compare equal on macOS.
 Where: `scripts/install-hooks.sh:14`.
 
+### 2026-09-22 — An installed plugin runs from the cache, not the marketplace clone
+`~/.claude/plugins/marketplaces/screencast-demo-maker/` is only the marketplace's git clone; skills
+run from `~/.claude/plugins/cache/screencast-demo-maker/screencast-demo-maker/<version>/`. Playwright
+installed into the clone is invisible to the running skill, and every version bump makes a fresh
+cache folder. Never hard-code a plugin path in docs: let the skill run `doctor.mjs --fix` from its
+own copy. Claude Code re-installs only when `plugin.json` `version` changes, so bump it (and the
+`marketplace.json` entry) every release; `claude plugin tag` checks the two agree.
+Where: docs/demo-video.md:36
 
 ## Recurring Errors & Fixes
 
@@ -197,6 +205,13 @@ gate that fails open). Compare `realpathSync(process.argv[1])` with `realpathSyn
 in `lib.mjs` does. Related: a Claude Code `if` filter on a hook is best-effort and skips `bash -c "…"`; drop it when the
 script can decide cheaply.
 Where: `.claude/skills/pr-self-review/assets/lib.mjs:15`, `.claude/settings.json:1`.
+
+### 2026-09-22 — `claude plugin eval` rejects `target:` and cannot auth from inside a session
+In the plugin repo's `evals/*/graders/*.md`, an `llm` grader with `target: trace` fails to load
+(`Unrecognized key(s) in object: 'target'`), although the eval reference lists the key; judge the
+last message instead. Run from a Claude Code Bash tool, every child failed with "OAuth session
+expired" — run `claude plugin eval . --no-publish` from your own terminal.
+Where: .claude/skills/devdigest-demo/SKILL.md:18
 
 ## Open Questions
 
