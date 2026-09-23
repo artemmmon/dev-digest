@@ -232,6 +232,20 @@ last message instead. Run from a Claude Code Bash tool, every child failed with 
 expired" — run `claude plugin eval . --no-publish` from your own terminal.
 Where: .claude/skills/devdigest-demo/SKILL.md:18
 
+### 2026-09-23 — Second checkout on alternate ports: "Can't reach DevDigest" with the API up
+The API's CORS allows only `http://localhost:${WEB_PORT}`, so moving the web port without
+also setting `WEB_PORT` in `server/.env` drops `access-control-allow-origin` and the UI errors.
+`client`'s `pnpm dev` hardcodes `-p 3000` (ignores `client/.env` WEB_PORT) — use
+`pnpm exec next dev -p <port>`; `tsx watch` does not reload `.env`, restart the API after edits.
+Where: `server/src/platform/config.ts:85`, `client/package.json:6`.
+
+### 2026-09-23 — Worktree sharing the DB: no stack label, missing seeded agents
+A worktree's `DEVDIGEST_CLONE_DIR=./clones` is empty, so stack detection (which resolves the
+clone by owner/name, not `repos.clone_path`) fails silently → "Stack not detected yet". Point it
+at the main checkout's absolute `server/clones` and restart the API (boot backfill re-detects).
+New agents/skills from a branch arrive only via `pnpm db:seed` — `--no-seed` hides them.
+Where: `server/src/modules/repos/service.ts:93`, `server/src/modules/repos/routes.ts:36`.
+
 ## Open Questions
 
 ### 2026-09-15 — Undocumented task IDs in comments

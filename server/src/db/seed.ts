@@ -35,7 +35,7 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  * workspace/user and the demo fixtures.
  *
  * Seeds: default workspace + system user + membership, default settings,
- * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
+ * demo repo (acme/payments-api; skipped with `demo: false`), PR #482 with files/commits, a sample review
  * with a few findings, and the six built-in agents (General, Security, Performance,
  * Test Quality, API Contract, Flutter Reviewer), all on the default
  * openrouter/deepseek-v4-flash provider+model. Test Quality, API Contract and
@@ -56,7 +56,15 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
 export const DEFAULT_WORKSPACE_NAME = 'default';
 export const SYSTEM_USER_EMAIL = 'you@local';
 
-export async function seed(db: Db): Promise<{ workspaceId: string; userId: string }> {
+export interface SeedOptions {
+  /** Seed the acme/payments-api demo repo; the CLI turns it off with SEED_DEMO=false. */
+  demo?: boolean;
+}
+
+export async function seed(
+  db: Db,
+  { demo = true }: SeedOptions = {},
+): Promise<{ workspaceId: string; userId: string }> {
   // ---- workspace + user (no-auth defaults) ----
   let [ws] = await db
     .select()
@@ -98,110 +106,7 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       .onConflictDoNothing();
   }
 
-  // ---- demo repo (acme/payments-api) ----
-  let [repo] = await db
-    .select()
-    .from(t.repos)
-    .where(and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.fullName, 'acme/payments-api')));
-  if (!repo) {
-    [repo] = await db
-      .insert(t.repos)
-      .values({
-        workspaceId,
-        owner: 'acme',
-        name: 'payments-api',
-        fullName: 'acme/payments-api',
-        defaultBranch: 'main',
-        clonePath: null,
-        createdBy: userId,
-      })
-      .returning();
-  }
-  const repoId = repo!.id;
-
-  // ---- PR #482 (rate limiting) ----
-  let [pr] = await db
-    .select()
-    .from(t.pullRequests)
-    .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, 482)));
-  if (!pr) {
-    [pr] = await db
-      .insert(t.pullRequests)
-      .values({
-        workspaceId,
-        repoId,
-        number: 482,
-        title: 'Add rate limiting to public API endpoints',
-        author: 'marisa.koch',
-        branch: 'feat/rate-limit-public',
-        base: 'main',
-        headSha: 'a1b2c3d4e5f6',
-        additions: 247,
-        deletions: 38,
-        filesCount: 9,
-        status: 'needs_review',
-        body: 'Add rate limiting to public API endpoints to prevent abuse from unauthenticated clients.',
-      })
-      .returning();
-
-    // pr_files (subset)
-    await db.insert(t.prFiles).values([
-      { prId: pr!.id, path: 'src/middleware/ratelimit.ts', additions: 84, deletions: 0 },
-      { prId: pr!.id, path: 'src/api/public/webhooks.ts', additions: 31, deletions: 6 },
-      { prId: pr!.id, path: 'src/config.ts', additions: 4, deletions: 0 },
-      { prId: pr!.id, path: 'src/api/users.ts', additions: 7, deletions: 2 },
-    ]);
-
-    // pr_commits
-    await db.insert(t.prCommits).values({
-      prId: pr!.id,
-      sha: 'a1b2c3d4e5f6',
-      message: 'Add token-bucket rate limiter',
-      author: 'marisa.koch',
-    });
-
-    // a sample review + findings so the PR shows results before the first run
-    const [review] = await db
-      .insert(t.reviews)
-      .values({
-        workspaceId,
-        prId: pr!.id,
-        kind: 'review',
-        verdict: 'request_changes',
-        summary:
-          'Solid middleware approach, but a Stripe secret key is committed in plaintext and the user-list endpoint introduces an N+1 query under the new limiter.',
-        score: 61,
-        model: 'seed',
-      })
-      .returning();
-
-    await db.insert(t.findings).values([
-      {
-        reviewId: review!.id,
-        file: 'src/config.ts',
-        startLine: 12,
-        endLine: 12,
-        severity: 'CRITICAL',
-        category: 'security',
-        title: 'Hardcoded Stripe secret key in commit',
-        rationale: 'Line 12 contains a literal `sk_live_` Stripe secret key.',
-        suggestion: 'Move to env var and rotate the key immediately.',
-        confidence: 0.98,
-      },
-      {
-        reviewId: review!.id,
-        file: 'src/api/users.ts',
-        startLine: 45,
-        endLine: 52,
-        severity: 'WARNING',
-        category: 'perf',
-        title: 'N+1 query in user list endpoint',
-        rationale: 'Loop issues one query per user → N+1.',
-        suggestion: 'Use a single IN query and group in memory.',
-        confidence: 0.86,
-      },
-    ]);
-  }
+  if (demo) await seedDemoRepo(db, workspaceId, userId);
 
   // ---- built-in agents (the three starter presets) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
@@ -394,6 +299,114 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
   return { workspaceId, userId };
 }
 
+/** Demo fixtures: acme/payments-api, PR #482 with files/commits, a sample review + findings. */
+async function seedDemoRepo(db: Db, workspaceId: string, userId: string): Promise<void> {
+  // ---- demo repo (acme/payments-api) ----
+  let [repo] = await db
+    .select()
+    .from(t.repos)
+    .where(and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.fullName, 'acme/payments-api')));
+  if (!repo) {
+    [repo] = await db
+      .insert(t.repos)
+      .values({
+        workspaceId,
+        owner: 'acme',
+        name: 'payments-api',
+        fullName: 'acme/payments-api',
+        defaultBranch: 'main',
+        clonePath: null,
+        createdBy: userId,
+      })
+      .returning();
+  }
+  const repoId = repo!.id;
+
+  // ---- PR #482 (rate limiting) ----
+  let [pr] = await db
+    .select()
+    .from(t.pullRequests)
+    .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, 482)));
+  if (!pr) {
+    [pr] = await db
+      .insert(t.pullRequests)
+      .values({
+        workspaceId,
+        repoId,
+        number: 482,
+        title: 'Add rate limiting to public API endpoints',
+        author: 'marisa.koch',
+        branch: 'feat/rate-limit-public',
+        base: 'main',
+        headSha: 'a1b2c3d4e5f6',
+        additions: 247,
+        deletions: 38,
+        filesCount: 9,
+        status: 'needs_review',
+        body: 'Add rate limiting to public API endpoints to prevent abuse from unauthenticated clients.',
+      })
+      .returning();
+
+    // pr_files (subset)
+    await db.insert(t.prFiles).values([
+      { prId: pr!.id, path: 'src/middleware/ratelimit.ts', additions: 84, deletions: 0 },
+      { prId: pr!.id, path: 'src/api/public/webhooks.ts', additions: 31, deletions: 6 },
+      { prId: pr!.id, path: 'src/config.ts', additions: 4, deletions: 0 },
+      { prId: pr!.id, path: 'src/api/users.ts', additions: 7, deletions: 2 },
+    ]);
+
+    // pr_commits
+    await db.insert(t.prCommits).values({
+      prId: pr!.id,
+      sha: 'a1b2c3d4e5f6',
+      message: 'Add token-bucket rate limiter',
+      author: 'marisa.koch',
+    });
+
+    // a sample review + findings so the PR shows results before the first run
+    const [review] = await db
+      .insert(t.reviews)
+      .values({
+        workspaceId,
+        prId: pr!.id,
+        kind: 'review',
+        verdict: 'request_changes',
+        summary:
+          'Solid middleware approach, but a Stripe secret key is committed in plaintext and the user-list endpoint introduces an N+1 query under the new limiter.',
+        score: 61,
+        model: 'seed',
+      })
+      .returning();
+
+    await db.insert(t.findings).values([
+      {
+        reviewId: review!.id,
+        file: 'src/config.ts',
+        startLine: 12,
+        endLine: 12,
+        severity: 'CRITICAL',
+        category: 'security',
+        title: 'Hardcoded Stripe secret key in commit',
+        rationale: 'Line 12 contains a literal `sk_live_` Stripe secret key.',
+        suggestion: 'Move to env var and rotate the key immediately.',
+        confidence: 0.98,
+      },
+      {
+        reviewId: review!.id,
+        file: 'src/api/users.ts',
+        startLine: 45,
+        endLine: 52,
+        severity: 'WARNING',
+        category: 'perf',
+        title: 'N+1 query in user list endpoint',
+        rationale: 'Loop issues one query per user → N+1.',
+        suggestion: 'Use a single IN query and group in memory.',
+        confidence: 0.86,
+      },
+    ]);
+  }
+}
+
 // CLI entrypoint
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.DATABASE_URL;
@@ -402,7 +415,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const handle = createDb(url);
-  seed(handle.db)
+  seed(handle.db, { demo: process.env.SEED_DEMO !== 'false' })
     .then(async (r) => {
       console.log('✓ seeded', r);
       await handle.close();

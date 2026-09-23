@@ -40,6 +40,8 @@ WEB_PORT="${E2E_WEB_PORT:-3100}"
 export DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@127.0.0.1:${PG_PORT}/${PG_DB}"
 export API_PORT WEB_PORT
 export NEXT_PUBLIC_API_BASE="http://localhost:${API_PORT}"
+# Flows read the seeded acme/payments-api, even when server/.env opts out of it.
+export SEED_DEMO=true
 export E2E_BASE_URL="http://localhost:${WEB_PORT}"
 
 log()  { printf '\033[1;36m▸ %s\033[0m\n' "$*"; }

@@ -105,6 +105,7 @@ flowchart TB
 | `REPO_INTEL_ENABLED` | `true` | repo skeleton + callers in the prompt; `false` → ripgrep-only |
 | `DEVDIGEST_CLONE_DIR` | `./clones` | imported-repo checkouts (git-ignored) |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
+| `SEED_DEMO` | `true` | `false` → `pnpm db:seed` skips the `acme/payments-api` demo repo, PR #482 and its review (`e2e.sh` forces `true`) |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 
 Secrets (API keys, `GITHUB_TOKEN`) are **not** part of `AppConfig` — they go

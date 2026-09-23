@@ -165,3 +165,25 @@ d('Flutter-first seed', () => {
     expect(after[0]?.appliesTo).toBeNull();
   });
 });
+
+d('seed without the demo repo', () => {
+  let pg: PgFixture;
+
+  beforeAll(async () => {
+    pg = await startPg();
+  });
+  afterAll(async () => {
+    await pg?.stop();
+  });
+
+  it('demo: false seeds the workspace and agents but no repo, PR or review', async () => {
+    await seed(pg.handle.db, { demo: false });
+
+    expect(await pg.handle.db.select().from(t.repos)).toHaveLength(0);
+    expect(await pg.handle.db.select().from(t.pullRequests)).toHaveLength(0);
+    expect(await pg.handle.db.select().from(t.reviews)).toHaveLength(0);
+    expect(await pg.handle.db.select().from(t.workspaces)).toHaveLength(1);
+    const agents = await pg.handle.db.select().from(t.agents);
+    expect(agents.map((a) => a.name)).toContain('Flutter Reviewer');
+  });
+});
