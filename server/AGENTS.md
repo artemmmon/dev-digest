@@ -16,6 +16,7 @@ pnpm arch                                         # onion layering check (depcru
 pnpm db:generate                                  # after editing src/db/schema/
 pnpm db:migrate                                   # NOT applied on boot
 pnpm db:seed                                      # idempotent; API needs it (see gotchas)
+pnpm experiment:api-contract                      # skills on/off control PRs, real LLM (src/experiments/)
 ```
 
 ## Where things live

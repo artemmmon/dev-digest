@@ -25,8 +25,13 @@ import { PriceBook } from './price-book.js';
 import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
 import { SkillsRepository } from '../modules/skills/repository.js';
-import type { ArchiveReader } from '../modules/skills/ports.js';
+import { ConventionsRepository } from '../modules/conventions/repository.js';
+import type { ConventionsDeps } from '../modules/conventions/ports.js';
+import { resolveFeatureModel } from '../modules/settings/feature-models.js';
+import { renderPrompt } from './prompts.js';
+import type { ArchiveReader, RemoteFileFetcher } from '../modules/skills/ports.js';
 import { FflateZipReader } from '../adapters/archive/zip.js';
+import { SafeHttpFetcher } from '../adapters/http/safe-fetch.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
 import type { ReviewDeps } from '../modules/reviews/deps.js';
@@ -67,6 +72,8 @@ export interface ContainerOverrides {
   tokenizer?: Tokenizer;
   /** .zip reader for skill import; tests inject a fake. */
   archive?: ArchiveReader;
+  /** Outbound fetcher for skill import from a URL; tests inject a fake (no network). */
+  http?: RemoteFileFetcher;
   sourceParser?: SourceParser;
   repoFiles?: RepoFiles;
 }
@@ -90,7 +97,9 @@ export class Container {
   // `container.agentsRepo` instead of reaching into another module's folder.
   private _agentsRepo?: AgentsRepository;
   private _skillsRepo?: SkillsRepository;
+  private _conventionsRepo?: ConventionsRepository;
   private _archive?: ArchiveReader;
+  private _http?: RemoteFileFetcher;
   private _reviewRepo?: ReviewRepository;
   private _pullsRepo?: PullsRepository;
   private _settingsRepo?: SettingsRepository;
@@ -128,10 +137,35 @@ export class Container {
     return (this._skillsRepo ??= new SkillsRepository(this.db));
   }
 
+  get conventionsRepo(): ConventionsRepository {
+    return (this._conventionsRepo ??= new ConventionsRepository(this.db));
+  }
+
+  /** Collaborators of the conventions service. Cross-module reads are passed as functions. */
+  get conventionsDeps(): ConventionsDeps {
+    return {
+      store: this.conventionsRepo,
+      repos: this.reposRepo,
+      git: this.git,
+      skills: this.skillsRepo,
+      agents: this.agentsRepo,
+      samples: (repoId, n) => this.repoIntel.getConventionSamples(repoId, n),
+      resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'conventions'),
+      llm: (provider) => this.llm(provider),
+      systemPrompt: (vars) => renderPrompt('conventions.system.md', vars),
+    };
+  }
+
   /** In-memory .zip reader for skill import. */
   get archive(): ArchiveReader {
     if (this.overrides.archive) return this.overrides.archive;
     return (this._archive ??= new FflateZipReader());
+  }
+
+  /** SSRF-guarded HTTPS fetcher for skill import from a URL. */
+  get httpFetcher(): RemoteFileFetcher {
+    if (this.overrides.http) return this.overrides.http;
+    return (this._http ??= new SafeHttpFetcher());
   }
 
   get reposRepo(): RepoRepository {

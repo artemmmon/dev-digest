@@ -3,15 +3,19 @@ import { screen, cleanup, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SkillImportPreview } from "@devdigest/shared";
 import { renderWithIntl } from "@/test/render";
+import { ApiError } from "@/lib/api";
 import { bytesToBase64, checkPickedFile } from "./helpers";
 
 const h = vi.hoisted(() => ({
   previewMutate: vi.fn(),
+  urlMutate: vi.fn(),
+  urlPending: false,
   createMutate: vi.fn(),
 }));
 
 vi.mock("@/lib/hooks/skills", () => ({
   usePreviewSkillImport: () => ({ mutate: h.previewMutate, isPending: false }),
+  usePreviewSkillImportUrl: () => ({ mutate: h.urlMutate, isPending: h.urlPending }),
   useCreateSkill: () => ({ mutate: h.createMutate, isPending: false }),
 }));
 
@@ -31,6 +35,8 @@ const PREVIEW: SkillImportPreview = {
 
 beforeEach(() => {
   h.previewMutate.mockReset().mockImplementation((_input, opts) => opts.onSuccess(PREVIEW));
+  h.urlMutate.mockReset().mockImplementation((_input, opts) => opts.onSuccess(PREVIEW));
+  h.urlPending = false;
   h.createMutate.mockReset();
 });
 afterEach(cleanup);
@@ -107,6 +113,87 @@ describe("ImportSkillModal", () => {
     await userEvent.setup({ applyAccept: false }).upload(input, new File(["x"], "notes.txt"));
     expect(await screen.findByRole("alert")).toHaveTextContent("Only .md and .zip");
     expect(h.previewMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ImportSkillModal - From URL", () => {
+  const URL_IN = "https://github.com/acme/skills/blob/main/boundary-cases/SKILL.md";
+
+  async function openUrlTab() {
+    const user = userEvent.setup();
+    renderWithIntl(<ImportSkillModal onClose={() => {}} onSaved={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "From URL" }));
+    return user;
+  }
+
+  it("starts on the file tab and switches to a URL field", async () => {
+    renderWithIntl(<ImportSkillModal onClose={() => {}} onSaved={() => {}} />);
+    expect(screen.getByRole("button", { name: "Choose a file" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Skill URL")).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "From URL" }));
+    expect(screen.getByLabelText("Skill URL")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fetch" })).toBeDisabled();
+  });
+
+  it("fetches the typed URL and shows the same review step, saving nothing", async () => {
+    const user = await openUrlTab();
+    await user.type(screen.getByLabelText("Skill URL"), `  ${URL_IN}  `);
+    await user.click(screen.getByRole("button", { name: "Fetch" }));
+
+    expect(h.urlMutate).toHaveBeenCalledWith({ url: URL_IN }, expect.any(Object));
+    expect(await screen.findByDisplayValue("boundary-cases")).toBeInTheDocument();
+    expect(screen.getByText("Someone else's instructions")).toBeInTheDocument();
+    expect(screen.getByText("boundary-cases/scripts/check.sh")).toBeInTheDocument();
+    expect(h.previewMutate).not.toHaveBeenCalled();
+    expect(h.createMutate).not.toHaveBeenCalled();
+  });
+
+  it("submits on Enter", async () => {
+    const user = await openUrlTab();
+    await user.type(screen.getByLabelText("Skill URL"), `${URL_IN}{Enter}`);
+    expect(h.urlMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves an imported_url skill on confirm", async () => {
+    const user = await openUrlTab();
+    h.createMutate.mockImplementation((_input, opts) => opts.onSuccess({ id: "new", name: "boundary-cases" }));
+    await user.type(screen.getByLabelText("Skill URL"), URL_IN);
+    await user.click(screen.getByRole("button", { name: "Fetch" }));
+    await user.click(await screen.findByRole("button", { name: "Save skill" }));
+
+    expect(h.createMutate).toHaveBeenCalledWith(
+      { name: "boundary-cases", description: PREVIEW.description, type: "rubric", body: PREVIEW.body, source: "imported_url" },
+      expect.any(Object),
+    );
+  });
+
+  it("shows the server's message inline when the fetch is refused", async () => {
+    h.urlMutate.mockImplementation((_input, opts) =>
+      opts.onError(new ApiError("The URL points to a private or internal address", 422, "validation_error")),
+    );
+    const user = await openUrlTab();
+    await user.type(screen.getByLabelText("Skill URL"), "https://localhost/x.md");
+    await user.click(screen.getByRole("button", { name: "Fetch" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("private or internal");
+    expect(screen.queryByDisplayValue("boundary-cases")).not.toBeInTheDocument();
+  });
+
+  it("falls back to a generic message for a non-API error", async () => {
+    h.urlMutate.mockImplementation((_input, opts) => opts.onError(new Error("network")));
+    const user = await openUrlTab();
+    await user.type(screen.getByLabelText("Skill URL"), URL_IN);
+    await user.click(screen.getByRole("button", { name: "Fetch" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be fetched");
+  });
+
+  it("goes back to the URL step on cancel, and the file tab keeps working", async () => {
+    const user = await openUrlTab();
+    await user.type(screen.getByLabelText("Skill URL"), URL_IN);
+    await user.click(screen.getByRole("button", { name: "Fetch" }));
+    await user.click(await screen.findByRole("button", { name: "Use another URL" }));
+    expect(screen.getByLabelText("Skill URL")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "From file" }));
+    expect(screen.getByRole("button", { name: "Choose a file" })).toBeInTheDocument();
   });
 });
 

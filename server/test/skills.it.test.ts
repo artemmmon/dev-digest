@@ -8,6 +8,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
 import { MockGitClient, MockGitHubClient, MockLLMProvider } from '../src/adapters/mocks.js';
+import { ValidationError } from '../src/platform/errors.js';
 import { AgentsRepository } from '../src/modules/agents/repository.js';
 import * as t from '../src/db/schema.js';
 
@@ -50,6 +51,10 @@ d('skills (Testcontainers pg)', () => {
     await pg?.stop();
   });
 
+  /** What the fake fetcher answers per URL; never a real network call. */
+  const remoteFiles = new Map<string, Uint8Array>();
+  const requested: string[] = [];
+
   function makeApp() {
     const config = loadConfig({ ...process.env, NODE_ENV: 'test' } as NodeJS.ProcessEnv);
     return buildApp({
@@ -59,6 +64,14 @@ d('skills (Testcontainers pg)', () => {
         git: new MockGitClient({ diff: DIFF }),
         github: new MockGitHubClient(),
         llm: { openai: llm },
+        http: {
+          fetch: async (url) => {
+            requested.push(url.href);
+            const bytes = remoteFiles.get(url.href);
+            if (!bytes) throw new ValidationError('The server answered 404 for this URL');
+            return bytes;
+          },
+        },
       },
     });
   }
@@ -217,6 +230,45 @@ d('skills (Testcontainers pg)', () => {
       });
       expect(res.statusCode).toBe(422);
     }
+    await app.close();
+  });
+
+  it('previews an import from a URL through the fake fetcher and saves nothing', async () => {
+    const app = await makeApp();
+    const before = (await app.inject({ method: 'GET', url: '/skills' })).json().length;
+    remoteFiles.set(
+      'https://raw.githubusercontent.com/acme/skills/main/url-skill/SKILL.md',
+      strToU8('---\nname: url-skill\ndescription: Use when importing by URL.\ntype: convention\n---\n# Url\nBody.'),
+    );
+    const res = await app.inject({
+      method: 'POST',
+      url: '/skills/import/url',
+      payload: { url: 'https://github.com/acme/skills/blob/main/url-skill/SKILL.md' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ name: 'url-skill', type: 'convention', source_file: 'SKILL.md' });
+    expect(requested.at(-1)).toBe('https://raw.githubusercontent.com/acme/skills/main/url-skill/SKILL.md');
+    expect((await app.inject({ method: 'GET', url: '/skills' })).json()).toHaveLength(before);
+
+    const saved = await app.inject({
+      method: 'POST',
+      url: '/skills',
+      payload: { ...skillBody('url-skill'), source: 'imported_url' },
+    });
+    expect(saved.json().source).toBe('imported_url');
+    await app.close();
+  });
+
+  it('import from URL answers 422 for a bad URL, an unknown file and a body that is not a URL', async () => {
+    const app = await makeApp();
+    const calls = requested.length;
+    for (const url of ['http://example.com/a.md', 'https://example.com/a.txt', 'https://u:p@example.com/a.md', 'https://example.com/missing.md']) {
+      const res = await app.inject({ method: 'POST', url: '/skills/import/url', payload: { url } });
+      expect(res.statusCode).toBe(422);
+    }
+    expect(requested.length).toBe(calls + 1); // only the last one passed URL rules and reached the fetcher
+    const res = await app.inject({ method: 'POST', url: '/skills/import/url', payload: { url: 'nope' } });
+    expect(res.statusCode).toBe(422);
     await app.close();
   });
 

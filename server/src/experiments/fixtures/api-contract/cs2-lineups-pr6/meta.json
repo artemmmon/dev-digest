@@ -1,0 +1,6 @@
+{
+  "title": "Simplify lineup JSON serialization",
+  "author": "artemmmon",
+  "description": "Make `_toJson` in `server/lineups_server.dart` explicit: list the serialized fields one by one instead of copying the map and removing keys.",
+  "source": "Snapshot of https://github.com/artemmmon/cs2-lineups/pull/6 (the PR used in hw/L02/report.md, section 2)."
+}

@@ -9,6 +9,7 @@ import type {
   Skill,
   SkillAgentUse,
   SkillImportPreview,
+  SkillImportUrlBody,
   SkillInput,
   SkillType,
   SkillVersion,
@@ -117,6 +118,17 @@ export function usePreviewSkillImport() {
     meta: { silent: true },
     mutationFn: (input: { filename: string; content_base64: string }) =>
       api.post<SkillImportPreview>("/skills/import/preview", input),
+  });
+}
+
+/**
+ * Same preview, but the server fetches a public https URL to a .md / .zip (GitHub `blob`
+ * links work). Saves nothing; errors show inline in the import dialog, hence `silent`.
+ */
+export function usePreviewSkillImportUrl() {
+  return useMutation({
+    meta: { silent: true },
+    mutationFn: (input: SkillImportUrlBody) => api.post<SkillImportPreview>("/skills/import/url", input),
   });
 }
 

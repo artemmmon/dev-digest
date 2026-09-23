@@ -12,5 +12,16 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "screencast-demo-maker": {
+      "source": {
+        "source": "github",
+        "repo": "artemmmon/screencast-demo-maker"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "screencast-demo-maker@screencast-demo-maker": true
   }
 }

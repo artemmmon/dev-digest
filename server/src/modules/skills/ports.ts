@@ -24,6 +24,8 @@ export interface InsertSkill {
   type: SkillType;
   source: SkillSource;
   body: string;
+  /** Files the skill was derived from (extracted skills). */
+  evidenceFiles?: string[] | null;
 }
 
 export interface UpdateSkill {
@@ -31,6 +33,7 @@ export interface UpdateSkill {
   description?: string;
   type?: SkillType;
   body?: string;
+  evidenceFiles?: string[] | null;
   /** Stored with the new version when the body changes; ignored otherwise. */
   message?: string;
 }
@@ -82,6 +85,14 @@ export interface SkillUsageReader {
   agentsUsing(workspaceId: string, skillId: string): Promise<Array<{ id: string; name: string }>>;
 }
 
+/**
+ * Fetches a public file by URL for skill import. The implementation owns the network
+ * safety (address checks, redirects, size and time limits); it throws `AppError`s.
+ */
+export interface RemoteFileFetcher {
+  fetch(url: URL, o: { maxBytes: number; timeoutMs: number }): Promise<Uint8Array>;
+}
+
 export interface TokenCounter {
   count(text: string): number;
 }
@@ -89,6 +100,7 @@ export interface TokenCounter {
 export interface SkillsServiceDeps {
   skills: SkillStore;
   archive: ArchiveReader;
+  remote: RemoteFileFetcher;
   usage: SkillUsageReader;
   tokenizer: TokenCounter;
 }

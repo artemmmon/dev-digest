@@ -1,0 +1,91 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index dc249db..c658e1e 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,8 @@
+ # Changelog
+ 
++## 1.5.0
++- Tidy the lineup serialization: one `toWire` mapper instead of an inline object. No API changes.
++
+ ## 1.4.0
+ - Added the `map` filter to `GET /v1/lineups`.
+ 
+diff --git a/package.json b/package.json
+index a792cfb..bb252b0 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@cs2/lineups-api",
+-  "version": "1.4.0",
++  "version": "1.5.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+diff --git a/src/contracts/lineup.ts b/src/contracts/lineup.ts
+index 4a36472..346d6ca 100644
+--- a/src/contracts/lineup.ts
++++ b/src/contracts/lineup.ts
+@@ -1,16 +1,14 @@
+ import { z } from 'zod';
+ 
+ /** Publication state of a lineup, as returned by the public API. */
+-export const LineupStatus = z.enum(['draft', 'published']);
++export const LineupStatus = z.enum(['draft', 'published', 'archived']);
+ 
+ /** One lineup on the wire. Field names are snake_case. */
+ export const Lineup = z.object({
+   id: z.string(),
+-  // Numeric id from the v0 API; the mobile app still keys its cache on it.
+-  legacy_id: z.number().int(),
+   title: z.string(),
+   map: z.string(),
+-  author: z.string(),
++  author: z.string().nullable(),
+   status: LineupStatus,
+   created_at: z.string().datetime(),
+ });
+diff --git a/src/routes/lineups.ts b/src/routes/lineups.ts
+index d6e46ad..a17a618 100644
+--- a/src/routes/lineups.ts
++++ b/src/routes/lineups.ts
+@@ -1,22 +1,23 @@
+ import type { FastifyInstance } from 'fastify';
+-import { LineupList } from '../contracts/lineup.js';
+-import { listLineups } from '../repo/lineups.js';
++import { type Lineup, LineupList } from '../contracts/lineup.js';
++import { listLineups, type LineupRow } from '../repo/lineups.js';
++
++/** Maps a stored row to its wire shape. */
++function toWire(row: LineupRow): Lineup {
++  return {
++    id: row.id,
++    title: row.title,
++    map: row.map,
++    author: row.author?.name ?? null,
++    status: row.status,
++    created_at: row.createdAt.toISOString(),
++  };
++}
+ 
+ export async function lineupRoutes(app: FastifyInstance) {
+   app.get('/v1/lineups', { schema: { response: { 200: LineupList } } }, async (req) => {
+     const { map } = req.query as { map?: string };
+-    const rows = await listLineups({ map });
+-    return {
+-      items: rows.map((r) => ({
+-        id: r.id,
+-        legacy_id: r.legacyId,
+-        title: r.title,
+-        map: r.map,
+-        author: r.authorName,
+-        status: r.status,
+-        created_at: r.createdAt.toISOString(),
+-      })),
+-      total: rows.length,
+-    };
++    const lineups = await listLineups({ map, includeArchived: true });
++    return { items: lineups.map(toWire), total: lineups.length };
+   });
+ }

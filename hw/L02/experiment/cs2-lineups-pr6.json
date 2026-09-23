@@ -1,0 +1,274 @@
+{
+  "fixture": "cs2-lineups-pr6",
+  "model": "deepseek/deepseek-v4-flash",
+  "runsPerMode": 3,
+  "commit": "0ad94a5",
+  "skills": [
+    {
+      "name": "breaking-change",
+      "tokens": 917
+    },
+    {
+      "name": "response-schema",
+      "tokens": 809
+    },
+    {
+      "name": "semver-discipline",
+      "tokens": 820
+    },
+    {
+      "name": "deprecation-policy",
+      "tokens": 838
+    }
+  ],
+  "runs": [
+    {
+      "mode": "no-skills",
+      "run": 1,
+      "caught": {
+        "difficulty-value": true,
+        "throw-style-renamed": true,
+        "steps-type": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 0,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Omission of previously included fields breaks clients relying on them",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 87
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Transformation of `difficulty` from 'hard' to 'expert' changes response value",
+          "file": "server/lineups_server.dart",
+          "start_line": 84,
+          "end_line": 84
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "`steps` field changed from array to string",
+          "file": "server/lineups_server.dart",
+          "start_line": 87,
+          "end_line": 87
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Response key `throw_style` renamed to `throwStyle`",
+          "file": "server/lineups_server.dart",
+          "start_line": 86,
+          "end_line": 86
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Null assertions on map values cause runtime crashes on missing/null fields",
+          "file": "server/lineups_server.dart",
+          "start_line": 81,
+          "end_line": 87
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000389109,
+      "seconds": 67.192
+    },
+    {
+      "mode": "no-skills",
+      "run": 2,
+      "caught": {
+        "difficulty-value": true,
+        "throw-style-renamed": true,
+        "steps-type": true
+      },
+      "full": true,
+      "extra": 1,
+      "policyMentions": 0,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Field name change: 'throw_style' renamed to 'throwStyle'",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 87
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Value transformation: 'hard' difficulty changed to 'expert'",
+          "file": "server/lineups_server.dart",
+          "start_line": 84,
+          "end_line": 84
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Steps format changed from list to newline-separated string",
+          "file": "server/lineups_server.dart",
+          "start_line": 87,
+          "end_line": 87
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Omission of previously included fields",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 87
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Null safety assertions may cause server crashes",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 87
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000731276,
+      "seconds": 88.008
+    },
+    {
+      "mode": "no-skills",
+      "run": 3,
+      "caught": {
+        "difficulty-value": true,
+        "throw-style-renamed": true,
+        "steps-type": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 0,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Response shape, key names, types, and values changed without migration",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 87
+        },
+        {
+          "severity": "WARNING",
+          "title": "Null assertions may crash on null fields",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 87
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000279545,
+      "seconds": 45.688
+    },
+    {
+      "mode": "4-skills",
+      "run": 1,
+      "caught": {
+        "difficulty-value": true,
+        "throw-style-renamed": false,
+        "steps-type": true
+      },
+      "full": false,
+      "extra": 1,
+      "policyMentions": 3,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Response field `difficulty` value changed from `'hard'` to `'expert'`",
+          "file": "server/lineups_server.dart",
+          "start_line": 85,
+          "end_line": 85
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Response field `steps` type changed from list to string",
+          "file": "server/lineups_server.dart",
+          "start_line": 88,
+          "end_line": 88
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Response field `to` removed from output",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 80
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000538704,
+      "seconds": 24.412
+    },
+    {
+      "mode": "4-skills",
+      "run": 2,
+      "caught": {
+        "difficulty-value": true,
+        "throw-style-renamed": true,
+        "steps-type": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 3,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Field rename: `throw_style` → `throwStyle`",
+          "file": "server/lineups_server.dart",
+          "start_line": 83,
+          "end_line": 83
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Value transformation of `difficulty`",
+          "file": "server/lineups_server.dart",
+          "start_line": 82,
+          "end_line": 82
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Type change of `steps` from array to string",
+          "file": "server/lineups_server.dart",
+          "start_line": 85,
+          "end_line": 85
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Null safety assertions on all fields",
+          "file": "server/lineups_server.dart",
+          "start_line": 78,
+          "end_line": 85
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000766556,
+      "seconds": 99.411
+    },
+    {
+      "mode": "4-skills",
+      "run": 3,
+      "caught": {
+        "difficulty-value": true,
+        "throw-style-renamed": true,
+        "steps-type": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 1,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Breaking change: response fields removed, renamed, and retyped in `_toJson`",
+          "file": "server/lineups_server.dart",
+          "start_line": 80,
+          "end_line": 88
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000560658,
+      "seconds": 66.399
+    }
+  ]
+}

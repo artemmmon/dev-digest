@@ -60,15 +60,23 @@ describe("VersionsTab", () => {
     expect(screen.queryByRole("list", { name: "Show changes of v2" })).not.toBeInTheDocument();
   });
 
-  it("restores an older version as a new save, after asking", async () => {
+  it("restores an older version as a new save, after the dialog is confirmed", async () => {
     const user = userEvent.setup();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = vi.spyOn(window, "confirm");
     renderWithIntl(<VersionsTab skill={SKILL} dirty={false} />);
     await user.click(screen.getByRole("button", { name: "Restore v1" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Restore v1? Its text is saved again as a new version");
     expect(h.updateAsync).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(h.updateAsync).not.toHaveBeenCalled();
+
     await user.click(screen.getByRole("button", { name: "Restore v1" }));
-    expect(confirm).toHaveBeenCalledTimes(2);
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Restore" }));
     expect(h.updateAsync).toHaveBeenCalledWith({ id: "s1", patch: { body: "# Rule\nkeep", message: "Restored v1" } });
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
   });
 
   it("blocks Restore while Config has unsaved edits", () => {

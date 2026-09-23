@@ -1,0 +1,23 @@
+[
+  {
+    "id": "difficulty-value",
+    "label": "`difficulty` value `hard` is sent as `expert`",
+    "skill": "breaking-change",
+    "keywords": ["expert"],
+    "locations": [{ "file": "server/lineups_server.dart", "lines": [85, 85] }]
+  },
+  {
+    "id": "throw-style-renamed",
+    "label": "Key `throw_style` renamed to `throwStyle`",
+    "skill": "breaking-change",
+    "keywords": ["throwStyle", "throw_style"],
+    "locations": [{ "file": "server/lineups_server.dart", "lines": [86, 86] }]
+  },
+  {
+    "id": "steps-type",
+    "label": "`steps` changes from an array to a string",
+    "skill": "response-schema",
+    "keywords": ["steps"],
+    "locations": [{ "file": "server/lineups_server.dart", "lines": [88, 88] }]
+  }
+]

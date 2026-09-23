@@ -5,7 +5,7 @@ import type { AgentRecord } from '../agents/types.js';
 import type { ReviewDeps, RunRepo } from './deps.js';
 import type { FindingRow, PullRow, ReviewRow } from './ports.js';
 import { REVIEW_STRATEGY } from './constants.js';
-import { taskLine } from './helpers.js';
+import { skillBlockText, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 import { excludeFromReview } from './diff-filter.js';
 
@@ -396,7 +396,7 @@ export class ReviewRunExecutor {
       return [];
     }
     const blocks = skills.map((s) => {
-      const text = `### Skill: ${s.name}\n${s.body}`;
+      const text = skillBlockText(s.name, s.body);
       return { skill_id: s.id, name: s.name, tokens: this.deps.tokenizer.count(text), text };
     });
     for (const b of blocks) runLog.info(`skill "${b.name}" attached (${b.tokens} token(s))`);

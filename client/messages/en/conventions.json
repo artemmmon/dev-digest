@@ -4,23 +4,132 @@
     "crumbConventions": "Conventions",
     "headingPrefix": "Conventions in ",
     "repoFallback": "repo",
-    "subtitle": "Scan the cloned repo to surface house-rules — each backed by evidence you can turn into a Skill.",
+    "subtitle": "Scan the repo to surface house-rules — each backed by evidence you can turn into a Skill.",
+    "lastScan": "Last scan {when}",
+    "lastScanSha": "commit {sha}",
+    "runScan": "Run Scan",
+    "rescan": "ReScan",
     "scanning": "Scanning…",
-    "rescan": "Re-scan",
-    "runExtraction": "Run extraction",
-    "extractionFailed": "Extraction failed",
+    "createSkill": "Create skill",
     "loadError": "Could not load conventions.",
     "empty": {
       "title": "No conventions extracted yet",
-      "body": "Scan the repo to surface house-rules — naming, error handling, structure — each backed by evidence you can turn into a Skill.",
-      "cta": "Run extraction"
+      "body": "Scan the repo to surface house-rules — naming, error handling, structure — each backed by evidence you can turn into a Skill."
     },
-    "candidateCount": "{count, plural, one {# candidate} other {# candidates}} · grounded against sampled files"
+    "allReviewed": {
+      "title": "Nothing left to review",
+      "body": "Every candidate is accepted or rejected. ReScan to look for new conventions."
+    },
+    "loading": {
+      "title": "Scanning the repository…",
+      "body": "The model reads sampled files and proposes conventions with evidence. A scan can take a few minutes."
+    },
+    "sections": {
+      "pending": "Pending review",
+      "accepted": "Accepted"
+    },
+    "sectionCount": "{count, plural, one {# candidate} other {# candidates}}",
+    "selection": "{selected} of {total} selected for the skill",
+    "rescanConfirm": {
+      "title": "ReScan this repository?",
+      "body": "The scan runs again and can take a few minutes. Pending candidates will be replaced with new ones. Accepted conventions are kept, and rejected ones stay rejected.",
+      "confirm": "ReScan",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "title": "Scan failed",
+      "generic": "The scan failed. Try again.",
+      "noApiKey": "No API key is configured for the conventions model. Add one in Settings, API Keys, then run the scan again.",
+      "scanInProgress": "A scan is already running for this repository. Wait for it to finish and reload.",
+      "network": "Cannot reach the DevDigest engine. Is the API running?"
+    }
+  },
+  "report": {
+    "toggle": "Scan report",
+    "summary": "{files, plural, one {# sampled file} other {# sampled files}} · {kept} kept of {raw} proposed",
+    "sampled": "Sampled files",
+    "configFiles": "Config files",
+    "kept": "Kept",
+    "raw": "Proposed",
+    "lineCorrected": "Line numbers corrected",
+    "dropped": "Dropped",
+    "droppedNone": "nothing dropped",
+    "reasons": {
+      "unknown_file": "file not in the sample",
+      "snippet_not_found": "snippet not found in the file",
+      "trivial_snippet": "trivial snippet",
+      "duplicate": "duplicate",
+      "known_decision": "already accepted or rejected",
+      "category_cap": "category limit"
+    },
+    "model": "Model",
+    "tokens": "Tokens in / out",
+    "cost": "Cost",
+    "duration": "Duration",
+    "seconds": "{value} s"
+  },
+  "categories": {
+    "naming": "Naming",
+    "structure": "Structure",
+    "error-handling": "Error handling",
+    "types": "Types",
+    "imports": "Imports",
+    "async": "Async",
+    "testing": "Testing",
+    "api": "API",
+    "logging": "Logging",
+    "config": "Config",
+    "formatting": "Formatting",
+    "other": "Other"
   },
   "card": {
     "confidence": "Confidence",
+    "accept": "Accept",
+    "reject": "Reject",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "undo": "Undo",
     "accepted": "Accepted",
-    "accepting": "Accepting…",
-    "acceptAsSkill": "Accept as Skill"
+    "ruleLabel": "Rule",
+    "ruleTooLong": "A rule is at most {max} characters.",
+    "ruleTooShort": "A rule needs at least {min} characters.",
+    "openOnGitHub": "Open {location} on GitHub",
+    "selectForSkill": "Include in the skill",
+    "snippetLabel": "Evidence from {location}"
+  },
+  "createSkill": {
+    "title": "Create skill from conventions",
+    "subtitle": "Created from {count, plural, one {# accepted convention} other {# accepted conventions}} of {repo}.",
+    "loadingDraft": "Drafting the skill…",
+    "draftError": "Could not draft the skill.",
+    "retry": "Retry",
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "body": "Body (Markdown)",
+      "agent": "Link to an agent",
+      "agentHint": "The skill is enabled on the chosen agent and added last in its order.",
+      "noAgent": "Don't link to an agent"
+    },
+    "tabs": {
+      "write": "Write",
+      "preview": "Preview"
+    },
+    "meta": {
+      "type": "Type",
+      "typeValue": "convention",
+      "source": "Source",
+      "sourceValue": "extracted",
+      "evidence": "Evidence files",
+      "noEvidence": "none"
+    },
+    "cancel": "Cancel",
+    "create": "Create skill",
+    "creating": "Creating…",
+    "createError": "Could not create the skill.",
+    "created": "Skill “{name}” created.",
+    "createdLink": "Open Skills",
+    "dismiss": "Dismiss"
   }
 }

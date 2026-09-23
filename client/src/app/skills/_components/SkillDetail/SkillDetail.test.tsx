@@ -1,18 +1,16 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { screen, cleanup } from "@testing-library/react";
+import { screen, cleanup, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Skill } from "@devdigest/shared";
 import { renderWithIntl } from "@/test/render";
 
 const h = vi.hoisted(() => ({
-  create: vi.fn(),
   updateAsync: vi.fn(),
   del: vi.fn(),
   toggle: vi.fn(),
 }));
 
 vi.mock("@/lib/hooks/skills", () => ({
-  useCreateSkill: () => ({ mutate: h.create, isPending: false }),
   useUpdateSkill: () => ({ mutateAsync: h.updateAsync, mutate: vi.fn(), isPending: false }),
   useDeleteSkill: () => ({ mutate: h.del, isPending: false }),
   useToggleSkill: () => ({ mutate: h.toggle, isPending: false }),
@@ -35,8 +33,8 @@ const SKILL: Skill = {
   body_tokens: 42,
 };
 
-function setup(skill: Skill | null = SKILL, tab: "config" | "preview" | "stats" | "versions" = "config") {
-  const props = { onTab: vi.fn(), onCreated: vi.fn(), onDeleted: vi.fn(), onDirtyChange: vi.fn() };
+function setup(skill: Skill = SKILL, tab: "config" | "preview" | "stats" | "versions" = "config") {
+  const props = { onTab: vi.fn(), onDeleted: vi.fn(), onDirtyChange: vi.fn() };
   renderWithIntl(<SkillDetail skill={skill} tab={tab} {...props} />);
   return props;
 }
@@ -51,13 +49,14 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("SkillDetail", () => {
-  it("shows the skill in the header and offers Config, Preview, Stats and Versions", () => {
+  it("shows the skill in the header and offers Config, Preview, Stats and Versioning", () => {
     setup();
     expect(screen.getByRole("heading", { name: "branch-coverage" })).toBeInTheDocument();
     expect(screen.getAllByText("v3").length).toBeGreaterThan(0);
-    for (const name of ["Config", "Preview", "Stats", "Versions"]) {
+    for (const name of ["Config", "Preview", "Stats", "Versioning"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("button", { name: "Versions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Evals" })).not.toBeInTheDocument();
   });
 
@@ -65,15 +64,6 @@ describe("SkillDetail", () => {
     const p = setup();
     await userEvent.setup().click(screen.getByRole("button", { name: "Stats" }));
     expect(p.onTab).toHaveBeenCalledWith("stats");
-  });
-
-  it("offers only Config and Preview for a new draft", () => {
-    setup(null);
-    expect(screen.getByRole("heading", { name: "New skill" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Preview" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Stats" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Versions" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete skill" })).not.toBeInTheDocument();
   });
 
   it("shows the server's token count for a saved body and an estimate once it is edited", async () => {
@@ -132,22 +122,6 @@ describe("SkillDetail", () => {
     expect(save()).toBeDisabled();
   });
 
-  it("creates a new skill from a draft and reports it", async () => {
-    const user = userEvent.setup();
-    const p = setup(null);
-    await user.type(screen.getByRole("textbox", { name: "Name" }), "my-skill");
-    await user.type(screen.getByRole("textbox", { name: "Description" }), "Use when X: do Y.");
-    await user.type(body(), "# Rule");
-    await user.click(save());
-    expect(h.create).toHaveBeenCalledWith(
-      { name: "my-skill", description: "Use when X: do Y.", type: "rubric", body: "# Rule" },
-      expect.anything(),
-    );
-    const created = { ...SKILL, id: "new1", name: "my-skill" };
-    h.create.mock.calls[0]![1].onSuccess(created);
-    expect(p.onCreated).toHaveBeenCalledWith(created);
-  });
-
   it("switches the skill on or off globally from Config", async () => {
     setup();
     await userEvent.setup().click(screen.getByRole("switch", { name: "Enabled" }));
@@ -160,16 +134,24 @@ describe("SkillDetail", () => {
     expect(screen.getByText("Rendered as the reviewing agent receives it.")).toBeInTheDocument();
   });
 
-  it("asks before deleting and only then deletes", async () => {
+  it("asks in a dialog before deleting and only then deletes", async () => {
     const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm");
     const p = setup();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     await user.click(screen.getByRole("button", { name: "Delete skill" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent('Delete skill "branch-coverage"?');
     expect(h.del).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" })); // keep it
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(h.del).not.toHaveBeenCalled();
+
     await user.click(screen.getByRole("button", { name: "Delete skill" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(h.del).toHaveBeenCalledWith("s1", expect.anything());
-    h.del.mock.calls[0]![1].onSuccess();
+    act(() => h.del.mock.calls[0]![1].onSuccess());
     expect(p.onDeleted).toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
 

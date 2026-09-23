@@ -1,0 +1,301 @@
+{
+  "fixture": "ts-route-contract",
+  "model": "deepseek/deepseek-v4-flash",
+  "runsPerMode": 3,
+  "commit": "0ad94a5",
+  "skills": [
+    {
+      "name": "breaking-change",
+      "tokens": 917
+    },
+    {
+      "name": "response-schema",
+      "tokens": 809
+    },
+    {
+      "name": "semver-discipline",
+      "tokens": 820
+    },
+    {
+      "name": "deprecation-policy",
+      "tokens": 838
+    }
+  ],
+  "runs": [
+    {
+      "mode": "no-skills",
+      "run": 1,
+      "caught": {
+        "status-archived": true,
+        "legacy-id-removed": true,
+        "author-nullable": true,
+        "minor-bump": false
+      },
+      "full": false,
+      "extra": 0,
+      "policyMentions": 1,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Removal of `legacy_id` field from response schema",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 8,
+          "end_line": 14
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Addition of `'archived'` status and inclusion of archived lineups",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 4,
+          "end_line": 5
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "`author` field changed from required string to nullable",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 10,
+          "end_line": 11
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000250488,
+      "seconds": 33.021
+    },
+    {
+      "mode": "no-skills",
+      "run": 2,
+      "caught": {
+        "status-archived": true,
+        "legacy-id-removed": true,
+        "author-nullable": true,
+        "minor-bump": false
+      },
+      "full": false,
+      "extra": 0,
+      "policyMentions": 2,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Removal of required field `legacy_id` from response",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 8,
+          "end_line": 9
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "`author` field changes from required string to nullable string",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 12,
+          "end_line": 12
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "New enum value `archived` added to `LineupStatus`",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 4,
+          "end_line": 4
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Endpoint now returns archived lineups by default",
+          "file": "src/routes/lineups.ts",
+          "start_line": 24,
+          "end_line": 24
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.00036774,
+      "seconds": 34.768
+    },
+    {
+      "mode": "no-skills",
+      "run": 3,
+      "caught": {
+        "status-archived": true,
+        "legacy-id-removed": true,
+        "author-nullable": true,
+        "minor-bump": false
+      },
+      "full": false,
+      "extra": 0,
+      "policyMentions": 2,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Removal of `legacy_id` field from response",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 8,
+          "end_line": 8
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "`author` field changes from non-nullable string to nullable string",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 11,
+          "end_line": 11
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "New enum value `archived` added to `LineupStatus`",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 4,
+          "end_line": 4
+        }
+      ],
+      "dropped": 1,
+      "costUsd": 0.000228096,
+      "seconds": 15.595
+    },
+    {
+      "mode": "4-skills",
+      "run": 1,
+      "caught": {
+        "status-archived": true,
+        "legacy-id-removed": true,
+        "author-nullable": true,
+        "minor-bump": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 4,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Removed public response field `legacy_id` without deprecation",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 9,
+          "end_line": 10
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Changed `author` field from required string to nullable string",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 12,
+          "end_line": 12
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Breaking changes shipped with only a minor version bump",
+          "file": "package.json",
+          "start_line": 6,
+          "end_line": 6
+        },
+        {
+          "severity": "WARNING",
+          "title": "New enum value `archived` added to `LineupStatus`",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 5,
+          "end_line": 5
+        },
+        {
+          "severity": "WARNING",
+          "title": "Default behavior changed to include archived lineups",
+          "file": "src/routes/lineups.ts",
+          "start_line": 20,
+          "end_line": 20
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000673113,
+      "seconds": 84.377
+    },
+    {
+      "mode": "4-skills",
+      "run": 2,
+      "caught": {
+        "status-archived": true,
+        "legacy-id-removed": true,
+        "author-nullable": true,
+        "minor-bump": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 2,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Removed response field `legacy_id` from GET /v1/lineups",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 5,
+          "end_line": 14
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Response field `author` changed from required string to nullable",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 5,
+          "end_line": 14
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Breaking changes shipped under minor version bump",
+          "file": "package.json",
+          "start_line": 5,
+          "end_line": 5
+        },
+        {
+          "severity": "WARNING",
+          "title": "Unannounced behavioral change: now includes archived lineups",
+          "file": "src/routes/lineups.ts",
+          "start_line": 22,
+          "end_line": 22
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000616077,
+      "seconds": 71.103
+    },
+    {
+      "mode": "4-skills",
+      "run": 3,
+      "caught": {
+        "status-archived": true,
+        "legacy-id-removed": true,
+        "author-nullable": true,
+        "minor-bump": true
+      },
+      "full": true,
+      "extra": 0,
+      "policyMentions": 4,
+      "verdict": "request_changes",
+      "findings": [
+        {
+          "severity": "CRITICAL",
+          "title": "Removed required response field `legacy_id`",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 7,
+          "end_line": 7
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Changed `author` field type from string to nullable string",
+          "file": "src/contracts/lineup.ts",
+          "start_line": 9,
+          "end_line": 9
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Behavioral change: archived lineups now included by default",
+          "file": "src/routes/lineups.ts",
+          "start_line": 14,
+          "end_line": 14
+        },
+        {
+          "severity": "CRITICAL",
+          "title": "Semver violation: breaking changes shipped as a minor bump",
+          "file": "package.json",
+          "start_line": 5,
+          "end_line": 5
+        }
+      ],
+      "dropped": 0,
+      "costUsd": 0.000539441,
+      "seconds": 45.581
+    }
+  ]
+}

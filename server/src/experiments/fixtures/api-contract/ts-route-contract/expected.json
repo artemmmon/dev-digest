@@ -1,0 +1,43 @@
+[
+  {
+    "id": "status-archived",
+    "label": "`status` enum gains `archived`, and archived rows are now returned",
+    "skill": "breaking-change",
+    "keywords": ["archived"],
+    "locations": [
+      { "file": "src/contracts/lineup.ts", "lines": [4, 4] },
+      { "file": "src/routes/lineups.ts", "lines": [12, 12] },
+      { "file": "src/routes/lineups.ts", "lines": [20, 20] }
+    ]
+  },
+  {
+    "id": "legacy-id-removed",
+    "label": "`legacy_id` removed from the response with no deprecation",
+    "skill": "deprecation-policy",
+    "keywords": ["legacy_id", "legacyId", "legacy id"],
+    "locations": [
+      { "file": "src/contracts/lineup.ts", "lines": [8, 9] },
+      { "file": "src/routes/lineups.ts", "lines": [6, 14] }
+    ]
+  },
+  {
+    "id": "author-nullable",
+    "label": "`author` becomes nullable",
+    "skill": "response-schema",
+    "keywords": ["author"],
+    "locations": [
+      { "file": "src/contracts/lineup.ts", "lines": [11, 11] },
+      { "file": "src/routes/lineups.ts", "lines": [11, 11] }
+    ]
+  },
+  {
+    "id": "minor-bump",
+    "label": "Breaking changes ship as a minor bump (1.4.0 -> 1.5.0) with a \"no API changes\" changelog",
+    "skill": "semver-discipline",
+    "keywords": ["1.5.0", "major", "semver", "2.0.0", "version bump", "changelog"],
+    "locations": [
+      { "file": "package.json", "lines": [3, 3] },
+      { "file": "CHANGELOG.md", "lines": [3, 4] }
+    ]
+  }
+]

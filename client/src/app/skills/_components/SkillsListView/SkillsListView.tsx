@@ -1,104 +1,73 @@
-/* /skills — the Skills Lab: skill cards on the left, the selected skill's tabs on the right. The
-   selection lives in ?skill=<id> (`new` = an empty draft) and the tab in ?tab=; leaving a skill
-   with unsaved edits asks first. */
+/* /skills — the Skills Lab: a grid of skill cards. Clicking a card opens a side panel with the
+   rendered skill (?skill=<id>, so it survives a reload); "Add" offers Create (a dialog, also
+   reachable as ?create=1) and Import. Editing, versions and stats live on /skills/<id>. */
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { EmptyState, ErrorState, Skeleton } from "@devdigest/ui";
+import { ErrorState } from "@devdigest/ui";
 import { usePageCrumb } from "@/components/app-shell";
-import { useSkills, useToggleSkill } from "@/lib/hooks/skills";
+import { useDeleteSkill, useSkills, useToggleSkill } from "@/lib/hooks/skills";
 import { useSearchParamState, useSearchParamsUpdate } from "@/lib/use-search-param-state";
-import { NEW_SKILL, SELECTION_PARAM, TAB_PARAM } from "../constants";
+import { CREATE_ON, CREATE_PARAM, SELECTION_PARAM } from "../constants";
+import { CreateSkillModal } from "../CreateSkillModal";
 import { ImportSkillModal } from "../ImportSkillModal";
-import { SkillDetail, parseTab } from "../SkillDetail";
-import { SkillList } from "../SkillList";
-import { s } from "./styles";
+import { SkillGrid } from "../SkillGrid";
+import { SkillPreviewDrawer } from "../SkillPreviewDrawer";
 
 export function SkillsListView() {
   const t = useTranslations("skills");
+  const router = useRouter();
   const { data: skills, isLoading, isError, refetch } = useSkills();
   const toggle = useToggleSkill();
-  const [param] = useSearchParamState(SELECTION_PARAM, null);
-  const [tabParam] = useSearchParamState(TAB_PARAM, null);
+  const del = useDeleteSkill();
+  const [selectedParam] = useSearchParamState(SELECTION_PARAM, null);
+  const [createParam] = useSearchParamState(CREATE_PARAM, null);
   const setParams = useSearchParamsUpdate();
-  // Another skill keeps the open tab; a draft, a new skill and a delete start again on Config.
-  const showSkill = (id: string | null, keepTab = false) =>
-    setParams({ [SELECTION_PARAM]: id, ...(keepTab ? {} : { [TAB_PARAM]: null }) });
   const [importing, setImporting] = React.useState(false);
-  const dirty = React.useRef(false);
 
   usePageCrumb([{ label: t("page.crumbLab") }, { label: t("page.crumbSkills") }]);
 
   if (isError) return <ErrorState fullScreen body={t("page.loadError")} onRetry={() => refetch()} />;
 
   const all = skills ?? [];
-  const drafting = param === NEW_SKILL;
-  // An empty or stale ?skill= (deleted skill, old link) falls back to the first skill.
-  const selected = drafting ? null : (all.find((sk) => sk.id === param) ?? all[0] ?? null);
+  // A stale ?skill= (deleted skill, old link) simply opens nothing.
+  const selected = all.find((sk) => sk.id === selectedParam) ?? null;
+  const deletingId = del.isPending ? (del.variables ?? null) : null;
 
-  /** Run `go` unless it would drop unsaved edits the user wants to keep. */
-  const guarded = (go: () => void) => {
-    if (!dirty.current || window.confirm(t("detail.discardConfirm"))) go();
-  };
-  const select = (id: string) => guarded(() => showSkill(id, true));
-  const create = () => guarded(() => showSkill(NEW_SKILL));
-  const openImport = () => guarded(() => setImporting(true));
-
-  // A new version (a save that changed the body, a restore) remounts the detail so its draft is reseeded.
-  const editorKey = drafting ? NEW_SKILL : `${selected?.id ?? "none"}:${selected?.version ?? 0}`;
-  const showEditor = drafting || selected;
+  const remove = (id: string) =>
+    del.mutate(id, { onSuccess: () => id === selectedParam && setParams({ [SELECTION_PARAM]: null }) });
 
   return (
-    <div style={s.page}>
+    <>
+      <SkillGrid
+        skills={all}
+        loading={isLoading}
+        selectedId={selected?.id ?? null}
+        deletingId={deletingId}
+        onSelect={(id) => setParams({ [SELECTION_PARAM]: id })}
+        onToggle={(id, enabled) => toggle.mutate({ id, enabled })}
+        onDelete={remove}
+        onCreate={() => setParams({ [CREATE_PARAM]: CREATE_ON })}
+        onImport={() => setImporting(true)}
+      />
+      {selected && <SkillPreviewDrawer skill={selected} onClose={() => setParams({ [SELECTION_PARAM]: null })} />}
+      {createParam === CREATE_ON && (
+        <CreateSkillModal
+          onClose={() => setParams({ [CREATE_PARAM]: null })}
+          onCreated={(skill) => router.push(`/skills/${encodeURIComponent(skill.id)}`)}
+        />
+      )}
       {importing && (
         <ImportSkillModal
           onClose={() => setImporting(false)}
           onSaved={(skill) => {
             setImporting(false);
-            showSkill(skill.id);
+            setParams({ [SELECTION_PARAM]: skill.id });
           }}
         />
       )}
-      <SkillList
-        skills={all}
-        loading={isLoading}
-        selectedId={selected?.id ?? null}
-        onSelect={select}
-        onToggle={(id, enabled) => toggle.mutate({ id, enabled })}
-        onCreate={create}
-        onImport={openImport}
-      />
-      <div style={s.main}>
-        {isLoading && (
-          <div style={s.loading}>
-            <Skeleton height={24} width={240} />
-            <Skeleton height={300} />
-          </div>
-        )}
-        {!isLoading && showEditor && (
-          <SkillDetail
-            key={editorKey}
-            skill={selected}
-            tab={parseTab(tabParam, "config")}
-            onTab={(tab) => setParams({ [TAB_PARAM]: tab === "config" ? null : tab })}
-            onCreated={(created) => showSkill(created.id)}
-            onDeleted={() => showSkill(null)}
-            onDirtyChange={(d) => {
-              dirty.current = d;
-            }}
-          />
-        )}
-        {!isLoading && !showEditor && (
-          <EmptyState
-            icon="Sparkles"
-            title={t("page.empty.title")}
-            body={t("page.empty.body")}
-            cta={t("page.empty.cta")}
-            onCta={create}
-          />
-        )}
-      </div>
-    </div>
+    </>
   );
 }

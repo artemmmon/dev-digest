@@ -226,6 +226,11 @@ export interface GitClient {
   blame(repo: RepoRef, path: string): Promise<BlameLine[]>;
   log(repo: RepoRef, path?: string): Promise<GitCommit[]>;
   readFile(repo: RepoRef, path: string): Promise<string>;
+  /**
+   * Paths of tracked regular files at HEAD (`git ls-files`), repo-relative. Symlinks are
+   * left out — a tracked link could otherwise point a read outside the clone.
+   */
+  listFiles(repo: RepoRef): Promise<string[]>;
   clonePathFor(repo: RepoRef): string;
 }
 

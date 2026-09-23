@@ -6,19 +6,23 @@ description: DevDigest-specific conventions for recording demo videos of a lesso
 # DevDigest demo videos
 
 Project conventions only. The engine is the `screencast-demo-maker` Claude Code plugin
-(https://github.com/artemmmon/screencast-demo-maker): skills `demo-scenario` (writes the
-shooting script) and `demo-film` (records it), subagent `frame-checker`.
+(https://github.com/artemmmon/screencast-demo-maker, ≥ 1.1.0): skills `demo-setup`,
+`demo-scenario` (writes the shooting script) and `demo-film` (records it), subagent
+`frame-checker`. `.claude/settings.json` enables it for everyone who trusts this repo.
 
 ## Prerequisite
 
 If `/screencast-demo-maker:demo-film` is not an available skill, the plugin is not installed.
 Stop and give the user the two commands from `docs/demo-video.md` → "Разове
-налаштування"; do not improvise filming without it.
+налаштування"; do not improvise filming without it. Check the machine with the plugin's
+`doctor.mjs hw/LNN/demo --fix` before anything else.
 
 ## Order
 
 1. If `hw/LNN/demo/` already holds `scenario.md` and `cues.json`, read them. Otherwise
-   write them with `screencast-demo-maker:demo-scenario`.
+   copy the previous lesson's `config.json` (new `slug`, `output`, `order`, `surfaces`)
+   and write them with `screencast-demo-maker:demo-scenario`. `demo-setup` is not
+   needed here — this skill already answers its questions.
 2. Ask the user to run `/screencast-demo-maker:demo-film` — it is user-invoked, an agent cannot start it.
    Follow it phase by phase and never record before the user says "go".
 3. Hand contact sheets to the `screencast-demo-maker:frame-checker` subagent; never read them here.
@@ -38,6 +42,8 @@ they live in `~/.cache/demo-video/<slug>/`.
 
 ## Filming this app
 
+- `surfaces`: `["browser"]` for a UI-only lesson (L02); add `editor`/`terminal` only when
+  a scene opens a file or runs a command (L01), so VS Code and Terminal stay closed otherwise.
 - Stack must be up: `./scripts/dev.sh` — web `:3000`, api `:3001`.
   `config.healthUrls` checks both during preflight.
 - Film one repository only. The seeded `acme/payments-api` must stay off camera:
@@ -48,6 +54,8 @@ they live in `~/.cache/demo-video/<slug>/`.
     python3 -c "import json,sys; [print(r['full_name'], r['id']) for r in json.load(sys.stdin)]"
   ```
 - Narration is in Ukrainian; filenames, code and this skill stay English.
+- Voice Eric (`cjVigY5qzO86Huf0OWal`) is an ElevenLabs default voice, so it works on anyone's
+  account — but each person films with their **own** key; never use or ask for someone else's.
 
 ## Never click
 

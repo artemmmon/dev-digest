@@ -6,6 +6,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon, Badge, Toggle } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useDeleteAgent } from "@/lib/hooks/agents";
 import { rowClickProps, unstyledButton } from "@/lib/interactive";
 import { modelColor } from "./helpers";
@@ -25,58 +26,71 @@ export function AgentCard({
   onToggle?: (enabled: boolean) => void;
 }) {
   const t = useTranslations("agents");
+  const tc = useTranslations("common");
   const del = useDeleteAgent();
+  const [confirming, setConfirming] = React.useState(false);
   const color = modelColor(ag.model);
   return (
-    <div {...(onClick ? rowClickProps(onClick) : {})} style={s.card(!!active, ag.enabled)}>
-      <div style={s.headerRow}>
-        <div style={s.iconBox}>
-          <Icon.Cpu size={15} />
-        </div>
-        {onClick ? (
+    <>
+      <div {...(onClick ? rowClickProps(onClick) : {})} style={s.card(!!active, ag.enabled)}>
+        <div style={s.headerRow}>
+          <div style={s.iconBox}>
+            <Icon.Cpu size={15} />
+          </div>
+          {onClick ? (
+            <button
+              type="button"
+              onClick={onClick}
+              aria-current={active ? "true" : undefined}
+              style={{ ...unstyledButton, ...s.name }}
+            >
+              {ag.name}
+            </button>
+          ) : (
+            <span style={s.name}>{ag.name}</span>
+          )}
+          {onToggle && <Toggle on={ag.enabled} onChange={onToggle} size={14} />}
           <button
             type="button"
-            onClick={onClick}
-            aria-current={active ? "true" : undefined}
-            style={{ ...unstyledButton, ...s.name }}
+            onClick={() => setConfirming(true)}
+            disabled={del.isPending}
+            title={t("card.delete")}
+            aria-label={t("card.delete")}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: del.isPending ? "not-allowed" : "pointer",
+              color: "var(--text-muted)",
+              display: "inline-flex",
+              padding: 4,
+            }}
           >
-            {ag.name}
+            <Icon.Trash size={14} style={del.isPending ? { animation: "ddspin 1s linear infinite" } : undefined} />
           </button>
-        ) : (
-          <span style={s.name}>{ag.name}</span>
-        )}
-        {onToggle && <Toggle on={ag.enabled} onChange={onToggle} size={14} />}
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm(t("card.deleteConfirm", { name: ag.name }))) del.mutate(ag.id);
-          }}
-          disabled={del.isPending}
-          title={t("card.delete")}
-          aria-label={t("card.delete")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: del.isPending ? "not-allowed" : "pointer",
-            color: "var(--text-muted)",
-            display: "inline-flex",
-            padding: 4,
-          }}
-        >
-          <Icon.Trash size={14} style={del.isPending ? { animation: "ddspin 1s linear infinite" } : undefined} />
-        </button>
+        </div>
+        <div style={s.description}>{ag.description || t("card.noDescription")}</div>
+        <div style={s.metaRow}>
+          <span className="mono" style={s.modelChip(color)}>
+            {ag.model}
+          </span>
+          {skillCount != null && (
+            <Badge color="var(--text-secondary)" icon="Sparkles">
+              {t("card.skillCount", { count: skillCount })}
+            </Badge>
+          )}
+        </div>
       </div>
-      <div style={s.description}>{ag.description || t("card.noDescription")}</div>
-      <div style={s.metaRow}>
-        <span className="mono" style={s.modelChip(color)}>
-          {ag.model}
-        </span>
-        {skillCount != null && (
-          <Badge color="var(--text-secondary)" icon="Sparkles">
-            {t("card.skillCount", { count: skillCount })}
-          </Badge>
-        )}
-      </div>
-    </div>
+      {confirming && (
+        <ConfirmDialog
+          danger
+          title={t("card.deleteTitle")}
+          body={t("card.deleteConfirm", { name: ag.name })}
+          confirmLabel={tc("actions.delete")}
+          pending={del.isPending}
+          onConfirm={() => del.mutate(ag.id, { onError: () => setConfirming(false) })}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+    </>
   );
 }

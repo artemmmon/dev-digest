@@ -113,6 +113,50 @@ Each setter builds the next URL from the `search` snapshot of its own render, so
 twice and the second drops the first. `/skills` moves `?skill=` and `?tab=` together with `useSearchParamsUpdate`.
 Where: `src/lib/use-search-param-state.ts:45`.
 
+### 2026-09-21 — Conventions page: scan report lives only in the mutation result; missing key arrives as `config_error`
+`POST …/conventions/extract` returns the scan report, but `GET …/conventions` only has `last_scan`, so the report line is
+read from `useExtractConventions().data` and disappears on reload by design. A missing provider key is the server's
+`ConfigError` (HTTP 500, code `config_error`), not a 4xx; the page maps that code, `scan_in_progress` (409) and
+`network_error` to their own messages and shows the server's text otherwise. Scan and skill mutations are `meta.silent`
+because the page renders the error inline. Rejected candidates are removed from the cache optimistically and never returned by GET.
+Where: `src/lib/hooks/conventions.ts:28`, `src/app/repos/[repoId]/conventions/_components/ConventionsView/constants.ts:13`.
+
+### 2026-09-21 — ConfirmDialog belongs OUTSIDE a clickable card; some `window.confirm` calls stay on purpose
+React events bubble through the component tree, not the DOM: a `ConfirmDialog` rendered inside a `rowClickProps` card sends a
+click on its backdrop or text up to the card (opens the agent / selects the skill). Render it as a sibling of the card element
+(`<>card + dialog</>`, or inside the `<li>` next to the card `<div>`). It is mounted while the question is open and locks
+Escape/X/Cancel while `pending`. Replaced: skill delete (card + detail), agent delete, version restore. Still native on purpose:
+PR run deletes (`FindingsTab`, `ReviewRunAccordion`), repo remove (`useShellContext`), and the "discard unsaved changes" guard on
+the `/skills/<id>` back link, which needs a synchronous answer inside a `<Link>` click.
+Where: `src/components/confirm-dialog/ConfirmDialog.tsx:1`, `src/app/skills/_components/SkillGrid/_components/SkillCard/SkillCard.tsx:87`.
+
+### 2026-09-21 — Agent Skills tab: the list is always enabled-first, and every reorder guard lives in `helpers.ts`
+`orderedBindings` sorts enabled bindings, then disabled ones, then never-bound skills, so the first save after opening the tab
+persists the normalized order. `moveBindingTo` refuses any move where either end is disabled (drag, drop and ArrowUp/Down all go
+through it); `setBindingEnabled` re-inserts the row at the end of the enabled block (on) or the start of the disabled block (off).
+The component still skips `preventDefault` on `dragover` of a disabled row (so browsers refuse the drop) AND guards `onDrop`,
+because jsdom's `fireEvent.drop` fires regardless. Disabled rows render a non-focusable grip stand-in, not a button.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/helpers.ts:35`.
+
+### 2026-09-21 — Mock `@/lib/hooks/skills` with `importOriginal` in tests that mount the import dialog
+`SkillsListView` mounts `ImportSkillModal` on demand, and that modal calls its own hooks (`usePreviewSkillImport`, and the URL one).
+A full `vi.mock` factory breaks every time a hook is added to the modal ("No export defined on the mock"). Spread the original and
+override only the hooks the test drives; the real ones run over the `renderWithIntl` QueryClient.
+Where: `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx:37`.
+
+### 2026-09-21 — `/skills` is a grid now; `/skills/new` and old `?skill=new` links go to `?create=1`
+`/skills?skill=<id>` opens the preview drawer (a stale id opens nothing — no fallback to the first skill any more),
+`/skills?create=1` opens `CreateSkillModal`, `/skills/<id>` is the page with the tabs (`?tab=versions` keeps its key; the label is
+"Versioning"). `SkillDetail` no longer has a draft mode. The e2e flow `10-skills.flow.json` follows this layout.
+Where: `src/app/skills/_components/SkillsListView/SkillsListView.tsx:22`, `src/app/skills/new/page.tsx:5`.
+
+### 2026-09-21 — Pages without `:repoId` show the first repo in a fresh browser profile
+`RepoProvider` resolves the active repo as URL path > `localStorage["dd-repo"]` > first repo from the API. On `/skills`,
+`/agents` and `/settings/*` a clean profile (Playwright, e2e, a demo recording) therefore shows the seeded `acme/payments-api`
+in the sidebar, even right after visiting another repo by URL: a visit by URL does not write `dd-repo`. Anything that needs a
+fixed repo off the repo routes must seed the key first (`context.addInitScript(() => localStorage.setItem("dd-repo", id))`),
+as `hw/L02/demo/scenes.mjs` does.
+Where: `src/lib/repo-context.tsx:48`.
 
 ## Tool & Library Notes
 
@@ -185,6 +229,13 @@ run, and the "Saved …" toast and draft reset never happened. Use `mutateAsync(
 the observer) and the module-level `notify` toast; errors are toasted by the MutationCache, so end the chain with `.catch(() => {})`.
 Where: `src/app/skills/_components/SkillDetail/SkillDetail.tsx:76`.
 
+### 2026-09-21 — Import dialog: the URL tab reuses the file flow's preview step and only changes `source`
+`ImportSkillModal` keeps one `picked` preview and a `source` state (`imported_file` | `imported_url`) set by whichever tab produced it;
+the review step (`SkillForm`, trust note, ignored files) is shared and saving sends that `source`. Both preview hooks are
+`silent` so the modal shows the server's 422 message inline (`ApiError.message`); `new ApiError(message, status, code)` — message
+comes FIRST, easy to swap in tests. The kit `Tabs` renders plain `<button>`s (no `role="tab"`), so tests use `getByRole("button")`.
+Where: `src/app/skills/_components/ImportSkillModal/ImportSkillModal.tsx:105`, `src/lib/hooks/skills.ts` (`usePreviewSkillImportUrl`).
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — The PR-list table card clipped anything absolutely positioned in a row
@@ -226,6 +277,20 @@ Running a second dev server on an alternate dist dir (to leave `.next` alone) ma
 change: stop the server, `git checkout tsconfig.json next-env.d.ts`, delete the alternate dist dir before committing.
 Where: `next-env.d.ts:3`.
 
+### 2026-09-21 — A `useMutation` fired from a mount effect hangs in Strict Mode; don't guard it with a ref
+`mutate()` in a `useEffect` (the Create-skill modal drafts on open) ran once, then Strict Mode's simulated unmount removed the
+observer from that mutation and the remount never re-attached it: `isPending` stayed true forever in `next dev` (unit tests
+don't use Strict Mode, so they passed). An "already started" `useRef` guard makes it permanent. Let the effect fire twice
+(a duplicate read-only POST in dev) or use `useQuery` for a read; also freeze the input ids (`useState(initial)`), otherwise a
+parent passing a fresh array each render re-fires the effect on every render.
+Where: `src/app/repos/[repoId]/conventions/_components/ConventionsView/_components/CreateConventionSkillModal/CreateConventionSkillModal.tsx:58`.
+
+### 2026-09-21 — `isLoading` is false for a query whose retry is paused; use `isPending` for "no data yet"
+While the tab is hidden (or the browser pane is in the background) TanStack pauses a failing query's retries: `isFetching`
+is false, so `isLoading` (= pending && fetching) is false and `isError` is not yet true. A page branching on
+`isLoading` → `isError` → content then rendered its empty state under a failing API. Branch on `isPending` for the skeleton.
+Where: `src/app/repos/[repoId]/conventions/_components/ConventionsView/ConventionsView.tsx:189`.
+
 ## Open Questions
 
 ## Session Notes
@@ -248,3 +313,8 @@ FindingsTab/page, jsx-a11y baseline removed (all clickable divs fixed), hardcode
 messages (home, addRepo, header, diff, toast…), per-segment titles, env module, deep relative
 imports → `@/`.
 Where: `src/app/layout.tsx:36`.
+
+### 2026-09-21 — HW2 demo filming
+The scan hint and the ReScan dialog now say "a few minutes" instead of "up to a minute" (measured 52-178 s); the view test
+matches the new wording. Added the fresh-profile repo fallback note under Codebase Patterns.
+Where: `messages/en/conventions.json:25`.

@@ -1,13 +1,15 @@
-/* SkillsTab — one ordered list of every workspace skill. The list order is the prompt order
-   and a checked row is used by this agent. Every change (check, uncheck, move) replaces the
-   agent's bindings on the server with the WHOLE list, so an unchecked skill keeps its place;
-   the server versions the agent only when the enabled, ordered set changes. */
+/* SkillsTab — one ordered list of every workspace skill. The list order is the prompt order:
+   the skills this agent uses come first (a switch per row), then the ones it does not. Only the
+   enabled block can be re-ordered — a disabled row is not draggable, cannot be a drop target and
+   has no keyboard grip; switching a row on moves it to the end of the enabled block, off to the
+   start of the disabled one. Every change replaces the agent's bindings on the server with the
+   WHOLE list; the server versions the agent only when the enabled, ordered set changes. */
 "use client";
 
 import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Badge, Checkbox, ErrorState, Icon, Skeleton } from "@devdigest/ui";
+import { Badge, ErrorState, Icon, Skeleton, Toggle } from "@devdigest/ui";
 import type { Agent, Skill } from "@devdigest/shared";
 import { SkillTypeChip } from "@/components/skill-type-chip";
 import { useAgentSkills, useSetAgentSkills, useSkills } from "@/lib/hooks/skills";
@@ -79,8 +81,9 @@ export function SkillsTab({ agent }: { agent: Agent }) {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
     if (!canDrag) return;
-    refocus.current = id;
-    apply(moveBinding(list, i, e.key === "ArrowUp" ? -1 : 1));
+    const next = moveBinding(list, i, e.key === "ArrowUp" ? -1 : 1);
+    if (next !== list) refocus.current = id;
+    apply(next);
   };
 
   return (
@@ -106,7 +109,7 @@ export function SkillsTab({ agent }: { agent: Agent }) {
       {skills.length === 0 ? (
         <div style={s.empty}>
           {t("skills.noSkills")}
-          <Link href="/skills?skill=new">{t("skills.create")}</Link>
+          <Link href="/skills?create=1">{t("skills.create")}</Link>
         </div>
       ) : (
         <ul style={s.list} onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropAt(null)}>
@@ -117,50 +120,52 @@ export function SkillsTab({ agent }: { agent: Agent }) {
               <li
                 key={sk.id}
                 data-testid={`skill-row-${sk.id}`}
-                draggable={canDrag}
+                draggable={canDrag && b.enabled}
                 onDragStart={(e) => {
+                  if (!b.enabled) return;
                   // Firefox starts a drag only once data is set; jsdom has no dataTransfer.
                   e.dataTransfer?.setData("text/plain", sk.id);
                   if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
                   setDragFrom(i);
                 }}
                 onDragOver={(e) => {
-                  if (dragFrom === null) return;
+                  // A disabled row is not a drop target: no preventDefault, so the browser refuses the drop.
+                  if (dragFrom === null || !b.enabled) return;
                   e.preventDefault();
                   if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                   if (dropAt !== i) setDropAt(i);
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (dragFrom !== null) apply(moveBindingTo(list, dragFrom, i));
+                  if (dragFrom !== null && b.enabled) apply(moveBindingTo(list, dragFrom, i));
                   clearDrag();
                 }}
                 onDragEnd={clearDrag}
                 style={{ ...s.row(b.enabled), ...s.dragRow(dragFrom === i, dropEdge(i)) }}
               >
-                <button
-                  type="button"
-                  ref={(el) => {
-                    if (el) grips.current.set(sk.id, el);
-                    else grips.current.delete(sk.id);
-                  }}
-                  aria-label={t("skills.moveHandle", { name: sk.name })}
-                  title={t("skills.dragHandle")}
-                  onKeyDown={(e) => moveWithKey(e, sk.id, i)}
-                  style={s.grip(canDrag)}
-                >
-                  <Icon.Menu size={14} />
-                </button>
+                {b.enabled ? (
+                  <button
+                    type="button"
+                    ref={(el) => {
+                      if (el) grips.current.set(sk.id, el);
+                      else grips.current.delete(sk.id);
+                    }}
+                    aria-label={t("skills.moveHandle", { name: sk.name })}
+                    title={t("skills.dragHandle")}
+                    onKeyDown={(e) => moveWithKey(e, sk.id, i)}
+                    style={s.grip(canDrag)}
+                  >
+                    <Icon.Menu size={14} />
+                  </button>
+                ) : (
+                  <span aria-hidden="true" title={t("skills.dragLocked")} style={s.gripLocked}>
+                    <Icon.Menu size={14} />
+                  </span>
+                )}
                 <div style={s.nameCell} title={sk.description}>
-                  <Checkbox
-                    checked={b.enabled}
-                    onChange={(enabled) => canDrag && apply(setBindingEnabled(list, sk.id, enabled))}
-                    label={
-                      <span className="mono" style={s.name}>
-                        {sk.name}
-                      </span>
-                    }
-                  />
+                  <span className="mono" style={s.name}>
+                    {sk.name}
+                  </span>
                 </div>
                 <SkillTypeChip type={sk.type} compact />
                 {!sk.enabled && (
@@ -170,6 +175,12 @@ export function SkillsTab({ agent }: { agent: Agent }) {
                     </Badge>
                   </span>
                 )}
+                <Toggle
+                  on={b.enabled}
+                  size={14}
+                  label={t("skills.toggleLabel", { name: sk.name })}
+                  onChange={(enabled) => canDrag && apply(setBindingEnabled(list, sk.id, enabled))}
+                />
               </li>
             );
           })}
