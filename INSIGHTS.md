@@ -95,6 +95,13 @@ only the server copy, then run `./scripts/shared-contracts.sh sync`. Comment-onl
 too — identical files are what makes the check a plain `diff -r`.
 Where: `scripts/shared-contracts.sh:17`.
 
+### 2026-09-23 — One ext→language table in `vendor/shared`, not a client guess plus a server guess
+The Flutter-first work needs "what language/format is this file" in two unrelated places: the
+client diff-viewer chip (`FileCard`) and the server repo-stack detector (spec 06, language-share
+computation). Put it once in `server/src/vendor/shared/contracts/languages.ts`
+(`languageOf`/`isGeneratedPath`, synced to the client copy as usual) instead of a per-package
+extension map that would drift the moment someone adds a language to only one side.
+Where: `server/src/vendor/shared/contracts/languages.ts:1`.
 
 ## Tool & Library Notes
 

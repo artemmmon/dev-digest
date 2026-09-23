@@ -51,6 +51,38 @@ describe('matchesAny', () => {
     expect(matchesAny('package-lock.json', ['**/package-lock.json'])).toBe(true);
     expect(matchesAny('src/my-package-lock.json', ['**/package-lock.json'])).toBe(false);
   });
+
+  it('matches a multi-dot extension anywhere, not just the last segment', () => {
+    expect(matchesAny('lib/models/user.g.dart', ['*.g.dart'])).toBe(true);
+    expect(matchesAny('lib/user.dart', ['*.g.dart'])).toBe(false);
+  });
+
+  it('matches `**/dir/**` — a directory anywhere in the tree, not a same-named prefix', () => {
+    expect(matchesAny('lib/l10n/generated/app_en.arb', ['**/generated/**'])).toBe(true);
+    expect(matchesAny('generated/foo.dart', ['**/generated/**'])).toBe(true);
+    expect(matchesAny('lib/generated_helpers/foo.dart', ['**/generated/**'])).toBe(false);
+  });
+
+  it('matches a wildcard filename nested under a fixed directory, anywhere', () => {
+    expect(
+      matchesAny('lib/l10n/app_localizations_en.dart', ['**/l10n/app_localizations*.dart']),
+    ).toBe(true);
+    expect(matchesAny('lib/l10n/messages.dart', ['**/l10n/app_localizations*.dart'])).toBe(false);
+  });
+
+  it('matches a basename with a wildcard extension, at any depth', () => {
+    expect(matchesAny('android/app/GeneratedPluginRegistrant.java', ['**/GeneratedPluginRegistrant.*'])).toBe(
+      true,
+    );
+    expect(matchesAny('ios/Runner/GeneratedPluginRegistrant.m', ['**/GeneratedPluginRegistrant.*'])).toBe(
+      true,
+    );
+  });
+
+  it('matches a two-segment directory anywhere in the tree', () => {
+    expect(matchesAny('ios/Flutter/ephemeral/Flutter.podspec', ['**/Flutter/ephemeral/**'])).toBe(true);
+    expect(matchesAny('ios/Flutter/AppFrameworkInfo.plist', ['**/Flutter/ephemeral/**'])).toBe(false);
+  });
 });
 
 describe('excludeFromReview', () => {
@@ -103,13 +135,18 @@ describe('excludeFromReview', () => {
       'server/src/db/migrations/meta/0010_snapshot.json',
       'pnpm-lock.yaml',
       'e2e/package-lock.json',
+      'lib/models/user.g.dart',
+      'lib/l10n/generated/app_en.arb',
+      'ios/Flutter/ephemeral/Flutter.podspec',
       'server/src/modules/reviews/run-executor.ts',
       'client/src/vendor/ui/primitives/Badge.tsx',
+      'lib/models/user.dart',
     ];
     const kept = paths.filter((p) => !matchesAny(p, REVIEW_EXCLUDED_PATHS));
     expect(kept).toEqual([
       'server/src/modules/reviews/run-executor.ts',
       'client/src/vendor/ui/primitives/Badge.tsx', // vendored but hand-edited — reviewed
+      'lib/models/user.dart', // hand-written Dart, not a codegen output
     ]);
   });
 });

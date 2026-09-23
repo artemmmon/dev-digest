@@ -6,8 +6,8 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@devdigest/ui";
 import type { PrFile } from "@/lib/types";
-import { AUTO_EXPAND_MAX_LINES } from "../constants";
-import { parsePatch, type Line } from "../helpers";
+import { AUTO_EXPAND_MAX_LINES, colorForLanguage } from "../constants";
+import { parsePatch, fileChip, type Line } from "../helpers";
 import {
   buildThreads,
   keysForLine,
@@ -33,8 +33,9 @@ function threadsForLine(ln: Line, matched: Map<string, CommentThread[]>): Commen
 
 export function FileCard({ file, commenting }: { file: PrFile; commenting?: DiffCommentApi }) {
   const t = useTranslations("shell");
+  const chip = React.useMemo(() => fileChip(file.path), [file.path]);
   const [open, setOpen] = React.useState(
-    (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
+    !chip?.generated && (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
   );
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
 
@@ -63,6 +64,19 @@ export function FileCard({ file, commenting }: { file: PrFile; commenting?: Diff
       >
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
         <Icon.FileText size={14} style={s.fileIcon} />
+        {chip && (
+          <span
+            className="mono"
+            style={s.langChip(colorForLanguage(chip.label))}
+            title={
+              chip.generated
+                ? t("diffViewer.generatedTitle", { name: chip.name })
+                : t("diffViewer.languageTitle", { name: chip.name })
+            }
+          >
+            {chip.generated ? `${chip.label} · ${t("diffViewer.generatedSuffix")}` : chip.label}
+          </span>
+        )}
         <span className="mono" style={s.filePath}>
           {file.path}
         </span>

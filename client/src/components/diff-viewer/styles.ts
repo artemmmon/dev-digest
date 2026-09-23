@@ -29,6 +29,16 @@ export const s = {
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
   fileStat: { fontSize: 12 } satisfies CSSProperties,
+  langChip: (color: string): CSSProperties => ({
+    fontSize: 10.5,
+    fontWeight: 600,
+    color,
+    background: color === "var(--text-muted)" ? "var(--bg-hover)" : color + "1a",
+    padding: "1px 6px",
+    borderRadius: 4,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  }),
   addText: { color: "var(--code-add-text)" } satisfies CSSProperties,
   delText: { color: "var(--code-del-text)" } satisfies CSSProperties,
   fileBody: {

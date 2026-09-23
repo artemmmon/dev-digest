@@ -1,5 +1,19 @@
 import { ConventionCategory } from '@devdigest/shared';
 
+/**
+ * `GENERATED_FILE_PATTERN` / `JUNK_DIR_PATTERN` / `LOCKFILE_PATTERN` / `SCAFFOLD_DIR_PATTERN`
+ * live in `@devdigest/shared` (`contracts/languages.ts`) — the repo-stack detector
+ * (`modules/repos/stack.ts`) needs the same file-classification rules, and a constant used
+ * by more than one module belongs in the core, not in a feature module (onion-architecture).
+ * Re-exported here so existing imports of this file don't change.
+ */
+export {
+  GENERATED_FILE_PATTERN,
+  JUNK_DIR_PATTERN,
+  LOCKFILE_PATTERN,
+  SCAFFOLD_DIR_PATTERN,
+} from '@devdigest/shared';
+
 /** Tunables of the conventions extractor. Nothing here touches I/O. */
 
 /** Repo-intel + fallback source samples per scan. */
@@ -72,22 +86,6 @@ export const CONFIG_FILE_PATTERNS: readonly RegExp[] = [
   /^analysis_options\.yaml$/,
   /^\.rubocop\.yml$/,
 ];
-
-/**
- * Top-level folders that hold framework scaffolding (Flutter/RN platform shells; not `web/`, which is often a real app): sampled only
- * when the hand-written code alone cannot fill the quota, so they don't crowd out `lib/` or `src/`.
- */
-export const SCAFFOLD_DIR_PATTERN = /^(android|ios|macos|windows|linux)\//;
-
-/** Directories that never hold hand-written code worth learning conventions from. */
-export const JUNK_DIR_PATTERN =
-  /(^|\/)(node_modules|vendor|dist|build|out|target|coverage|\.next|\.dart_tool|\.git|\.idea|\.venv|venv|__pycache__|Pods|generated|third_party|clones|migrations?)\//;
-
-export const GENERATED_FILE_PATTERN =
-  /(\.g\.dart|\.freezed\.dart|\.gr\.dart|\.mocks\.dart|\.min\.\w+|\.bundle\.\w+|\.generated\.\w+|\.pb\.\w+|_pb2\.py|\.d\.ts)$/;
-
-export const LOCKFILE_PATTERN =
-  /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|npm-shrinkwrap\.json|Cargo\.lock|pubspec\.lock|go\.sum|poetry\.lock|Gemfile\.lock|composer\.lock|bun\.lockb?)$|\.lock$/;
 
 /** Secrets and credentials are never read into a prompt. */
 export const SECRET_FILE_PATTERN =

@@ -158,6 +158,15 @@ fixed repo off the repo routes must seed the key first (`context.addInitScript((
 as `hw/L02/demo/scenes.mjs` does.
 Where: `src/lib/repo-context.tsx:48`.
 
+### 2026-09-23 — A chip inside `FileCard`'s `<button>` header widens its accessible name, not a problem here
+The new per-file language chip (`fileChip`, `components/diff-viewer/helpers.ts`) renders as a
+`<span>` between the file icon and the path, inside the same `<button>` as the whole header
+(`FileCard.tsx`). The button's accessible name is the concatenation of all its text content, so
+it becomes e.g. `dart src/main.dart +4 −0` instead of just the path — harmless (still names the
+file), but worth knowing before adding a `title`/tooltip to a chip elsewhere inside a clickable
+row: it does NOT override the name, it just prepends visible text to it.
+Where: `src/components/diff-viewer/FileCard/FileCard.tsx:64`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception

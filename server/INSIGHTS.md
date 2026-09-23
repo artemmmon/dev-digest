@@ -194,6 +194,27 @@ declares `RepoLookup`, `SkillWriter` and `AgentSkillBinder` itself and the conta
 `AgentStore`: the in-memory `AgentStore` fakes in `test/agents-service.test.ts` would stop compiling.
 Where: `src/modules/conventions/ports.ts:76`, `src/modules/agents/repository.ts:361`.
 
+### 2026-09-23 — Flutter-first pass 1: `matchesAny`'s four hardcoded forms couldn't express a wildcard filename nested under a fixed directory
+Excluding Dart codegen needed patterns like `**/l10n/app_localizations*.dart` and `**/generated/**`
+(a directory anywhere, not a same-named prefix — `generated_helpers/` must NOT match `**/generated/**`).
+The old `matchesAny` only had four literal branches (`dir/**`, `**/name` exact, `*.ext` suffix, exact
+path), so it was replaced with a small compiled-regex glob (still just `*`/`?`/`**` and rooted-vs-`**/`
+anchoring, no full minimatch). One deliberate wart kept for backward compat: a bare pattern with
+**no** `/` and **no** wildcard (e.g. a literal filename) is an EXACT full-path match, not a
+basename-anywhere match — `pnpm-lock.yaml` as a pattern does not match `client/pnpm-lock.yaml` (see
+the existing test for that pattern). Everything else (any wildcard, or a leading `**/`) matches at any
+depth. `applies_to` gating for skills/agents (spec 07) will reuse this same matcher.
+Where: `src/modules/reviews/diff-filter.ts:17` (`compilePattern`).
+
+### 2026-09-23 — A constant needed by two modules that don't import each other goes in `vendor/shared`, not one module re-exporting to the other
+The repo-stack detector (spec 06, `modules/repos/`) needs the same generated/junk/lockfile/scaffold
+patterns the conventions extractor already had in `modules/conventions/constants.ts`. Onion rules
+forbid one feature module importing another's internals, so the patterns moved to
+`@devdigest/shared` (`contracts/languages.ts`, new — also holds the ext→language table the client
+diff-viewer chip uses) and `conventions/constants.ts` now re-exports them, unchanged for its own
+callers (`sampling.ts`'s import of `./constants.js` didn't need to change).
+Where: `src/vendor/shared/contracts/languages.ts:1`, `src/modules/conventions/constants.ts:4`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

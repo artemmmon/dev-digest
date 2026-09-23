@@ -78,4 +78,13 @@ Where: `specs/10-skills.flow.json:8-10`, `../client/src/vendor/ui/kit/Drawer.tsx
 
 ## Open Questions
 
+### 2026-09-23 — A 2-character label is a bad `wait --text` target
+The new per-file language chip (`client/src/components/diff-viewer/FileCard`) renders a short
+label like `ts`. `wait --text` is a page-wide, case-sensitive substring match on `innerText`
+(2026-09-19 entry above), so a 2-char target is at real risk of matching unrelated words
+(`Results`, `Comments`, …) elsewhere on the same page — a pass that proves nothing. Skipped
+adding a flow step for it; `FileCard.test.tsx` covers the chip precisely instead. If a flow
+ever needs it, seed a PR file whose chip label is long/distinctive (`yaml`, `dart`), not `ts`/`js`.
+Where: `specs/05-pr-diff.flow.json`, `../client/src/components/diff-viewer/FileCard/FileCard.tsx`.
+
 ## Session Notes
