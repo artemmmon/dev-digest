@@ -215,6 +215,39 @@ diff-viewer chip uses) and `conventions/constants.ts` now re-exports them, uncha
 callers (`sampling.ts`'s import of `./constants.js` didn't need to change).
 Where: `src/vendor/shared/contracts/languages.ts:1`, `src/modules/conventions/constants.ts:4`.
 
+### 2026-09-23 — Repo-stack detection rides the existing `clone` job; `Refresh` doesn't move HEAD, so a re-detect is only as fresh as the last fetch
+`RepoService.detectAndStoreStack` runs at the end of `runCloneJob`, after `updateClonePath` — this
+covers both Add (fresh clone) and the Refresh button (same job, re-enqueued) for free, no new job
+kind needed. But `SimpleGitClient.clone` on an EXISTING clone directory only runs `git fetch`
+(remote-tracking refs), never `git reset`/checkout — only `git.sync` (used by repo-intel's resync)
+moves local HEAD. So Refresh re-detects the stack from whatever commit is currently checked out,
+not necessarily origin's latest. Acceptable: a repo's stack (Flutter vs Next.js, its key packages)
+changes on the order of months, not per-PR, and `POST /repos/:id/resync` gives an exact way to force
+a real HEAD advance first.
+Where: `src/modules/repos/service.ts:49` (`runCloneJob`), `src/adapters/git/simple-git.ts:106`.
+
+### 2026-09-23 — jsonb read through `safeParse`, not `unknown`: an old/foreign `stack` row can never fail response serialization
+`agents.output_schema` (existing code) is stored and read as opaque `unknown` — nothing validates
+it. `repos.stack` takes the opposite, stricter approach on purpose: `RepoRepository.toRecord` runs
+the raw jsonb through `RepoStack.safeParse` and falls back to `null` on any mismatch, because this
+field IS meant to satisfy a fixed contract that ships in `GET /repos`'s response schema
+(`fastify-type-provider-zod` — a shape mismatch there is a 500, not a client-side surprise). The
+fallback also means a future `RepoStack` shape change degrades gracefully for already-stored rows
+instead of breaking the endpoint; only `.nullish()` new fields keep the OLD data itself readable as
+non-null, per the `run_traces` jsonb rule elsewhere in this file.
+Where: `src/modules/repos/repository.ts:16` (`parseStack`).
+
+### 2026-09-23 — Boot-time backfill is fire-and-forget and explicitly skipped under `NODE_ENV=test`
+`backfillMissingStacks()` (repos cloned before stack detection existed) is called from
+`repos/routes.ts` at plugin registration, matching where `registerCloneJobHandler()` already runs —
+but UNLIKE the boot-time stale-run reaper in `app.ts` (which IS awaited, because it's a fast,
+single DB query gating readiness), this is never awaited: a slow git read for one stale repo must
+not delay every other repo or hold up `app.listen()`. It's skipped entirely when
+`container.config.nodeEnv === 'test'`, because otherwise every test that builds a real `RepoRepository`
+against `pg.handle.db` (most `*.it.test.ts` files) would get a background query racing its own
+assertions and DB teardown — the same reason `registerCloneJobHandler` doesn't fire a clone on boot.
+Where: `src/modules/repos/routes.ts:29`, `src/app.ts:80` (the reaper, for contrast).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

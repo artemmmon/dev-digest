@@ -63,7 +63,11 @@ export function RepoSwitcher({ ctx }: { ctx: ShellContext }) {
               {active?.full_name ?? "No repo selected"}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              {active ? `${active.default_branch ?? "main"} · ${active.syncedLabel ?? "not synced"}` : "Add a repo to begin"}
+              {active
+                ? [active.default_branch ?? "main", active.syncedLabel ?? "not synced", active.stackLabel]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "Add a repo to begin"}
             </div>
           </div>
           <Icon.ChevronsUpDown size={14} style={{ color: "var(--text-muted)" }} />

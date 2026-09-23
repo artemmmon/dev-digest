@@ -9,6 +9,34 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 
 ## What Doesn't Work
 
+### 2026-09-23 — `next build`/`next dev` (webpack AND Turbopack) fail to resolve `@devdigest/shared`'s barrel the FIRST time a client file imports a real value from it
+Every existing client import of `@devdigest/shared` is `import type {...}` (`src/lib/types.ts`,
+`src/lib/hooks/{skills,conventions,reviews}.ts`) — type-only imports get elided before bundling, so
+they never actually ask Next's bundler to resolve the barrel at runtime. `components/diff-viewer/
+helpers.ts` imports `languageOf`/`isGeneratedPath` as real values — the first runtime import from
+this barrel anywhere in the client — and both `next build` and `next dev` then fail with `Module not
+found: Can't resolve './contracts/findings.js'` (+ `review-api.js`, `brief.js`, `knowledge.js`,
+`trace.js` — always exactly these 5, always the barrel's first 5 `export *` lines, out of 13; not a
+size or cross-import property of those 5 specifically, see below). Turbopack instead reports
+`languageOf was not found … the module has no exports at all`, i.e. it treats the barrel's
+`export *` re-exports as unresolvable too, just with different phrasing.
+**Ruled out** (each independently reproduced/tested): the actual content of `languages.ts` or my
+`platform.ts` edit (a bare pre-existing `import { Severity } from "@devdigest/shared"` in a throwaway
+probe page reproduces the identical 5-file failure with ZERO of my files involved); system load/
+concurrency (identical result under low load, 5 clean attempts); cross-file imports among the 5
+(`trace.ts` has no incoming imports from other contracts and still fails; `platform.ts` imports
+`knowledge.ts` directly and does NOT fail). It is deterministic and positional (barrel export order),
+not content-dependent. A deep import bypassing the barrel
+(`@devdigest/shared/contracts/languages.js`, using the `@devdigest/shared/*` wildcard tsconfig path)
+does NOT work around it either — that specific alias form fails to resolve at all under webpack,
+a second, independent gap.
+**Status:** unresolved, needs real Next.js build diagnostics (`next build --turbopack`, upstream
+issue search, or a maintainer with `NEXT_WEBPACK_LOGGING`) — out of scope for a feature PR. The
+`Files changed` tab's language chip (spec 05) is the first feature to depend on a runtime import
+from this barrel, so **verify `pnpm dev` actually serves that tab on your machine** before trusting
+it works outside `vitest` (which resolves the same barrel fine — its own resolver, unaffected).
+Where: `src/components/diff-viewer/helpers.ts:2`, `src/vendor/shared/index.ts` (barrel), `next.config.mjs`.
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Local `vendor/shared` lags behind the server
@@ -244,6 +272,14 @@ the review step (`SkillForm`, trust note, ignored files) is shared and saving se
 `silent` so the modal shows the server's 422 message inline (`ApiError.message`); `new ApiError(message, status, code)` — message
 comes FIRST, easy to swap in tests. The kit `Tabs` renders plain `<button>`s (no `role="tab"`), so tests use `getByRole("button")`.
 Where: `src/app/skills/_components/ImportSkillModal/ImportSkillModal.tsx:105`, `src/lib/hooks/skills.ts` (`usePreviewSkillImportUrl`).
+
+### 2026-09-23 — `renderWithIntl`'s `container` is never truly empty: `ToastProvider` always mounts its host div
+Asserting "this component renders nothing" with `expect(container).toBeEmptyDOMElement()` fails
+even for a component returning `null`, because `renderWithIntl` wraps every test in a `ToastProvider`
+that renders a fixed-position `role="status"` div as a sibling — always present, whether or not any
+toast has fired. Assert `expect(container).toHaveTextContent("")` (or query for the specific absent
+element) instead of checking the whole container is empty.
+Where: `src/test/render.tsx:22`, `src/components/repo-stack/RepoStackLabel.test.tsx`.
 
 ## Recurring Errors & Fixes
 

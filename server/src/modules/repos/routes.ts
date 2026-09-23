@@ -29,6 +29,15 @@ export default async function reposRoutes(appBase: FastifyInstance) {
   // Register the clone job handler once.
   service.registerCloneJobHandler();
 
+  // Best-effort catch-up for repos cloned before stack detection existed. Fire-and-
+  // forget — must never delay boot or a request — and skipped under test so a suite's
+  // fake git/store don't get background calls after the test has finished asserting.
+  if (container.config.nodeEnv !== 'test') {
+    service.backfillMissingStacks().catch((err) => {
+      appBase.log.warn({ err: (err as Error).message }, 'repo-stack backfill failed (non-fatal)');
+    });
+  }
+
   app.post(
     '/repos',
     { schema: { body: RepoInput, response: { 200: Repo, 201: Repo } } },

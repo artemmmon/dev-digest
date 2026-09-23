@@ -14,6 +14,8 @@ export interface RepoSummary {
   full_name: string;
   default_branch?: string;
   syncedLabel?: string;
+  /** Primary auto-detected framework (e.g. "Flutter"), for the switcher's subline. */
+  stackLabel?: string;
 }
 
 export interface ShellContext {

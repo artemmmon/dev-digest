@@ -6,6 +6,7 @@
     { "cmd": ["wait", "--url", "/pulls"], "label": "land on the PR list" },
     { "cmd": ["wait", "--text", "Add rate limiting to public API endpoints"], "label": "seeded PR title row is visible" },
     { "cmd": ["wait", "--text", "FINDINGS"], "label": "the FINDINGS column header renders in the list" },
+    { "cmd": ["wait", "--text", "Stack not detected yet"], "label": "the seeded demo repo has no clone path, so stack detection never ran" },
     { "cmd": ["find", "text", "Add rate limiting to public API endpoints", "click"], "label": "open the PR row" },
     { "cmd": ["wait", "--url", "/pulls/482"], "label": "navigate to the PR detail route" },
     { "cmd": ["wait", "--text", "Add rate limiting to public API endpoints"], "label": "PR title renders on the detail page" }

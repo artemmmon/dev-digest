@@ -4,8 +4,9 @@ import React, { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Icon, Avatar, Badge, Button, Tabs } from "@devdigest/ui";
 import { RunReviewDropdown } from "../RunReviewDropdown";
+import { RepoStackLabel } from "@/components/repo-stack";
 import { s } from "./styles";
-import type { PrDetail } from "@/lib/types";
+import type { PrDetail, Repo } from "@/lib/types";
 
 interface PrDetailHeaderProps {
   pr: PrDetail;
@@ -14,6 +15,8 @@ interface PrDetailHeaderProps {
   findingsCount: number;
   /** github.com PR URL; null when the repo's full_name isn't known yet. */
   githubUrl?: string | null;
+  /** `undefined` while the repo itself hasn't loaded yet. */
+  repoStack?: Repo["stack"];
   onSetTab: (tab: string) => void;
   onRunStart: () => void;
   onRunsStarted: () => void;
@@ -25,6 +28,7 @@ export function PrDetailHeader({
   tab,
   findingsCount,
   githubUrl,
+  repoStack,
   onSetTab,
   onRunStart,
   onRunsStarted,
@@ -77,6 +81,7 @@ export function PrDetailHeader({
             <Badge dot bg="transparent" color={statusColor}>
               {pr.status}
             </Badge>
+            <RepoStackLabel stack={repoStack} />
           </div>
         </div>
         <div style={s.actions}>

@@ -1,4 +1,4 @@
-import { type Repo } from '@devdigest/shared';
+import { type Repo, type RepoRef } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
 import { parseRepoUrl, githubCloneUrl, toRepoDto } from './helpers.js';
 import {
@@ -8,6 +8,7 @@ import {
   repoJobKey,
 } from '../_shared/ports.js';
 import { CLONE_DEPTH } from './constants.js';
+import { detectStack, findManifestPaths } from './stack.js';
 import type { RepoServiceDeps } from './ports.js';
 
 /**
@@ -58,6 +59,10 @@ export class RepoService {
     });
     await this.deps.repos.updateClonePath(repoId, path);
 
+    // Best-effort tech-stack detection — never fails the clone it rides on. Covers
+    // both Add (fresh clone) and Refresh (re-clone of an existing directory).
+    await this.detectAndStoreStack(repoId, { owner, name });
+
     // T2.2 — kick off the indexer in the background. ENQUEUE (not call) so the
     // clone job closes immediately and the (heavier) index runs as its own
     // job under JobRunner's timeout/retry. If the handler isn't registered
@@ -76,6 +81,43 @@ export class RepoService {
         // already succeeded, so we don't fail the job for an index-followup
         // miss. The user can hit POST /repos/:id/resync to retry.
       }
+    }
+  }
+
+  /**
+   * Detect the repo's framework/languages/packages from its tracked files and
+   * manifests, and store the result. Best-effort: a git error, a malformed
+   * manifest or anything else here is swallowed — the stack label is metadata,
+   * never something a clone, refresh or backfill pass should fail over.
+   */
+  async detectAndStoreStack(repoId: string, ref: RepoRef): Promise<void> {
+    try {
+      const files = await this.deps.git.listFiles(ref);
+      const manifestPaths = findManifestPaths(files);
+      const manifests = new Map<string, string>();
+      for (const path of manifestPaths) {
+        manifests.set(path, await this.deps.git.readFile(ref, path));
+      }
+      const detected = detectStack(files, manifests);
+      await this.deps.repos.updateStack(repoId, {
+        ...detected,
+        detected_at: new Date().toISOString(),
+      });
+    } catch {
+      // Detection failed (git error, unreadable clone, …) — leave `stack` as it was;
+      // the next Refresh or the boot backfill will try again.
+    }
+  }
+
+  /**
+   * One-time catch-up for repos cloned before stack detection existed: everyone
+   * with a clone but no stack. Called fire-and-forget at boot (`routes.ts`), never
+   * awaited by a request — a slow git read here must not delay every other repo.
+   */
+  async backfillMissingStacks(): Promise<void> {
+    const repos = await this.deps.repos.listUnstacked();
+    for (const repo of repos) {
+      await this.detectAndStoreStack(repo.id, { owner: repo.owner, name: repo.name });
     }
   }
 

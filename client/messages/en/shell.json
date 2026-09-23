@@ -1,4 +1,8 @@
 {
+  "repoStack": {
+    "notDetected": "Stack not detected yet",
+    "alsoDetected": "Also detected: {names}"
+  },
   "commandPalette": {
     "goTo": "Go to {label}",
     "goToSettings": "Go to Settings",

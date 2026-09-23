@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
 import { now } from './_shared';
 import { workspaces, users } from './core';
 
@@ -17,6 +17,10 @@ export const repos = pgTable(
     lastPolledAt: timestamp('last_polled_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => users.id),
     createdAt: now(),
+    // Auto-detected framework/languages/packages (`RepoStack`); null until the first
+    // clone/refresh completes detection. Parsed with `RepoStack.safeParse` on read, so
+    // a shape change here can never break `GET /repos` for an already-stored row.
+    stack: jsonb('stack'),
   },
   (t) => ({
     // also serves workspace_id-only lookups (leading column), so no separate index

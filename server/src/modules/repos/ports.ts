@@ -1,4 +1,4 @@
-import type { GitClient } from '@devdigest/shared';
+import type { GitClient, RepoStack } from '@devdigest/shared';
 import type { JobQueue } from '../_shared/ports.js';
 
 /** Ports of the repos module (onion-architecture: core declares, outer ring implements). */
@@ -14,6 +14,8 @@ export interface RepoRecord {
   clonePath: string | null;
   lastPolledAt: Date | null;
   createdBy: string | null;
+  /** `null` until stack detection has run once (`modules/repos/stack.ts`). */
+  stack: RepoStack | null;
 }
 
 export interface NewRepo {
@@ -34,6 +36,14 @@ export interface RepoStore {
   workspaceIdFor(repoId: string): Promise<string | null>;
   /** Persist the clone path and bump `last_polled_at` once a clone job completes. */
   updateClonePath(repoId: string, clonePath: string): Promise<void>;
+  /**
+   * Persist stack-detection results. Always a real `RepoStack` — even "nothing
+   * recognised" is stored as empty arrays (never `null`), so detection never retries
+   * every boot for a repo that's just a docs bundle.
+   */
+  updateStack(repoId: string, stack: RepoStack): Promise<void>;
+  /** Cloned repos with no stack yet, across every workspace — trusted, boot-time backfill only. */
+  listUnstacked(): Promise<RepoRecord[]>;
   remove(workspaceId: string, id: string): Promise<boolean>;
 }
 

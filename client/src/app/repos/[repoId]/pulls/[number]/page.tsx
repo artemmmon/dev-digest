@@ -121,6 +121,7 @@ export default function PRDetailPage() {
         tab={tab}
         findingsCount={findingsCount}
         githubUrl={repoFullName ? githubPrUrl(repoFullName, pr.number) : null}
+        repoStack={activeRepo?.stack}
         onSetTab={setTab}
         onRunStart={() => setTab("findings")}
         onRunsStarted={onRunsStarted}
