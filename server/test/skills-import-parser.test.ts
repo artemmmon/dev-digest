@@ -64,6 +64,21 @@ describe('parseSkillImport — .md', () => {
     expect(p.type).toBe('custom');
   });
 
+  it('reads applies_to as a comma list of globs', () => {
+    const p = preview('flutter.md', md('---\nname: x\napplies_to: *.dart, pubspec.yaml\n---\nBody.'));
+    expect(p.applies_to).toEqual(['*.dart', 'pubspec.yaml']);
+  });
+
+  it('accepts globs: as an alias, for Cursor-style .mdc rule files', () => {
+    const p = preview('flutter.md', md('---\nname: x\nglobs: *.dart\n---\nBody.'));
+    expect(p.applies_to).toEqual(['*.dart']);
+  });
+
+  it('is undefined ("always applies") when neither key is present or the value is blank', () => {
+    expect(preview('a.md', md('---\nname: x\n---\nBody.')).applies_to).toBeUndefined();
+    expect(preview('b.md', md('---\nname: x\napplies_to: \n---\nBody.')).applies_to).toBeUndefined();
+  });
+
   it('rejects an empty body', () => {
     expect(() => preview('a.md', md('---\nname: x\n---\n'))).toThrow(/empty/);
   });

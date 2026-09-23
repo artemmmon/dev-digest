@@ -8,7 +8,7 @@ import { Modal } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
 import { useCreateSkill } from "@/lib/hooks/skills";
 import { notify } from "@/lib/toast";
-import { EMPTY_DRAFT, type SkillDraft } from "../helpers";
+import { EMPTY_DRAFT, parseAppliesTo, type SkillDraft } from "../helpers";
 import { SkillForm } from "../SkillForm";
 import { CREATE_MODAL_WIDTH } from "./constants";
 import { s } from "./styles";
@@ -18,12 +18,21 @@ export function CreateSkillModal({ onClose, onCreated }: { onClose: () => void; 
   const create = useCreateSkill();
 
   const save = (draft: SkillDraft) =>
-    create.mutate(draft, {
-      onSuccess: (skill) => {
-        notify.success(t("form.createdToast", { name: skill.name }));
-        onCreated(skill);
+    create.mutate(
+      {
+        name: draft.name,
+        description: draft.description,
+        type: draft.type,
+        body: draft.body,
+        applies_to: parseAppliesTo(draft.appliesTo),
       },
-    });
+      {
+        onSuccess: (skill) => {
+          notify.success(t("form.createdToast", { name: skill.name }));
+          onCreated(skill);
+        },
+      },
+    );
 
   return (
     <Modal width={CREATE_MODAL_WIDTH} title={t("create.title")} subtitle={t("create.subtitle")} onClose={onClose}>

@@ -45,6 +45,17 @@ describe("AgentCard (smoke)", () => {
     renderWithIntl(<AgentCard ag={{ ...AGENT, description: "" }} />);
     expect(screen.getByText("No description")).toBeInTheDocument();
   });
+
+  it("shows the applies_to globs, with a +N for extra ones, or nothing when unscoped", () => {
+    const { rerender } = renderWithIntl(<AgentCard ag={{ ...AGENT, applies_to: ["*.dart"] }} />);
+    expect(screen.getByText("*.dart")).toBeInTheDocument();
+
+    rerender(<AgentCard ag={{ ...AGENT, applies_to: ["*.dart", "pubspec.yaml"] }} />);
+    expect(screen.getByText("*.dart +1")).toBeInTheDocument();
+
+    rerender(<AgentCard ag={{ ...AGENT, applies_to: null }} />);
+    expect(screen.queryByText(/\*\.dart/)).not.toBeInTheDocument();
+  });
 });
 
 describe("AgentCard delete", () => {

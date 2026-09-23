@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
+import type { FindingActionKind, RunEventKind, RunTrace, SkippedAgent } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import type { AgentRecord } from '../agents/types.js';
 import type { ReviewDeps } from './deps.js';
@@ -7,6 +7,7 @@ import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
 import { reviewToDto } from './helpers.js';
+import { effectivePaths, matchesAppliesTo } from './applicability.js';
 
 // Re-export DTO types + converters for backward-compatible imports from
 // './service.js' (these previously lived here; logic now in ./helpers.ts).
@@ -45,17 +46,32 @@ export class ReviewService {
   // ===========================================================================
 
   /**
-   * Resolve which agents to run. `all` → all enabled agents; else a single agent.
+   * Resolve which agents to run. `all` → every enabled agent whose `applies_to`
+   * (spec 07) matches at least one of the PR's changed files — fails open (runs
+   * anyway) when the PR has no `pr_files` yet, so a never-imported PR loses no
+   * agent. An explicitly named agent always runs, gating or not.
    */
   async resolveTargets(
     workspaceId: string,
+    prId: string,
     opts: { agentId?: string; all?: boolean },
-  ): Promise<AgentRecord[]> {
-    if (opts.all) return this.agents.listEnabled(workspaceId);
+  ): Promise<{ targets: AgentRecord[]; skipped: SkippedAgent[] }> {
+    if (opts.all) {
+      const enabled = await this.agents.listEnabled(workspaceId);
+      const files = await this.repo.getPrFiles(prId);
+      const paths = effectivePaths(files.map((f) => f.path));
+      const targets: AgentRecord[] = [];
+      const skipped: SkippedAgent[] = [];
+      for (const agent of enabled) {
+        if (matchesAppliesTo(agent.appliesTo, paths)) targets.push(agent);
+        else skipped.push({ agent_id: agent.id, agent_name: agent.name });
+      }
+      return { targets, skipped };
+    }
     if (opts.agentId) {
       const agent = await this.agents.getById(workspaceId, opts.agentId);
       if (!agent) throw new NotFoundError('Agent not found');
-      return [agent];
+      return { targets: [agent], skipped: [] };
     }
     throw new AppError('invalid_run_request', 'Provide agentId or all:true', 400);
   }

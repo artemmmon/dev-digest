@@ -248,6 +248,45 @@ against `pg.handle.db` (most `*.it.test.ts` files) would get a background query 
 assertions and DB teardown — the same reason `registerCloneJobHandler` doesn't fire a clone on boot.
 Where: `src/modules/repos/routes.ts:29`, `src/app.ts:80` (the reaper, for contrast).
 
+### 2026-09-23 — `applies_to` gating (spec 07): fails open on missing signal, reuses the diff-filter matcher, and reads `pr_files` — not the live diff
+Three deliberate choices worth knowing before touching this: (1) **fail open**, not
+fail closed — `matchesAppliesTo` returns `true` whenever it has no changed-file signal to
+judge against (empty `pr_files`, or every path excluded), so a PR nobody has opened yet
+never silently loses a scoped skill/agent; the alternative (skip when unsure) would make a
+brand-new PR's first review miss whatever agents happen to have `applies_to` set. (2) it
+reuses `modules/reviews/diff-filter.ts`'s glob matcher rather than inventing a second
+pattern language — the same `*.dart`/`dir/**` vocabulary already used for
+`REVIEW_EXCLUDED_PATHS` gates skills and agents too. (3) agent-level gating
+(`ReviewService.resolveTargets`) reads `getPrFiles(prId)` — the PERSISTED file list from
+the last import/refresh — not the live `git diff`, because gating decides which agents
+even get a `runId` before the (slower, per-agent) diff load happens; skill-level gating
+inside `run-executor.ts` DOES use the loaded diff's paths, since the diff is already in
+hand there and it's the authoritative, already-exclusion-filtered set.
+Where: `src/modules/reviews/applicability.ts`, `src/modules/reviews/service.ts:59`
+(`resolveTargets`), `src/modules/reviews/run-executor.ts` (`buildSkillBlocks`).
+
+### 2026-09-23 — `isConfigChange`-style comparisons must not use `!==` on an array field
+`AgentsRepository`'s config-change check compares most fields with plain `!==`, which
+works for strings/booleans but is WRONG for `appliesTo: string[] | null`: two arrays are
+never `===` even when equal, so a naive `patch.appliesTo !== existing.appliesTo` would
+bump the agent's version (and write a wasted `agent_versions` snapshot) on every save that
+merely round-trips the same globs — and the Agent editor's Config tab always sends the
+FULL config on save (no dirty-diffing, unlike the Skill detail Config tab), so this would
+have fired on every single save, not just ones that touched the field. Fixed with a small
+element-wise `sameAppliesTo` helper instead of `!==`. Same trap awaits any future array or
+object field added to `isConfigChange`.
+Where: `src/modules/agents/helpers.ts` (`sameAppliesTo`, `isConfigChange`).
+
+### 2026-09-23 — A literal `**/` inside a `/** */` JSDoc block closes the comment early — twice now
+Writing gitignore-glob syntax examples straight into a doc comment (`` `**/name` ``,
+`` `dir/**` ``) breaks the file with cryptic parser errors (`TS1443: Module declaration
+names may only use ' or " quoted strings`, `TS1160: Unterminated template literal`) far
+below the actual typo, because the literal `*/` inside the backticks closes the `/** */`
+block right there. Hit once in `diff-filter.ts` (phase 05) and again in
+`applicability.ts` (spec 07) before this got written down. Spell it out instead:
+"`dir` + slash + `**`" / "`**` + slash + `name`", never the literal 2-character sequence.
+Where: `src/modules/reviews/diff-filter.ts:17`, `src/modules/reviews/applicability.ts:5`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

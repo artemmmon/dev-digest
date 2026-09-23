@@ -31,6 +31,7 @@ function toRecord(r: SkillRow): SkillRecord {
     enabled: r.enabled,
     version: r.version,
     evidenceFiles: r.evidenceFiles,
+    appliesTo: r.appliesTo,
     createdAt: r.createdAt,
   };
 }
@@ -102,6 +103,7 @@ export class SkillsRepository implements SkillStore {
           ...(patch.type !== undefined ? { type: patch.type } : {}),
           ...(patch.body !== undefined ? { body: patch.body } : {}),
           ...(patch.evidenceFiles !== undefined ? { evidenceFiles: patch.evidenceFiles } : {}),
+          ...(patch.appliesTo !== undefined ? { appliesTo: patch.appliesTo } : {}),
           ...(bodyChanged ? { version: nextVersion } : {}),
           updatedAt: new Date(),
         })

@@ -32,6 +32,7 @@ describe("SkillForm", () => {
       description: "Use when X: do Y.",
       type: "rubric",
       body: "# Rule",
+      appliesTo: "",
     });
   });
 
@@ -39,7 +40,7 @@ describe("SkillForm", () => {
     const user = userEvent.setup();
     renderWithIntl(
       <SkillForm
-        initial={{ name: "n", description: "d", type: "custom", body: "# Heading\n\n**bold**" }}
+        initial={{ name: "n", description: "d", type: "custom", body: "# Heading\n\n**bold**", appliesTo: "" }}
         submitLabel="Save skill"
         onSubmit={() => {}}
       />,
@@ -51,10 +52,18 @@ describe("SkillForm", () => {
 });
 
 describe("skill draft helpers", () => {
-  const base = { name: "a", description: "b", type: "rubric" as const, body: "c" };
+  const base = { name: "a", description: "b", type: "rubric" as const, body: "c", appliesTo: "" };
   it("changedFields keeps only what differs", () => {
     expect(changedFields(base, { ...base })).toEqual({});
     expect(changedFields(base, { ...base, body: "d", type: "custom" })).toEqual({ body: "d", type: "custom" });
+  });
+  it("changedFields converts appliesTo text to the wire's glob list, or null when empty", () => {
+    expect(changedFields(base, { ...base, appliesTo: "*.dart, pubspec.yaml" })).toEqual({
+      applies_to: ["*.dart", "pubspec.yaml"],
+    });
+    expect(changedFields({ ...base, appliesTo: "*.dart" }, { ...base, appliesTo: "  " })).toEqual({
+      applies_to: null,
+    });
   });
   it("isDraftValid ignores whitespace-only fields", () => {
     expect(isDraftValid({ ...base, name: "  " })).toBe(false);

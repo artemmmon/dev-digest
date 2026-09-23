@@ -36,6 +36,7 @@ function toRecord(r: AgentRow): AgentRecord {
     strategy: r.strategy,
     ciFailOn: r.ciFailOn,
     repoIntel: r.repoIntel,
+    appliesTo: r.appliesTo,
     enabled: r.enabled,
     version: r.version,
     createdBy: r.createdBy,
@@ -171,6 +172,7 @@ export class AgentsRepository implements AgentStore {
         ...(values.strategy !== undefined ? { strategy: values.strategy } : {}),
         ...(values.ciFailOn !== undefined ? { ciFailOn: values.ciFailOn } : {}),
         ...(values.repoIntel !== undefined ? { repoIntel: values.repoIntel } : {}),
+        ...(values.appliesTo !== undefined ? { appliesTo: values.appliesTo } : {}),
         enabled: values.enabled ?? true,
         version: INITIAL_AGENT_VERSION,
         createdBy: values.createdBy ?? null,
@@ -225,6 +227,7 @@ export class AgentsRepository implements AgentStore {
         ...(patch.strategy !== undefined ? { strategy: patch.strategy } : {}),
         ...(patch.ciFailOn !== undefined ? { ciFailOn: patch.ciFailOn } : {}),
         ...(patch.repoIntel !== undefined ? { repoIntel: patch.repoIntel } : {}),
+        ...(patch.appliesTo !== undefined ? { appliesTo: patch.appliesTo } : {}),
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
         ...(configChanged ? { version: nextVersion } : {}),
       })
@@ -251,6 +254,7 @@ export class AgentsRepository implements AgentStore {
           strategy: row.strategy,
           ci_fail_on: row.ciFailOn,
           repo_intel: row.repoIntel,
+          applies_to: row.appliesTo,
           skills,
         },
       })
@@ -381,7 +385,12 @@ export class AgentsRepository implements AgentStore {
   /** Skills for the prompt: binding AND skill enabled, in binding order. */
   async resolvedSkills(agentId: string): Promise<ResolvedSkill[]> {
     return this.db
-      .select({ id: t.skills.id, name: t.skills.name, body: t.skills.body })
+      .select({
+        id: t.skills.id,
+        name: t.skills.name,
+        body: t.skills.body,
+        appliesTo: t.skills.appliesTo,
+      })
       .from(t.agentSkills)
       .innerJoin(t.skills, eq(t.skills.id, t.agentSkills.skillId))
       .where(

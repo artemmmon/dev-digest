@@ -30,6 +30,7 @@ function agent(o: Partial<AgentRecord>): AgentRecord {
     strategy: 'single-pass',
     ciFailOn: 'critical',
     repoIntel: true,
+    appliesTo: null,
     enabled: true,
     version: 1,
     createdBy: null,
@@ -55,6 +56,7 @@ interface StoreState {
   runs: Map<string, string>; // runId → status (in workspace 'ws')
   cancelled: string[];
   reviews: { review: ReviewRow; findings: FindingRow[]; batchId: string | null }[];
+  prFiles: string[];
 }
 
 function fakeStore(state: StoreState): ReviewStore {
@@ -67,11 +69,12 @@ function fakeStore(state: StoreState): ReviewStore {
     },
     getPull: async (ws: string, id: string) => (ws === 'ws' && id === 'pr1' ? pull : undefined),
     reviewsForPull: async () => state.reviews,
+    getPrFiles: async () => state.prFiles.map((path) => ({ path }) as never),
   } as unknown as ReviewStore;
 }
 
-function setup(agents: AgentRecord[] = [agent({})]) {
-  const state: StoreState = { runs: new Map(), cancelled: [], reviews: [] };
+function setup(agents: AgentRecord[] = [agent({})], prFiles: string[] = []) {
+  const state: StoreState = { runs: new Map(), cancelled: [], reviews: [], prFiles };
   const bus = new RunBus(1_000);
   const deps: ReviewDeps = {
     reviews: fakeStore(state),
@@ -87,18 +90,60 @@ function setup(agents: AgentRecord[] = [agent({})]) {
 describe('ReviewService.resolveTargets', () => {
   it('all → every enabled agent', async () => {
     const { service } = setup([agent({ id: 'a1' }), agent({ id: 'a2', enabled: false })]);
-    expect((await service.resolveTargets('ws', { all: true })).map((a) => a.id)).toEqual(['a1']);
+    const { targets, skipped } = await service.resolveTargets('ws', 'pr1', { all: true });
+    expect(targets.map((a) => a.id)).toEqual(['a1']);
+    expect(skipped).toEqual([]);
   });
 
   it('agentId → that agent; unknown or foreign → 404; nothing → 400', async () => {
     const { service } = setup();
-    expect((await service.resolveTargets('ws', { agentId: 'a1' }))[0]!.id).toBe('a1');
-    await expect(service.resolveTargets('ws', { agentId: 'nope' })).rejects.toThrow('Agent not found');
-    await expect(service.resolveTargets('other', { agentId: 'a1' })).rejects.toThrow('Agent not found');
-    await expect(service.resolveTargets('ws', {})).rejects.toMatchObject({
+    expect((await service.resolveTargets('ws', 'pr1', { agentId: 'a1' })).targets[0]!.id).toBe('a1');
+    await expect(service.resolveTargets('ws', 'pr1', { agentId: 'nope' })).rejects.toThrow('Agent not found');
+    await expect(service.resolveTargets('other', 'pr1', { agentId: 'a1' })).rejects.toThrow('Agent not found');
+    await expect(service.resolveTargets('ws', 'pr1', {})).rejects.toMatchObject({
       code: 'invalid_run_request',
       statusCode: 400,
     });
+  });
+
+  it('all → drops an enabled agent whose applies_to matches none of the PR\'s changed files', async () => {
+    const { service } = setup(
+      [
+        agent({ id: 'a1', name: 'General' }),
+        agent({ id: 'a2', name: 'Flutter Reviewer', appliesTo: ['*.dart'] }),
+      ],
+      ['src/config.ts', 'src/app.ts'],
+    );
+    const { targets, skipped } = await service.resolveTargets('ws', 'pr1', { all: true });
+    expect(targets.map((a) => a.id)).toEqual(['a1']);
+    expect(skipped).toEqual([{ agent_id: 'a2', agent_name: 'Flutter Reviewer' }]);
+  });
+
+  it('all → keeps a scoped agent when a changed file matches its applies_to', async () => {
+    const { service } = setup(
+      [agent({ id: 'a1', name: 'Flutter Reviewer', appliesTo: ['*.dart'] })],
+      ['lib/main.dart'],
+    );
+    const { targets, skipped } = await service.resolveTargets('ws', 'pr1', { all: true });
+    expect(targets.map((a) => a.id)).toEqual(['a1']);
+    expect(skipped).toEqual([]);
+  });
+
+  it('all → fails open (runs a scoped agent) when the PR has no pr_files yet', async () => {
+    const { service } = setup([agent({ id: 'a1', appliesTo: ['*.dart'] })], []);
+    const { targets, skipped } = await service.resolveTargets('ws', 'pr1', { all: true });
+    expect(targets.map((a) => a.id)).toEqual(['a1']);
+    expect(skipped).toEqual([]);
+  });
+
+  it('an explicitly chosen agent always runs, even when applies_to matches nothing', async () => {
+    const { service } = setup(
+      [agent({ id: 'a1', appliesTo: ['*.dart'] })],
+      ['src/config.ts'],
+    );
+    const { targets, skipped } = await service.resolveTargets('ws', 'pr1', { agentId: 'a1' });
+    expect(targets.map((a) => a.id)).toEqual(['a1']);
+    expect(skipped).toEqual([]);
   });
 });
 

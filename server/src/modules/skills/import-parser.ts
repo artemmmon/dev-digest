@@ -5,6 +5,8 @@ import {
   DEFAULT_SKILL_TYPE,
   EXECUTABLE_DIRS,
   EXECUTABLE_EXT,
+  MAX_APPLIES_TO_PATTERN_CHARS,
+  MAX_APPLIES_TO_PATTERNS,
   MAX_ARCHIVE_ENTRIES,
   MAX_ARCHIVE_TOTAL_BYTES,
   MAX_DESCRIPTION_CHARS,
@@ -82,6 +84,21 @@ function firstHeading(body: string): string | undefined {
   return m?.[1]?.trim();
 }
 
+/**
+ * `applies_to:` (or the `globs:` alias, for drop-in compatibility with Cursor-style
+ * `.mdc` rule files) as a comma list. Absent or empty -> `undefined` ("always applies").
+ */
+function parseAppliesTo(fields: Record<string, string>): string[] | undefined {
+  const raw = fields.applies_to ?? fields.globs;
+  if (!raw) return undefined;
+  const patterns = raw
+    .split(',')
+    .map((p) => p.trim().slice(0, MAX_APPLIES_TO_PATTERN_CHARS))
+    .filter(Boolean)
+    .slice(0, MAX_APPLIES_TO_PATTERNS);
+  return patterns.length > 0 ? patterns : undefined;
+}
+
 function firstParagraph(body: string): string | undefined {
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.trim();
@@ -116,6 +133,7 @@ function toPreview(sourceFile: string, text: string, ignored: SkillImportPreview
     body: trimmedBody,
     source_file: sourceFile,
     ignored_files: ignored,
+    applies_to: parseAppliesTo(fields),
   };
 }
 

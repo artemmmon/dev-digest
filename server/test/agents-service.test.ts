@@ -54,6 +54,7 @@ class InMemoryAgentStore implements AgentStore {
       strategy: v.strategy ?? 'single-pass',
       ciFailOn: v.ciFailOn ?? 'critical',
       repoIntel: v.repoIntel ?? true,
+      appliesTo: v.appliesTo ?? null,
       enabled: v.enabled ?? true,
       version: 1,
       createdBy: v.createdBy ?? null,
@@ -119,6 +120,18 @@ describe('AgentsService', () => {
       enabled: true,
       version: 1,
     });
+  });
+
+  it('applies_to is trimmed, deduped, and an all-empty list is stored as null (not [])', async () => {
+    const { service } = setup();
+    const agent = await service.create('ws', { ...NEW, applies_to: [' *.dart ', '*.dart', 'pubspec.yaml'] });
+    expect(agent.applies_to).toEqual(['*.dart', 'pubspec.yaml']);
+
+    const cleared = await service.update('ws', agent.id, { applies_to: ['  ', ''] });
+    expect(cleared?.applies_to).toBeNull();
+
+    const updated = await service.update('ws', agent.id, { applies_to: ['*.ts'] });
+    expect(updated?.applies_to).toEqual(['*.ts']);
   });
 
   it("does not see, update or delete another workspace's agent", async () => {

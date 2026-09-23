@@ -14,6 +14,8 @@ export interface SkillRecord {
   enabled: boolean;
   version: number;
   evidenceFiles: string[] | null;
+  /** Glob patterns over a PR's changed files; null = always applies (`reviews/applicability.ts`). */
+  appliesTo: string[] | null;
   createdAt: Date;
 }
 
@@ -26,6 +28,7 @@ export interface InsertSkill {
   body: string;
   /** Files the skill was derived from (extracted skills). */
   evidenceFiles?: string[] | null;
+  appliesTo?: string[] | null;
 }
 
 export interface UpdateSkill {
@@ -34,6 +37,7 @@ export interface UpdateSkill {
   type?: SkillType;
   body?: string;
   evidenceFiles?: string[] | null;
+  appliesTo?: string[] | null;
   /** Stored with the new version when the body changes; ignored otherwise. */
   message?: string;
 }

@@ -217,6 +217,19 @@ file), but worth knowing before adding a `title`/tooltip to a chip elsewhere ins
 row: it does NOT override the name, it just prepends visible text to it.
 Where: `src/components/diff-viewer/FileCard/FileCard.tsx:64`.
 
+### 2026-09-23 — The Agent editor's Config tab always PUTs the full config; the Skill detail Config tab PUTs only what's dirty
+Two forms that look alike save differently: `SkillDetail`'s ConfigTab diffs the draft
+against the loaded skill (`changedFields`) and sends only the changed keys, so an
+unrelated no-op save is a true no-op. The Agent editor's ConfigTab has no such diff — its
+`save()` always builds and sends every field from local `useState`, unconditionally, on
+every click. This matters for anything added to `AgentRecord` that isn't a plain scalar
+(e.g. `applies_to: string[]`): the SERVER'S comparison, not the client's, is what decides
+whether "nothing changed" actually bumps the version — see the `isConfigChange`/
+`sameAppliesTo` entry in `server/INSIGHTS.md`. Don't assume adding a field to one form's
+save payload is safe just because the other form's dirty-diffing would have protected it.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/ConfigTab/ConfigTab.tsx:46`
+(`save`), `src/app/skills/_components/SkillDetail/SkillDetail.tsx:50` (`changedFields`, for contrast).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception

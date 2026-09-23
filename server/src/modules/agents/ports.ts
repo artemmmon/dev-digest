@@ -15,6 +15,8 @@ export interface AgentRecord {
   strategy: ReviewStrategy;
   ciFailOn: CiFailOn;
   repoIntel: boolean;
+  /** Glob patterns over a PR's changed files; null = always applies (`reviews/applicability.ts`). */
+  appliesTo: string[] | null;
   enabled: boolean;
   version: number;
   createdBy: string | null;
@@ -42,6 +44,7 @@ export interface InsertAgent {
   strategy?: ReviewStrategy;
   ciFailOn?: CiFailOn;
   repoIntel?: boolean;
+  appliesTo?: string[] | null;
   enabled?: boolean;
   createdBy?: string | null;
 }
@@ -56,6 +59,7 @@ export interface UpdateAgent {
   strategy?: ReviewStrategy;
   ciFailOn?: CiFailOn;
   repoIntel?: boolean;
+  appliesTo?: string[] | null;
   enabled?: boolean;
 }
 
@@ -77,6 +81,7 @@ export interface ResolvedSkill {
   id: string;
   name: string;
   body: string;
+  appliesTo: string[] | null;
 }
 
 /** Workspace-scoped agent persistence (agents, agent_versions, agent_skills). */

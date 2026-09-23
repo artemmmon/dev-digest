@@ -8,6 +8,7 @@ import { REVIEW_STRATEGY } from './constants.js';
 import { skillBlockText, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 import { excludeFromReview } from './diff-filter.js';
+import { partitionSkills } from './applicability.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
 export class RunCancelledError extends Error {
@@ -197,8 +198,14 @@ export class ReviewRunExecutor {
       const task = taskLine(pull) + rankNote;
 
       // L02 — skills. Only bindings that are on AND whose skill is on reach the prompt,
-      // in binding order, so a disabled skill leaves no block and no log line.
-      const skillBlocks = await this.buildSkillBlocks(agent.id, runLog);
+      // in binding order, so a disabled skill leaves no block and no log line. A skill
+      // scoped by `applies_to` (spec 07) that matches none of this PR's changed files
+      // is skipped too — logged, not attached.
+      const skillBlocks = await this.buildSkillBlocks(
+        agent.id,
+        diff.files.map((f) => f.path),
+        runLog,
+      );
 
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
@@ -384,10 +391,12 @@ export class ReviewRunExecutor {
 
   /**
    * L02 — the agent's skills as prompt blocks (`### Skill: <name>` + body), in binding
-   * order, each with its token cost. One log line per attached skill.
+   * order, each with its token cost. One log line per attached skill; a skill whose
+   * `applies_to` matches none of `changedPaths` logs as skipped instead (spec 07).
    */
   private async buildSkillBlocks(
     agentId: string,
+    changedPaths: string[],
     runLog: RunLogger,
   ): Promise<Array<SkillBlock & { text: string }>> {
     const skills = await this.deps.agents.resolvedSkills(agentId);
@@ -395,7 +404,12 @@ export class ReviewRunExecutor {
       runLog.info('skills: none attached');
       return [];
     }
-    const blocks = skills.map((s) => {
+    const { applicable, skipped } = partitionSkills(skills, changedPaths);
+    for (const s of skipped) {
+      runLog.info(`skill "${s.name}" skipped — applies to ${s.appliesTo!.join(', ')}; no changed file matches`);
+    }
+    if (applicable.length === 0) return [];
+    const blocks = applicable.map((s) => {
       const text = skillBlockText(s.name, s.body);
       return { skill_id: s.id, name: s.name, tokens: this.deps.tokenizer.count(text), text };
     });

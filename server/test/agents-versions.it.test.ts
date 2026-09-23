@@ -92,6 +92,37 @@ d('GET /agents/:id/versions', () => {
     await app.close();
   });
 
+  it('an applies_to change bumps the version and is captured in the snapshot; a no-op save does not', async () => {
+    const app = await makeApp();
+    const agentId = (
+      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
+    ).json().id as string;
+
+    const scoped = await app.inject({
+      method: 'PUT',
+      url: `/agents/${agentId}`,
+      payload: { applies_to: ['*.dart', 'pubspec.yaml'] },
+    });
+    expect(scoped.statusCode).toBe(200);
+    expect(scoped.json().version).toBe(2);
+    expect(scoped.json().applies_to).toEqual(['*.dart', 'pubspec.yaml']);
+
+    // Saving the identical (order-preserved) globs again is not a config change.
+    const again = await app.inject({
+      method: 'PUT',
+      url: `/agents/${agentId}`,
+      payload: { applies_to: ['*.dart', 'pubspec.yaml'] },
+    });
+    expect(again.json().version).toBe(2);
+
+    const versions = (
+      await app.inject({ method: 'GET', url: `/agents/${agentId}/versions` })
+    ).json();
+    expect(versions.map((v: { version: number }) => v.version)).toEqual([2, 1]);
+    expect(versions[0].config.applies_to).toEqual(['*.dart', 'pubspec.yaml']);
+    await app.close();
+  });
+
   it('concurrent config edits each get their own version and snapshot', async () => {
     const app = await makeApp();
     const agentId = (

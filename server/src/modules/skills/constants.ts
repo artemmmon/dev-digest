@@ -20,3 +20,7 @@ export const EXECUTABLE_DIRS = new Set(['scripts', 'bin']);
 
 export const MAX_DESCRIPTION_CHARS = 300;
 export const DEFAULT_SKILL_TYPE = 'custom' as const;
+
+/** Mirrors the shared `AppliesTo` schema, so an imported skill always previews as savable. */
+export const MAX_APPLIES_TO_PATTERNS = 30;
+export const MAX_APPLIES_TO_PATTERN_CHARS = 200;

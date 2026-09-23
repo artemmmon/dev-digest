@@ -48,4 +48,11 @@ export const s = {
     padding: "1px 8px",
     borderRadius: 4,
   }),
+  appliesTo: {
+    fontSize: 11,
+    color: "var(--text-muted)",
+    background: "var(--bg-hover)",
+    padding: "1px 6px",
+    borderRadius: 4,
+  } satisfies CSSProperties,
 } as const;

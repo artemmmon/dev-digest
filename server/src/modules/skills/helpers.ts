@@ -16,9 +16,20 @@ export function toSkillDto(
     enabled: row.enabled,
     version: row.version,
     evidence_files: row.evidenceFiles,
+    applies_to: row.appliesTo,
     ...(extra.agentCount !== undefined ? { agent_count: extra.agentCount } : {}),
     ...(extra.bodyTokens !== undefined ? { body_tokens: extra.bodyTokens } : {}),
   };
+}
+
+/**
+ * Trim, dedupe and drop empty entries; an empty result is `null` ("always applies"),
+ * never `[]` — so a stored skill/agent can't silently mean "applies to nothing".
+ */
+export function normalizeAppliesTo(patterns: string[] | null | undefined): string[] | null {
+  if (!patterns) return null;
+  const cleaned = [...new Set(patterns.map((p) => p.trim()).filter(Boolean))];
+  return cleaned.length > 0 ? cleaned : null;
 }
 
 export function toSkillVersionDto(row: SkillVersionRecord): SkillVersion {

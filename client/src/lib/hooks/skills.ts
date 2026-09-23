@@ -66,7 +66,14 @@ export function useCreateSkill() {
 export interface UpdateSkillInput {
   id: string;
   /** `message` says what changed; the server stores it with the new version when the body changes. */
-  patch: Partial<{ name: string; description: string; type: SkillType; body: string; message: string }>;
+  patch: Partial<{
+    name: string;
+    description: string;
+    type: SkillType;
+    body: string;
+    applies_to: string[] | null;
+    message: string;
+  }>;
 }
 
 export function useUpdateSkill() {

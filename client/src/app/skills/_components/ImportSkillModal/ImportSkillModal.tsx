@@ -12,7 +12,7 @@ import type { Skill, SkillImportPreview, SkillSource } from "@devdigest/shared";
 import { ApiError } from "@/lib/api";
 import { useCreateSkill, usePreviewSkillImport, usePreviewSkillImportUrl } from "@/lib/hooks/skills";
 import { useToast } from "@/lib/toast";
-import { draftFromPreview, type SkillDraft } from "../helpers";
+import { draftFromPreview, parseAppliesTo, type SkillDraft } from "../helpers";
 import { SkillForm } from "../SkillForm";
 import { UrlPicker } from "./_components/UrlPicker";
 import { ACCEPT, IMPORT_TABS, type ImportTab } from "./constants";
@@ -90,7 +90,14 @@ export function ImportSkillModal({
 
   const save = (draft: SkillDraft) =>
     create.mutate(
-      { ...draft, source },
+      {
+        name: draft.name,
+        description: draft.description,
+        type: draft.type,
+        body: draft.body,
+        applies_to: parseAppliesTo(draft.appliesTo),
+        source,
+      },
       {
         onSuccess: (skill) => {
           toast.success(t("import.confirmed", { name: skill.name }));

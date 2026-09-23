@@ -62,6 +62,16 @@ export function SkillCard({
             <SourceIcon size={11} />
             {t(`listItem.source.${skill.source}`)}
           </span>
+          {skill.applies_to && skill.applies_to.length > 0 && (
+            <span
+              className="mono"
+              style={s.appliesTo}
+              title={t("listItem.appliesTo", { globs: skill.applies_to.join(", ") })}
+            >
+              {skill.applies_to[0]}
+              {skill.applies_to.length > 1 ? ` +${skill.applies_to.length - 1}` : ""}
+            </span>
+          )}
         </div>
         <div style={s.footer}>
           <span className="mono tnum" style={s.version}>

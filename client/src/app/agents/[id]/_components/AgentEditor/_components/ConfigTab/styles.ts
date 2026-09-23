@@ -14,5 +14,6 @@ export const s = {
     color: "var(--text-secondary)",
   } satisfies CSSProperties,
   actions: { display: "flex", gap: 10, marginTop: 10 } satisfies CSSProperties,
+  presetBar: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 } satisfies CSSProperties,
   savedNote: { alignSelf: "center", fontSize: 13, color: "var(--ok)" } satisfies CSSProperties,
 } as const;

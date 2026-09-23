@@ -12,3 +12,7 @@ export const CREATE_ON = "1";
 
 /** Query param that holds the open tab of a skill on /skills/<id> (absent = Config). */
 export const TAB_PARAM = "tab";
+
+// "Applies to" presets and its comma-text <-> glob-list conversion are shared with
+// the agent editor — see `@/lib/applies-to-presets`.
+export { APPLIES_TO_PRESETS } from "@/lib/applies-to-presets";

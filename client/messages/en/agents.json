@@ -2,6 +2,7 @@
   "card": {
     "noDescription": "No description",
     "skillCount": "{count} skills",
+    "appliesTo": "Applies to: {globs}",
     "delete": "Delete agent",
     "deleteTitle": "Delete agent?",
     "deleteConfirm": "Delete agent \"{name}\"? This cannot be undone."
@@ -85,6 +86,15 @@
     },
     "repoIntel": "Repo intelligence",
     "repoIntelHint": "Inject repo context (repo skeleton, callers of changed symbols, and a 'high blast-radius' note) into this agent's review prompt. On by default. Turning it off sends only the diff — useful for cheap models or self-contained PRs.",
+    "appliesTo": "Applies to",
+    "appliesToHint": "Glob patterns over a PR's changed files (e.g. *.dart). A \"Run all\" review skips this agent when none match. Empty = always runs.",
+    "appliesToPlaceholder": "*.dart, pubspec.yaml",
+    "appliesToPresets": {
+      "flutter": "Flutter/Dart",
+      "typescript": "TypeScript/JS",
+      "python": "Python",
+      "clear": "Clear"
+    },
     "save": "Save agent",
     "saving": "Saving…",
     "saved": "Saved (v{version})",
