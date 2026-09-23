@@ -8,6 +8,12 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 
 ## What Works
 
+### 2026-09-22 — A control PR separates skills from no-skills only through a policy rule the model lacks
+deepseek-v4-flash finds field removals, renames, retypes, nullability and enum widening with or without skills
+(35 of 36 checks across both fixtures and modes). What it never flags on its own is a breaking change shipped as a minor bump (`package.json`
+1.4.0 → 1.5.0): 0/3 without skills, 3/3 with `semver-discipline`. Plant a policy-level change when designing a control PR.
+Where: `src/experiments/fixtures/api-contract/ts-route-contract/expected.json:34` (`minor-bump`).
+
 ## What Doesn't Work
 
 ### 2026-09-15 — Refactoring leftovers
@@ -36,6 +42,12 @@ neither: the clone holds only `main` (the PR head commit is missing) and `pr_fil
 `GET /pulls/:id` runs (the PR page). `POST /pulls/:id/review` straight after import therefore logs "0 changed file(s)" and
 the model answers "approve, no changes". Open the PR (or `GET /pulls/:id`) once before reviewing it from a script.
 Where: `src/modules/reviews/diff-loader.ts:11` (`loadDiff`).
+
+### 2026-09-22 — Scoring a control PR by exact cited line fails: grounded lines drift by up to 6
+On `ts-route-contract` deepseek-v4-flash cited `author` anywhere from line 5 to 12 (real: 11) and the version at
+`package.json:5–6` (real: 3); grounding kept all of them because they fall inside the hunk. An exact-line check marks real catches as misses.
+`scoreRun` counts a change as caught by file + a keyword the finding must name + a ±5 line slack.
+Where: `src/experiments/score.ts:29` (`LINE_SLACK`).
 
 ## Codebase Patterns
 

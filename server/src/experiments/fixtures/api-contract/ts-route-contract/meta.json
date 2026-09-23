@@ -1,0 +1,6 @@
+{
+  "title": "refactor: extract toWire mapper for lineups",
+  "author": "fixture",
+  "description": "Pulls the inline row-to-JSON mapping of `GET /v1/lineups` into a `toWire` helper and tidies the lineup contract. Pure refactor, no API changes.",
+  "source": "Hand-written control PR for the API Contract Reviewer skill experiment. Four contract changes hidden in a refactor; the toWire extraction itself is the distractor."
+}

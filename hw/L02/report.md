@@ -56,8 +56,52 @@ Changes `difficulty` `hard`→`expert`, key `throw_style`→`throwStyle`, `steps
   run vs 0–2 without) — the skills change *what the reviewer says*, not only *whether it spots* a change.
 - Cost: ~$0.0003–0.0004 per run without skills, ~$0.0006–0.0008 with them.
 
+### Reproducible control experiment (one command)
+
+The runs above were done by hand in the UI on an external repo. The same experiment is now a
+fixture plus a script, with no DB, GitHub or UI involved:
+
+```sh
+cd server && pnpm experiment:api-contract --fixture all --runs 3
+```
+
+- Control PRs: `server/src/experiments/fixtures/api-contract/<name>/` — `pr.diff`, `meta.json`,
+  and `expected.json` (planted changes: file, line range, keywords, the skill that covers it).
+- Same engine call as a studio review: seeded `API_CONTRACT_REVIEWER_PROMPT`, `reviewPullRequest`
+  single-pass, the same task line and `### Skill: <name>` blocks, grounding on.
+- A planted change counts as caught when a grounded finding cites its location (± 5 lines) and
+  names it. Scoring is unit-tested (`server/src/experiments/score.test.ts`).
+- Output: [`experiment/ts-route-contract.md`](experiment/ts-route-contract.md),
+  [`experiment/cs2-lineups-pr6.md`](experiment/cs2-lineups-pr6.md) (+ `.json` with every finding).
+
+**`ts-route-contract`** — a TypeScript/Fastify + zod PR titled as a refactor ("extract toWire
+mapper… no API changes") that hides four contract changes: `status` enum gains `archived`,
+`legacy_id` removed with no deprecation, `author` becomes nullable, and the version goes
+`1.4.0 → 1.5.0` (minor) with a changelog line saying "No API changes".
+
+| | no skills | 4 skills |
+|---|---|---|
+| All four caught | **0/3** | **3/3** |
+| `archived` / `legacy_id` / `author` | 3/3 each | 3/3 each |
+| Breaking change shipped as a minor bump | **0/3** | **3/3** |
+| Findings that are not a planted change | 0 | 0 |
+| Avg cost per run | $0.0003 | $0.0006 |
+
+This is the control PR the criterion asks for: without skills the reviewer never flags the
+wrong version bump; with `semver-discipline` it flags it in every run (CRITICAL on
+`package.json`). The field-level breaks are found either way.
+
+**`cs2-lineups-pr6`** (snapshot of PR #6 above) re-run with the script: no skills 3/3 full
+detection, 4 skills 2/3 (one run missed the `throw_style` rename). Together with the manual runs
+(2/3 vs 3/3) this says PR #6 does **not** separate the two modes; the differences are run-to-run noise.
+
 ### Conclusion
 Skills made the result **more consistent** (3/3 vs 2/3 full detection) and added policy findings, but
 on this model the baseline is not reliably blind: it missed one change in one of three runs. That is
 weaker than "the agent skips it without skills". Sample size is 3 per mode, so this is an
 observation, not a statistically supported claim.
+
+Update after the reproducible runs: on field-level breaks (PR #5, PR #6, three of the four
+`ts-route-contract` changes) skills do not change *whether* a break is found. They do change it for
+policy rules the model does not apply by itself — the semver bump is caught 3/3 with skills and
+0/3 without. The earlier "more consistent on PR #6" did not reproduce (3/3 vs 2/3 the other way).

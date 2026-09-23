@@ -63,7 +63,21 @@ skill is saved with source `imported_url`.
 **Agents -> API Contract Reviewer -> Skills** tab: switch on all four and save. The agent
 version bumps when the enabled set changes.
 
-For the **no-skills baseline** experiment, switch off the seeded `route-breaking-change-rubric`
+### No-skills baseline, reproducible
+
+The control experiment runs in one command, without the DB, GitHub or the UI:
+
+```sh
+cd server && pnpm experiment:api-contract            # all control PRs, 3 runs per mode
+cd server && pnpm experiment:api-contract --fixture ts-route-contract --runs 1
+```
+
+It reviews each control PR in `server/src/experiments/fixtures/api-contract/` with the seeded
+API Contract Reviewer prompt, once without skills and once with these four `SKILL.md` files, and
+writes the scored comparison to `hw/L02/experiment/<fixture>.md`. It needs only the OpenRouter
+key (Settings page or `OPENROUTER_API_KEY`).
+
+To see the same thing in the app, switch off the seeded `route-breaking-change-rubric`
 and `zod-contract-conventions` on the same tab first, run the reviewer on the PR, then
 enable the four new skills and run it again. Compare findings and the skill blocks in the
 run trace.

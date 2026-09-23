@@ -58,13 +58,18 @@ export function reviewToDto(
   };
 }
 
+/** One skill as it enters the prompt's skills slot (the run trace counts tokens of exactly this text). */
+export function skillBlockText(name: string, body: string): string {
+  return `### Skill: ${name}\n${body}`;
+}
+
 /**
  * Build the per-run task instruction line for a PR.
  *
  * The TRUSTED part (ours) states the task and the non-negotiable rule: review
  * the whole diff and never withhold a security/correctness finding.
  */
-export function taskLine(pull: PullRow): string {
+export function taskLine(pull: Pick<PullRow, 'number' | 'title' | 'author'>): string {
   return (
     `Review pull request #${pull.number} "${pull.title}" by ${pull.author}. ` +
     `Report only the distinct, high-value findings you can defend, each citing an exact ` +
