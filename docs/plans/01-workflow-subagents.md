@@ -1,5 +1,6 @@
 # Development Plan: Four workflow subagents (test-writer, architecture-reviewer, plan-verifier, doc-writer)
 Status: implemented
+Note: `plan-verifier` was later renamed `implementation-verifier` (2026-09-24): it checks code against the plan, not the plan itself. This plan keeps the original name.
 Spec: none
 
 ## Goal

@@ -1,6 +1,6 @@
 ---
-name: plan-verifier
-description: Read-only plan verifier. Checks finished code against EVERY item of one Development Plan (docs/plans/NN-*.md) and the spec it implements, item by item, and returns a traceability matrix with a verdict per item — met, partially met, not met, cannot verify — each backed by path:line, a test name or check output, plus coverage gaps and unplanned changes. Gives no generic advice and does not judge whether the plan was right. Use after implementer (and test-writer) finish, passing the plan path.
+name: implementation-verifier
+description: Read-only implementation verifier. Checks finished code against EVERY item of one Development Plan (docs/plans/NN-*.md) and the spec it implements, item by item, and returns a traceability matrix with a verdict per item — met, partially met, not met, cannot verify — each backed by path:line, a test name or check output, plus coverage gaps and unplanned changes. Gives no generic advice and does not judge whether the plan was right. Use after implementer (and test-writer) finish, passing the plan path.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch
 model: opus
@@ -65,7 +65,7 @@ Grade one item per judgment; do not let one strong item cover another.
 
 Your final message is the report and nothing else. Leave no section empty: write "None." when a section has nothing.
 
-### Plan verification report
+### Implementation verification report
 
 ```
 ## Verdict

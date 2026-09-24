@@ -52,7 +52,7 @@ One Diátaxis kind per doc.
 
 ## Step 3: Ground
 
-Verify every behavioural claim at `path:line` in the current code before writing it down. Docs link to paths; line numbers stay in the report, not in the doc prose (code moves). Leave out plan items that are not implemented (plan `Status: partial`, an Implementation report's Deviations, or a plan-verifier `not met`/`partially met`) and list them under "Not documented". When an existing doc drifts from the code, fix the doc and record the drift via `engineering-insights`.
+Verify every behavioural claim at `path:line` in the current code before writing it down. Docs link to paths; line numbers stay in the report, not in the doc prose (code moves). Leave out plan items that are not implemented (plan `Status: partial`, an Implementation report's Deviations, or an implementation-verifier `not met`/`partially met`) and list them under "Not documented". When an existing doc drifts from the code, fix the doc and record the drift via `engineering-insights`.
 
 ## Step 4: Write
 

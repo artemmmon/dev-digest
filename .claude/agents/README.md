@@ -13,19 +13,19 @@ file. To add an agent, give it a row here.
 | [implementer](implementer.md) | Executes an approved plan in server/client, loads the matching skills, runs the checks, and checks its own diff against the plan | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes |
 | [test-writer](test-writer.md) | Writes behavioural tests for implemented server/client code (`mode: after`), or red-mode tests for an approved plan before implementation (`mode: red`); proves every test can fail and never fixes production code | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (tests only) |
 | [architecture-reviewer](architecture-reviewer.md) | Read-only audit of a module, package or branch diff against the onion and frontend-architecture rules; mechanical checks (`pnpm arch`, lint, shared-contracts check) first, judgement second | opus | Read, Grep, Glob, Bash · preloads `onion-architecture`, `frontend-architecture` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
-| [plan-verifier](plan-verifier.md) | Read-only traceability check of finished code against every Development Plan item and spec requirement; one verdict per item, PASS/FAIL/INCOMPLETE overall | opus | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
+| [implementation-verifier](implementation-verifier.md) | Read-only traceability check of finished code against every Development Plan item and spec requirement; one verdict per item, PASS/FAIL/INCOMPLETE overall | opus | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
 | [doc-writer](doc-writer.md) | Turns an implemented plan, spec or report into docs grounded in the current code: picks the Diátaxis kind and location, updates the folder index, draws Mermaid diagrams | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `mermaid-diagram`, `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (docs only) |
 | [pr-skill-reviewer](pr-skill-reviewer.md) | Reviews changed lines against ONE skill, or for plain correctness | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
 | [pr-finding-verifier](pr-finding-verifier.md) | Tries to refute ONE CRITICAL finding | opus | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
 
-Bash is read-only by instruction for every agent except `implementer`, `test-writer` and `doc-writer`:
-`git log/show/diff`, `ls`, `cat`, `sed -n`, `rg`/`grep`. `architecture-reviewer` and `plan-verifier`
-may also run named check commands, never with `--fix` or `sync`: `architecture-reviewer` runs only
-`pnpm arch`, `pnpm lint` and `./scripts/shared-contracts.sh check`; `plan-verifier` runs the plan's
-Verification checks and the `routing.json` package checks (including tests) plus the same contracts
-check, all read from `routing.json`. None of them commits, pushes or opens PRs. For `git push`,
-`gh pr create` and `gh pr merge`, the `pr-self-review` hook in `.claude/settings.json` blocks the
-command whoever runs it.
+Bash is read-only by instruction for every agent except `implementer`, `test-writer` and
+`doc-writer`: `git log/show/diff`, `ls`, `cat`, `sed -n`, `rg`/`grep`. `architecture-reviewer` and
+`implementation-verifier` may also run named check commands, never with `--fix` or `sync`:
+`architecture-reviewer` runs only `pnpm arch`, `pnpm lint` and `./scripts/shared-contracts.sh check`;
+`implementation-verifier` runs the plan's Verification checks and the `routing.json` package checks
+(including tests) plus the same contracts check, all read from `routing.json`. None of them commits,
+pushes or opens PRs. For `git push`, `gh pr create` and `gh pr merge`, the `pr-self-review` hook in
+`.claude/settings.json` blocks the command whoever runs it.
 
 ## Inputs and outputs
 
@@ -36,7 +36,7 @@ command whoever runs it.
 | implementer | Path to an approved plan in `docs/plans/` | Code, tests, updated plan/spec `Status`, `INSIGHTS.md` entries; Implementation report (steps · deviations · skills applied · checks · not run · handoff to review) — or a Plan deviation report |
 | test-writer | Plan path + `mode: after`/`red`, or target files/module + behaviour | Tests next to their subject; Test report (tests written · proof · stability · checks · bugs found) — or a Blocked report — or a Clarification report |
 | architecture-reviewer | `mode: diff` (+ `base`) or `mode: module` (+ `target`), optional plan path | One JSON object: `checks`, `findings` (with `in_change`), `rubric_read`, `not_checked` — or a clarification JSON |
-| plan-verifier | Plan path (+ Implementation report, + `base`) | Plan verification report: `PASS`/`FAIL`/`INCOMPLETE` verdict, traceability matrix, coverage gaps — or a Clarification report |
+| implementation-verifier | Plan path (+ Implementation report, + `base`) | Implementation verification report: `PASS`/`FAIL`/`INCOMPLETE` verdict, traceability matrix, coverage gaps — or a Clarification report |
 | doc-writer | Plan/spec/implementation report/notes, optional audience | Docs in `docs/` or `<package>/docs/`, index updates, `INSIGHTS.md` entries; Documentation report — or a Clarification report |
 | pr-skill-reviewer | `skill`, `repo_root`, `merge_base`, `files`, rubric and contract paths | One JSON object with findings ([reviewer-contract.md](../skills/pr-self-review/references/reviewer-contract.md)) |
 | pr-finding-verifier | One CRITICAL finding, `merge_base`, rubric and contract paths | One JSON verdict: `confirmed` · `downgrade` · `refuted` |
@@ -55,7 +55,7 @@ flowchart LR
   S -->|you approve| I[implementer]
   S -.->|red mode| TW[test-writer]
   I -->|Implementation report| TW
-  TW -->|Test report| PV[plan-verifier]
+  TW -->|Test report| PV[implementation-verifier]
   TW -->|changed files| AR[architecture-reviewer]
   I -->|test-writer skipped| PV
   AR -->|CRITICAL findings| I
@@ -77,10 +77,12 @@ flowchart LR
   separate agent.
 - **Subagents cannot ask the user questions.** The `AskUserQuestion` tool is filtered out for
   subagents. When a request is vague, `researcher`, `planner`, `implementer`, `test-writer`,
-  `architecture-reviewer`, `plan-verifier` and `doc-writer` all return a Clarification or Plan
-  deviation report instead of guessing, and the main session relays it.
-- **Verification is independent.** `plan-verifier` (opus) re-checks every plan item against the
-  code itself; the implementer's Implementation report is a pointer to evidence, not evidence.
+  `architecture-reviewer`, `implementation-verifier` and `doc-writer` all return a Clarification or
+  Plan deviation report instead of guessing, and the main session relays it.
+- **Verification is independent.** `implementation-verifier` (opus) re-checks every plan item
+  against the code itself; the implementer's Implementation report is a pointer to evidence, not
+  evidence. It runs after implementation because it checks code against the plan, not the plan
+  itself.
 
 ## Sources
 
@@ -138,7 +140,7 @@ Checked 2026-09-24 by `researcher`:
 | [reviewer-contract.md](../skills/pr-self-review/references/reviewer-contract.md) | Finding JSON shape, reused unchanged and wrapped in `mode`/`target`/`checks` |
 | [severity.md](../skills/pr-self-review/references/severity.md) | CRITICAL is a closed list (`onion-layer-violation`, `cross-package-import`, `contract-drift`, `check-failed`) |
 
-### plan-verifier
+### implementation-verifier
 
 Checked 2026-09-24 by `researcher`:
 
