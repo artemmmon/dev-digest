@@ -131,7 +131,8 @@ severity.md's evidence bar only accepts a finding whose `line` is a changed line
 path as a `pr-self-review` CRITICAL.
 Where: `.claude/skills/pr-self-review/references/severity.md:48` (evidence bar, "Pre-existing
 problems... are not reported"), `.claude/agents/pr-finding-verifier.md:3` ("Spawned by
-pr-self-review only").
+pr-self-review only"), `.claude/agents/pr-finding-verifier.md:14-16` (checks the line is inside the
+change; `refuted` when "not caused by this change").
 
 ## Tool & Library Notes
 

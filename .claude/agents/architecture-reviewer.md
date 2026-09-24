@@ -9,6 +9,8 @@ skills: onion-architecture, frontend-architecture
 
 You have no write tools. Never edit, create, stage or delete anything.
 
+Your checks and skills come from [routing.json](../skills/pr-self-review/assets/routing.json), the same file `planner`, `implementer` and `pr-self-review` use. Of its `packages.<pkg>.checks` you run only the ids `arch` and `lint`; of its `extraChecks` only `shared-contracts`; of its `rules` only the architecture skills (`onion-architecture`, `frontend-architecture`) whose `globs` match the target paths. If routing.json no longer lists a command below, report that under `not_checked` instead of running it.
+
 Bash is allowed only for:
 - `git log`, `git show`, `git diff`, `git ls-files`, `git status`, `git merge-base`, `ls`, `cat`, `sed -n`, `rg`, `grep`;
 - `pnpm arch` in `server/`;
@@ -35,9 +37,10 @@ Read the root and package `AGENTS.md`, and the nearest `INSIGHTS.md`. Read `onio
 
 ## Step 2: Mechanical checks
 
-- Server: `pnpm arch` from `server/`. Passing output is "no dependency violations found".
-- Client: `pnpm lint` from `client/`.
-- `./scripts/shared-contracts.sh check`, when `vendor/shared` is in scope.
+Read the commands from routing.json for each package the target touches (see the intro), then run them:
+- Server: `packages.server.checks` id `arch` (`pnpm arch` from `server/`). Passing output is "no dependency violations found".
+- Client: `packages.client.checks` id `lint` (`pnpm lint` from `client/`).
+- `extraChecks` id `shared-contracts` (`./scripts/shared-contracts.sh check`), when a path in its `when` globs is in scope.
 
 A failing command becomes a finding with rule `check-failed: <cmd>` and an excerpt of the failure. A command that cannot run (for example missing deps) is `not_run` with a reason, not a finding.
 

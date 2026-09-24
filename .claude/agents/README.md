@@ -23,8 +23,9 @@ Bash is read-only by instruction for every agent except `implementer`, `test-wri
 may also run named check commands, never with `--fix` or `sync`: `architecture-reviewer` runs only
 `pnpm arch`, `pnpm lint` and `./scripts/shared-contracts.sh check`; `plan-verifier` runs the plan's
 Verification checks and the `routing.json` package checks (including tests) plus the same contracts
-check. None of them commits, pushes or opens PRs. For `git push`, `gh pr create` and `gh pr merge`, the `pr-self-review` hook in
-`.claude/settings.json` blocks the command whoever runs it.
+check, all read from `routing.json`. None of them commits, pushes or opens PRs. For `git push`,
+`gh pr create` and `gh pr merge`, the `pr-self-review` hook in `.claude/settings.json` blocks the
+command whoever runs it.
 
 ## Inputs and outputs
 
@@ -49,19 +50,19 @@ Architecture-reviewer CRITICALs with `in_change: true` may be re-checked by the 
 
 ```mermaid
 flowchart LR
-  R[researcher<br/>optional] --> P[planner]
+  R[researcher<br/>optional] -->|research report| P[planner]
   P -->|Development Plan| S[saved plan<br/>docs/plans/NN-*.md]
   S -->|you approve| I[implementer]
   S -.->|red mode| TW[test-writer]
-  I --> TW
-  TW --> PV[plan-verifier]
-  TW --> AR[architecture-reviewer]
+  I -->|Implementation report| TW
+  TW -->|Test report| PV[plan-verifier]
+  TW -->|changed files| AR[architecture-reviewer]
   I -->|test-writer skipped| PV
   AR -->|CRITICAL findings| I
   PV -->|FAIL / INCOMPLETE| I
   PV -->|PASS| DW[doc-writer]
-  DW --> SR[pr-self-review]
-  SR --> PUSH[push / PR]
+  DW -->|docs updated| SR[pr-self-review]
+  SR -->|PASS verdict| PUSH[push / PR]
 ```
 
 - **The plan is the only handoff.** `implementer` gets nothing from the planning conversation. That
@@ -163,6 +164,7 @@ Checked 2026-09-24 by `researcher`:
 | [GitHub diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams) | GitHub renders Mermaid natively; no diagram images |
 | [Mermaid config schema](https://mermaid.js.org/config/schema-docs/config.html) | `maxTextSize` and other renderer limits |
 | [server/docs/0001-latest-review-is-a-batch.md](../../server/docs/0001-latest-review-is-a-batch.md) | The ADR shape doc-writer follows |
+| [mermaid-diagram](../skills/mermaid-diagram/SKILL.md) | Diagram type choice, ≤ ~20 nodes, labeled edges, one direction, no colours |
 
 ## Adding an agent
 
