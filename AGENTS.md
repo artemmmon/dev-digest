@@ -42,7 +42,8 @@ Every package exposes the same three checks: `typecheck` · `lint` · `test`.
 - i18n: one file per feature, `client/messages/en/<camelCase>.json`, `camelCase` keys
   nested by UI area.
 - Docs: specs `specs/NN-short-name.md` · decision records `docs/NNNN-short-title.md` ·
-  guides `docs/kebab-case-topic.md` · e2e flows `e2e/specs/NN-name.flow.json`.
+  guides `docs/kebab-case-topic.md` · development plans `docs/plans/NN-short-name.md`
+  (from the `planner` agent) · e2e flows `e2e/specs/NN-name.flow.json`.
 - DB tables and columns are `snake_case` (`agent_runs.cost_usd`) and the Zod wire
   contracts keep that spelling; only React props and locals are `camelCase`.
 - Git: branches `lesson-NN`, commit subjects `type: imperative summary`

@@ -115,6 +115,24 @@ server's, so it still fails on any REAL content drift while tolerating this one 
 mechanical difference.
 Where: `scripts/shared-contracts.sh` (`strip_js_extensions`).
 
+### 2026-09-24 — routing.json maps no skill to server test files
+`server-app`'s glob (`server/src/{modules,platform,adapters}/**/*.ts`) ignores `**/*.test.ts`, and
+server tests live in `server/test/` rather than beside the subject, so no `routing.json` rule ever
+matches a server test path. An agent writing or reviewing server tests must route skills by the
+file *under test*, not the test file itself.
+Where: `.claude/skills/pr-self-review/assets/routing.json:103` (`server-app` rule, `ignore` list),
+`.claude/skills/onion-architecture/references/tools.md:101` ("Server tests live in `server/test/`").
+
+### 2026-09-24 — Module-wide architecture findings cannot go through pr-finding-verifier
+severity.md's evidence bar only accepts a finding whose `line` is a changed line, and
+`pr-finding-verifier` is spawned by `pr-self-review` only and refutes anything outside the diff. So
+`architecture-reviewer`'s `mode: module` findings that fall outside the requested diff are marked
+`"in_change": false` and stay informational — they cannot be sent through the same verification
+path as a `pr-self-review` CRITICAL.
+Where: `.claude/skills/pr-self-review/references/severity.md:48` (evidence bar, "Pre-existing
+problems... are not reported"), `.claude/agents/pr-finding-verifier.md:3` ("Spawned by
+pr-self-review only").
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
