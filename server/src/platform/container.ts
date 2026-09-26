@@ -34,6 +34,7 @@ import { FflateZipReader } from '../adapters/archive/zip.js';
 import { SafeHttpFetcher } from '../adapters/http/safe-fetch.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
+import { SmartDiffRepository } from '../modules/smart-diff/repository.js';
 import type { ReviewDeps } from '../modules/reviews/deps.js';
 import { IntentRepository } from '../modules/intent/repository.js';
 import type { IntentDeps } from '../modules/intent/ports.js';
@@ -107,6 +108,7 @@ export class Container {
   private _intentRepo?: IntentRepository;
   private _intentService?: IntentService;
   private _pullsRepo?: PullsRepository;
+  private _smartDiffRepo?: SmartDiffRepository;
   private _settingsRepo?: SettingsRepository;
   private _reposRepo?: RepoRepository;
   private _repoIntel?: RepoIntel;
@@ -183,6 +185,10 @@ export class Container {
 
   get pullsRepo(): PullsRepository {
     return (this._pullsRepo ??= new PullsRepository(this.db));
+  }
+
+  get smartDiffRepo(): SmartDiffRepository {
+    return (this._smartDiffRepo ??= new SmartDiffRepository(this.db));
   }
 
   /** Collaborators of the review service and run executor, wired from the container. */

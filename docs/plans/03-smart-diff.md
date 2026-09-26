@@ -1,5 +1,5 @@
 # Development Plan: Smart Diff — role-ordered Files changed with inline findings (HW3)
-Status: approved 2026-09-26 (user decisions below)
+Status: in progress (approved 2026-09-26; user decisions below)
 Save as: docs/plans/03-smart-diff.md
 Spec: specs/09-smart-diff.md (created in Step 1; follows the spec convention used by `specs/08-intent-layer.md`)
 
