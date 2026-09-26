@@ -142,6 +142,7 @@ describe("DiffTab — Smart Diff role groups", () => {
       "Boilerplate",
     ]);
 
+    expect(screen.getByText("Reviewer-ordered diff")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Core logic/ })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: /Tests/ })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: /Wiring/ })).toHaveAttribute("aria-expanded", "true");
@@ -201,6 +202,17 @@ describe("DiffTab — Smart Diff role groups", () => {
     expect(screen.getByText("Off-by-one")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Hide comments/ }));
     expect(screen.queryByText("Off-by-one")).not.toBeInTheDocument();
+  });
+
+  it("shows the singular form of the file count for a single-file PR", () => {
+    const oneFile = [prFile("src/only.ts")];
+    state.smartDiff = { groups: [{ role: "core", files: [{ path: "src/only.ts", additions: 1, deletions: 0, finding_lines: [] }] }], split_suggestion: { too_big: false, total_lines: 1, proposed_splits: [] } };
+    renderWithIntl(<DiffTab prId="pr1" filesCount={oneFile.length} files={oneFile} />);
+
+    // Toolbar "N files · +A −D" reads "1 file", not "1 files".
+    expect(screen.getByText(/^1 file ·/)).toBeInTheDocument();
+    // The role group's own file count reads "1 file" too.
+    expect(screen.getByText("1 file")).toBeInTheDocument();
   });
 
   it("shows the review-not-run notice and no counter when no review has run yet", () => {

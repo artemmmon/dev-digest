@@ -68,7 +68,7 @@
     "boilerplateDesc": "Generated / mechanical — skim",
     "largeTitle": "This PR is large ({lines} changed lines)",
     "largeBody": "Consider splitting it into smaller, focused PRs for easier review:",
-    "filesCount": "{count} files",
+    "filesCount": "{count, plural, one {# file} other {# files}}",
     "findingLines": "{count} finding-lines",
     "groupedByRole": "Smart Diff · grouped by role",
     "smartOrder": "Smart order",

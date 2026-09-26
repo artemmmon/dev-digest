@@ -128,7 +128,7 @@ export function DiffTab({
           ) : undefined
         }
       >
-        {t("diffViewer.filesChanged", { count: filesCount })}
+        {t("diffViewer.reviewerOrderedDiff")}
       </SectionLabel>
 
       <div style={s.toolbar}>

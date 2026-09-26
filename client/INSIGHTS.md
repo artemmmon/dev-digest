@@ -416,6 +416,14 @@ toast has fired. Assert `expect(container).toHaveTextContent("")` (or query for 
 element) instead of checking the whole container is empty.
 Where: `src/test/render.tsx:22`, `src/components/repo-stack/RepoStackLabel.test.tsx`.
 
+### 2026-09-26 — RTL's `getByText` only matches an element's own direct text-node children, not nested elements' text
+`getNodeText` joins only `childNodes` of type `TEXT_NODE`, so a parent wrapping `{"1 file"}{" · "}<span>+1 −0</span>`
+matches `getByText(/^1 file ·/)` on the *outer* span alone — the inner `<span>` with the mono numbers never
+shows up as a competing match, and a sibling that renders exactly `"1 file"` (no trailing text) is unambiguous
+too. No need for `within`/testids to disambiguate two "1 file"-shaped strings nested one inside the other's
+sibling tree, as long as each element's own text differs.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.test.tsx` (singular file-count test), `DiffTab.tsx:135` (toolbar summary span).
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — The PR-list table card clipped anything absolutely positioned in a row

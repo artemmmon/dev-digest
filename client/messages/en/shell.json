@@ -49,7 +49,7 @@
     "postedToGitHub": "Posts to GitHub immediately",
     "outdatedTitle": "{count} comment(s) on older revisions",
     "composerLabel": "New review comment",
-    "filesChanged": "Files changed · {count, plural, one {# file} other {# files}}",
+    "reviewerOrderedDiff": "Reviewer-ordered diff",
     "hideComments": "Hide comments",
     "showComments": "Show comments",
     "addComment": "Add a comment on this line",
