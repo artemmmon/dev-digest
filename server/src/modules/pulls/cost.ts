@@ -7,6 +7,8 @@
 
 import type { BatchCostRow } from './ports.js';
 export type { BatchCostRow };
+import { latestBatchByPr } from '../_shared/latest-round.js';
+export { latestBatchByPr };
 
 /**
  * Sum of known `costUsd` in each PR's latest batch. `rows` MUST be newest-first.
@@ -23,19 +25,4 @@ export function latestBatchCostByPr(rows: BatchCostRow[]): Map<string, number | 
     cost.set(r.prId, (cost.get(r.prId) ?? 0) + r.costUsd);
   }
   return cost;
-}
-
-/**
- * The batch id of each PR's newest run. `rows` MUST be newest-first. This is what
- * "the PR's latest review" means everywhere on the list — one click on Run Review
- * starts several agents, so the newest single run (or review) is an arbitrary one
- * of them, not the round.
- */
-export function latestBatchByPr(rows: { prId: string | null; batchId: string | null }[]): Map<string, string> {
-  const latest = new Map<string, string>();
-  for (const r of rows) {
-    if (!r.prId || !r.batchId) continue;
-    if (!latest.has(r.prId)) latest.set(r.prId, r.batchId);
-  }
-  return latest;
 }

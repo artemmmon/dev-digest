@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Icon, Avatar, Badge, Button, Tabs } from "@devdigest/ui";
 import { RunReviewDropdown } from "../RunReviewDropdown";
@@ -49,23 +49,8 @@ export function PrDetailHeader({
         ? "var(--stale)"
         : "var(--warn)";
 
-  // Publish this header's rendered height as a CSS variable on the shared ancestor,
-  // so a sticky element further down the page (Smart Diff's RoleGroup headers) can
-  // stick right below it instead of a hardcoded offset (jsdom has no ResizeObserver).
-  const rootRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const target = el.parentElement ?? el;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) target.style.setProperty("--pr-header-h", `${entry.contentRect.height}px`);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <div ref={rootRef} style={s.root}>
+    <div style={s.root}>
       <div style={s.titleRow}>
         <div style={s.titleCol}>
           <h1 style={s.h1}>

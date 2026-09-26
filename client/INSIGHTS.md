@@ -281,6 +281,18 @@ first consumer.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/PrDetailHeader/PrDetailHeader.tsx:56` (the effect),
 `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/_components/RoleGroup/styles.ts:11` (the consumer).
 
+### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
+`PrDetailHeader` writing a CSS variable onto `el.parentElement` reached into AppShell-owned DOM (the
+route returns a fragment, so the "parent" was whatever wrapped it) with no cleanup on unmount — an
+implicit contract between two features caught by architecture review. The route now owns the
+measurement: `page.tsx` renders one wrapper `<div>` around the header and the tab content, measures
+the header with a small `useElementHeight(ref)` hook colocated in the route folder (still guarded for
+jsdom's absent `ResizeObserver`), and sets `--pr-header-h` as an inline style on that wrapper.
+`PrDetailHeader` no longer has an effect or a ref; it only renders its own sticky `s.root`. `RoleGroup`'s
+consumer side (`top: var(--pr-header-h, 0px)`) is unchanged.
+Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:8` (the hook),
+`src/app/repos/[repoId]/pulls/[number]/page.tsx:52` (measures + sets the variable).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception

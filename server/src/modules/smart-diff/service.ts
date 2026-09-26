@@ -1,6 +1,6 @@
 import type { SmartDiff } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
-import { latestBatchByPr, latestRoundReviewIds } from '../pulls/index.js';
+import { latestBatchByPr, latestRoundReviewIds } from '../_shared/latest-round.js';
 import { buildSmartDiff } from './build.js';
 import type { SmartDiffStore } from './ports.js';
 
@@ -16,8 +16,11 @@ export interface SmartDiffServiceDeps {
  *
  * "Latest round" is the exact rule the PR list uses (server INSIGHTS `:77`):
  * every agent run started by one Run Review click shares one
- * `agent_runs.batch_id`; `latestBatchByPr` + `latestRoundReviewIds` (re-exported
- * from `../pulls/index.js`) pick that round out of the newest-first rows.
+ * `agent_runs.batch_id`; `latestBatchByPr` + `latestRoundReviewIds` (from
+ * `../_shared/latest-round.js`) pick that round out of the newest-first rows —
+ * importing this pure helper directly, instead of through `../pulls/index.js`,
+ * keeps loading the Smart Diff service from pulling in `pulls`' Drizzle/schema
+ * dependencies (server INSIGHTS.md, this entry's fix).
  */
 export class SmartDiffService {
   constructor(private deps: SmartDiffServiceDeps) {}

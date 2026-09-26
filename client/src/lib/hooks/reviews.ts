@@ -74,9 +74,12 @@ function invalidateRuns(qc: QueryClient, prId: string | null | undefined) {
 
 /**
  * Live-run bookkeeping of the PR page: the server-sourced in-flight runs and the
- * history, plus `onRunsSettled` — call it once when the streams end to refresh the
- * PR's runs and reviews and the PR list (its COST / SCORE / FINDINGS describe the
- * latest round, so they change too).
+ * history. `onRunsStarted` only nudges the active-runs query — it doubles as RunStatus's
+ * SSE "done" callback (FindingsTab), since either event (a run starting, or its stream
+ * ending) only means the active-runs LIST may have changed. The one full refresh (runs,
+ * reviews, the PR list, intent, Smart Diff) happens exactly once, below, the moment that
+ * refetch actually reports zero live runs — so an SSE `onDone` and the 4s poll can never
+ * double-fire it for the same settle.
  */
 export function usePrRunTracking(prId: string | null | undefined) {
   const qc = useQueryClient();
@@ -99,16 +102,18 @@ export function usePrRunTracking(prId: string | null | undefined) {
     void qc.invalidateQueries({ queryKey: keys.pr.smartDiff(prId) });
   }, [qc, prId]);
 
-  // The Files changed tab does not mount RunStatus (whose SSE `onSettled` normally
-  // drives this), and active runs only poll every 4s — so a >0 → 0 transition here is
-  // what refreshes findings/reviews while that tab stays open, without a reload.
+  // The SINGLE trigger for the full refresh: a >0 → 0 transition in the polled
+  // active-runs count. This fires whether that transition was noticed through
+  // RunStatus's SSE `onDone` (Findings tab — `onRunsStarted` reused as the done
+  // callback, immediately refetching active-runs) or through the 4s poll alone (Files
+  // changed tab, which never mounts RunStatus).
   const prevLiveCount = React.useRef(liveRunIds.length);
   React.useEffect(() => {
     if (prevLiveCount.current > 0 && liveRunIds.length === 0) onRunsSettled();
     prevLiveCount.current = liveRunIds.length;
   }, [liveRunIds.length, onRunsSettled]);
 
-  return { liveRunIds, history, onRunsStarted, onRunsSettled };
+  return { liveRunIds, history, onRunsStarted };
 }
 
 /** Delete one run from the PR's run history (+ its trace). */

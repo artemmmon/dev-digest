@@ -44,7 +44,6 @@ export function FileCard({
   findings?: DiffFindingApi;
 }) {
   const t = useTranslations("shell");
-  const tp = useTranslations("prReview");
   const chip = React.useMemo(() => fileChip(file.path), [file.path]);
   const [open, setOpen] = React.useState(
     !chip?.generated && (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
@@ -110,8 +109,8 @@ export function FileCard({
         {fileFindings.length > 0 && (
           <span
             role="img"
-            aria-label={tp("smartDiff.fileHasFindings")}
-            title={tp("smartDiff.fileHasFindings")}
+            aria-label={t("diffViewer.fileHasFindings")}
+            title={t("diffViewer.fileHasFindings")}
             style={{
               width: 6,
               height: 6,

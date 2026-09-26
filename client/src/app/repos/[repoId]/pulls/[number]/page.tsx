@@ -5,7 +5,7 @@
    Tab and open trace live in the query string (?tab, ?trace). */
 "use client";
 
-import React from "react";
+import React, { type CSSProperties } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Skeleton, ErrorState, EmptyState } from "@devdigest/ui";
@@ -22,6 +22,7 @@ import { useActiveRepo, useRepoNotFound } from "@/lib/repo-context";
 import { ApiError } from "@/lib/api";
 import { githubPrUrl } from "@/lib/github-urls";
 import { useSearchParamState } from "@/lib/use-search-param-state";
+import { useElementHeight } from "./useElementHeight";
 
 export default function PRDetailPage() {
   const t = useTranslations("prReview");
@@ -40,10 +41,15 @@ export default function PRDetailPage() {
 
   // Live run tracking is SERVER-SOURCED (agent_runs status='running'): survives
   // navigation AND reload, and self-clears via polling when runs finish.
-  const { liveRunIds, history, onRunsStarted, onRunsSettled } = usePrRunTracking(prId);
+  const { liveRunIds, history, onRunsStarted } = usePrRunTracking(prId);
 
   const [tab, setTab] = useSearchParamState("tab", "overview");
   const [traceRunId, setTraceRunId] = useSearchParamState("trace", null);
+
+  // The route measures its own header and publishes the height as `--pr-header-h` on
+  // the wrapper it renders, so a sticky element further down the page (Smart Diff's
+  // RoleGroup headers) can stick right below it without a hardcoded offset.
+  const [headerRef, headerHeight] = useElementHeight<HTMLDivElement>();
 
   // Reviews come newest-first; each is its own run (grouped into accordions).
   const runs = React.useMemo(() => reviews ?? [], [reviews]);
@@ -115,45 +121,58 @@ export default function PRDetailPage() {
 
   return (
     <>
-      <PrDetailHeader
-        pr={pr}
-        prId={prId}
-        tab={tab}
-        findingsCount={findingsCount}
-        githubUrl={repoFullName ? githubPrUrl(repoFullName, pr.number) : null}
-        repoStack={activeRepo?.stack}
-        onSetTab={setTab}
-        onRunStart={() => setTab("findings")}
-        onRunsStarted={onRunsStarted}
-      />
-
-      <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
-        {tab === "overview" && <OverviewTab prId={prId} prBody={pr.body} headSha={pr.head_sha} />}
-
-        {tab === "findings" && (
-          <FindingsTab
+      <div
+        style={
+          {
+            "--pr-header-h": headerHeight != null ? `${headerHeight}px` : undefined,
+          } as CSSProperties
+        }
+      >
+        <div ref={headerRef}>
+          <PrDetailHeader
+            pr={pr}
             prId={prId}
-            liveRunIds={liveRunIds}
-            reviews={runs}
-            history={history}
-            commits={pr.commits}
-            repoFullName={repoFullName}
-            headSha={pr.head_sha}
-            onOpenTrace={setTraceRunId}
-            onRunsSettled={onRunsSettled}
+            tab={tab}
+            findingsCount={findingsCount}
+            githubUrl={repoFullName ? githubPrUrl(repoFullName, pr.number) : null}
+            repoStack={activeRepo?.stack}
+            onSetTab={setTab}
+            onRunStart={() => setTab("findings")}
+            onRunsStarted={onRunsStarted}
           />
-        )}
+        </div>
 
-        {tab === "diff" && (
-          <DiffTab
-            prId={prId}
-            filesCount={pr.files_count}
-            files={pr.files}
-            canComment={pr.status === "open"}
-            repoFullName={repoFullName}
-            headSha={pr.head_sha}
-          />
-        )}
+        <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
+          {tab === "overview" && <OverviewTab prId={prId} prBody={pr.body} headSha={pr.head_sha} />}
+
+          {tab === "findings" && (
+            <FindingsTab
+              prId={prId}
+              liveRunIds={liveRunIds}
+              reviews={runs}
+              history={history}
+              commits={pr.commits}
+              repoFullName={repoFullName}
+              headSha={pr.head_sha}
+              onOpenTrace={setTraceRunId}
+              // RunStatus's SSE "done" only needs the active-runs query refetched — the
+              // page's own >0 → 0 transition effect (`usePrRunTracking`) does the one
+              // full refresh once that refetch actually reports zero live runs.
+              onRunsSettled={onRunsStarted}
+            />
+          )}
+
+          {tab === "diff" && (
+            <DiffTab
+              prId={prId}
+              filesCount={pr.files_count}
+              files={pr.files}
+              canComment={pr.status === "open"}
+              repoFullName={repoFullName}
+              headSha={pr.head_sha}
+            />
+          )}
+        </div>
       </div>
 
       {traceRunId && (

@@ -354,20 +354,24 @@ Where: src/modules/pulls/repository.ts:156, test/intent.it.test.ts
 Smart Diff's classifier (spec 09) needed the same pattern dialect `diff-filter.ts` already had, so
 `escapeLiteral`/`translateSegment`/`compilePattern`/`cachedPattern`/`matchesAny` moved verbatim into
 `modules/_shared/glob.ts` (onion: `_shared` is exempt from the cross-module-internals check);
-`diff-filter.ts` now just imports and re-exports `matchesAny`, so its existing callers
-(`applicability.ts`, `run-executor.ts`) and its own test keep passing unchanged. The one wart this
-carries over: a bare pattern with no `/` and no wildcard is an EXACT full-path match, not
+`diff-filter.ts` now just imports and re-exports `matchesAny`, so its existing caller
+(`applicability.ts`; `run-executor.ts` only imports `excludeFromReview`, never `matchesAny`
+itself) and its own test keep passing unchanged. The one wart this carries over: a bare
+pattern with no `/` and no wildcard is an EXACT full-path match, not
 basename-anywhere — a classify rule for a file name needs a `**` + slash prefix (e.g. `**` + slash
 + `pnpm-lock.yaml`) to match at any depth.
 Where: src/modules/_shared/glob.ts:70 (`matchesAny`), src/modules/smart-diff/constants.ts.
 
-### 2026-09-26 — Smart Diff's `finding_lines` reuse the PR list's exact "latest round" rule, through `pulls/index.ts`
-`SmartDiffService.forPull` calls `latestBatchByPr` + `latestRoundReviewIds` (now re-exported from
-`pulls/index.ts`, same pattern as `PullsRepository`) against a `roundInputs(prId)` scoped to one PR,
-so "the PR's latest review" never disagrees between the PR list, the PR page and Smart Diff. The
-service takes only a narrow `SmartDiffStore` (its own `ports.ts`, not `pulls/ports.ts`) — the
-repository just has to shape its rows the same way `pulls/repository.ts`'s `roundInputs` does.
-Where: src/modules/smart-diff/service.ts:22, src/modules/pulls/index.ts:4.
+### 2026-09-26 — Smart Diff's `finding_lines` reuse the PR list's exact "latest round" rule, from `_shared/latest-round.ts`
+`SmartDiffService.forPull` calls `latestBatchByPr` + `latestRoundReviewIds`, both defined in
+`modules/_shared/latest-round.ts` and imported by `pulls/cost.ts`/`pulls/findings.ts` (which
+re-export them for their existing callers) as well as `smart-diff/service.ts` directly — not through
+`pulls/index.ts`, which would drag the whole `pulls` module (Drizzle, schema) into Smart Diff's
+service — against a `roundInputs(prId)` scoped to one PR, so "the PR's latest review" never disagrees
+between the PR list, the PR page and Smart Diff. The service takes only a narrow `SmartDiffStore`
+(its own `ports.ts`, not `pulls/ports.ts`) — the repository just has to shape its rows the same way
+`pulls/repository.ts`'s `roundInputs` does.
+Where: src/modules/smart-diff/service.ts:3, src/modules/_shared/latest-round.ts:1.
 
 ## Tool & Library Notes
 

@@ -30,7 +30,6 @@ export function CodeLine({
   findings?: DiffFindingApi;
 }) {
   const t = useTranslations("shell");
-  const tp = useTranslations("prReview");
   const [hover, setHover] = React.useState(false);
   const [composing, setComposing] = React.useState(false);
 
@@ -84,7 +83,7 @@ export function CodeLine({
             className="mono"
             style={{ marginLeft: "auto", paddingRight: 12, fontSize: 11, fontWeight: 600, color: SEV[worst].c }}
           >
-            {tp(`smartDiff.severityWord.${worst}`)}
+            {t(`diffViewer.severityWord.${worst}`)}
           </span>
         )}
       </div>

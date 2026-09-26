@@ -52,6 +52,14 @@
     "filesChanged": "Files changed · {count, plural, one {# file} other {# files}}",
     "hideComments": "Hide comments",
     "showComments": "Show comments",
-    "addComment": "Add a comment on this line"
+    "addComment": "Add a comment on this line",
+    "fileHasFindings": "This file has review findings",
+    "severityWord": {
+      "CRITICAL": "blocker",
+      "WARNING": "warning",
+      "SUGGESTION": "suggestion",
+      "INFO": "info"
+    },
+    "outOfPatchTitle": "{count, plural, one {# finding outside this diff} other {# findings outside this diff}}"
   }
 }

@@ -11,14 +11,12 @@ import { matchesAny } from '../_shared/glob.js';
  * Grounding uses the same filtered diff, so a finding about an excluded file is
  * dropped with "file '…' not present in diff" — which is the intended outcome.
  *
- * The glob matcher itself now lives in `../_shared/glob.js` (also used by the
- * Smart Diff classifier); re-exported here so existing callers/tests keep working.
+ * The glob matcher itself lives in `../_shared/glob.js` (also used by the Smart
+ * Diff classifier and `applicability.ts`); import `matchesAny` from there directly.
  */
 
 /** Section header of one file inside a unified diff. */
 const FILE_HEADER = /^diff --git a\/(.+?) b\/(.+)$/;
-
-export { matchesAny };
 
 export interface DiffFilterResult {
   diff: UnifiedDiff;

@@ -15,12 +15,12 @@ export function OutOfPatchFindings({
   findings: FindingRecord[];
   renderFinding: (f: FindingRecord) => ReactNode;
 }) {
-  const t = useTranslations("prReview");
+  const t = useTranslations("shell");
   if (findings.length === 0) return null;
   return (
     <div style={cs.outdatedWrap}>
       <span style={cs.outdatedTitle}>
-        {t("smartDiff.outOfPatchTitle", { count: findings.length })}
+        {t("diffViewer.outOfPatchTitle", { count: findings.length })}
       </span>
       {findings.map((f) => (
         <div key={f.id}>{renderFinding(f)}</div>
