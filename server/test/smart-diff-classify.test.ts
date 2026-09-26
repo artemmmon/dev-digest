@@ -32,6 +32,12 @@ describe('classifyFile', () => {
     ['tsconfig.json', 'wiring'],
     ['.github/workflows/ci.yml', 'wiring'],
     ['.env.example', 'wiring'],
+    // dependency manifests → wiring (user decision 2026-09-26); their lock files
+    // still win boilerplate, since that rule is checked first.
+    ['client/package.json', 'wiring'],
+    ['pubspec.yaml', 'wiring'],
+    ['pubspec.lock', 'boilerplate'],
+    ['client/pnpm-lock.yaml', 'boilerplate'],
 
     // docs
     ['README.md', 'docs'],

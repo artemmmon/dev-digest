@@ -13,6 +13,7 @@ import {
 } from "@/lib/hooks/reviews";
 import { usePrSmartDiff } from "@/lib/hooks/core";
 import { latestRoundFindings } from "@/lib/latest-round-findings";
+import { unstyledButton } from "@/lib/interactive";
 import { FindingCard } from "../FindingCard";
 import { buildRoleGroups } from "./helpers";
 import { RoleGroup } from "./_components/RoleGroup";
@@ -62,6 +63,16 @@ export function DiffTab({
 
   const commentCount = comments?.length ?? 0;
   const toggleCount = commentCount + findings.length;
+
+  // "N files · +A −D" on the left of the order toggle (`diff.jsx`'s toolbar row).
+  const totals = React.useMemo(
+    () =>
+      files.reduce(
+        (acc, f) => ({ additions: acc.additions + f.additions, deletions: acc.deletions + f.deletions }),
+        { additions: 0, deletions: 0 },
+      ),
+    [files],
+  );
 
   const commenting: DiffCommentApi = {
     comments: comments ?? [],
@@ -120,25 +131,33 @@ export function DiffTab({
         {t("diffViewer.filesChanged", { count: filesCount })}
       </SectionLabel>
 
-      <div role="group" aria-label={tp("smartDiff.orderGroupLabel")} style={s.orderGroup}>
-        <Button
-          kind="tertiary"
-          size="sm"
-          active={order === "smart"}
-          aria-pressed={order === "smart"}
-          onClick={() => setOrder("smart")}
-        >
-          {tp("smartDiff.smartOrder")}
-        </Button>
-        <Button
-          kind="tertiary"
-          size="sm"
-          active={order === "original"}
-          aria-pressed={order === "original"}
-          onClick={() => setOrder("original")}
-        >
-          {tp("smartDiff.originalOrder")}
-        </Button>
+      <div style={s.toolbar}>
+        <span style={s.summary}>
+          {tp("smartDiff.filesCount", { count: filesCount })}
+          {" · "}
+          <span className="mono tnum">
+            <span style={{ color: "var(--code-add-text)" }}>+{totals.additions}</span>{" "}
+            <span style={{ color: "var(--code-del-text)" }}>−{totals.deletions}</span>
+          </span>
+        </span>
+        <div role="group" aria-label={tp("smartDiff.orderGroupLabel")} style={s.orderGroup}>
+          <button
+            type="button"
+            aria-pressed={order === "smart"}
+            style={{ ...unstyledButton, ...s.orderButton(order === "smart") }}
+            onClick={() => setOrder("smart")}
+          >
+            {tp("smartDiff.smartOrder")}
+          </button>
+          <button
+            type="button"
+            aria-pressed={order === "original"}
+            style={{ ...unstyledButton, ...s.orderButton(order === "original") }}
+            onClick={() => setOrder("original")}
+          >
+            {tp("smartDiff.originalOrder")}
+          </button>
+        </div>
       </div>
 
       {useOriginal ? (

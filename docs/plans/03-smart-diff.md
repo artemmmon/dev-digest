@@ -14,6 +14,7 @@ Out of scope: the split banner or split PRs (`too_big` is always false), `pseudo
 | Plan | Approved as is. |
 | Empty role groups | **Hidden on the client.** The server still returns all 5 groups (empty ones included); `DiffTab` renders only groups with ≥ 1 file. Replaces "An empty group shows its header with \"0 files\"" (Step 8) and deviation 12. |
 | Comments toggle default | As planned: shown when the latest round has findings; one toggle hides GitHub comments and findings together. |
+| Dependency manifests (`package.json`, `pubspec.yaml`) role | **Wiring** (2026-09-26, fix-list item 5) — they hook a dependency into the app, they aren't the substance of the change. Their lock files (`pnpm-lock.yaml`, `pubspec.lock`, …) stay `boilerplate`; the boilerplate rule is checked first in `CLASSIFY_RULES`. |
 
 ## Step groups
 | Group | Steps | Package / layer | Runs after | Handoff to the next group |

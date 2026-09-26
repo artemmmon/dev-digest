@@ -78,6 +78,12 @@ export const CLASSIFY_RULES: readonly { role: SmartDiffRole; patterns: readonly 
       'docker-compose*.yml',
       '.github/**',
       '.claude/**',
+      // Dependency manifests declare what the project depends on — wiring, not
+      // the substance of the change. Their lock files stay boilerplate: the
+      // boilerplate rule (`*.lock`, `**/pnpm-lock.yaml`, …) is checked first
+      // and already wins for them (user decision 2026-09-26).
+      '**/package.json',
+      '**/pubspec.yaml',
     ],
   },
   {

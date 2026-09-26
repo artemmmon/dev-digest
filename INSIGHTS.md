@@ -203,6 +203,13 @@ groups it is 45M. Split long work into step groups and start a new main session 
 its 1h cache is rewritten at 2× input price (216K–312K tokens each time).
 Where: docs/agent-workflow-cost.md:28, .claude/agents/README.md:88
 
+### 2026-09-26 — A second worktree's dev servers need their own ports, set in two places
+Other checkouts (main on :3000/:3001, `.claude/worktrees/*` on :3010/:3011) often run at once; a Next or Fastify
+process that loses the bind race is silent, and `localhost` then reaches the other checkout's server. Pick free ports
+(`lsof -iTCP -sTCP:LISTEN -n -P`), set `API_PORT`/`WEB_PORT` in that worktree's `server/.env` (CORS origin is derived
+from `WEB_PORT`) and start the web with `NEXT_PUBLIC_API_BASE=http://localhost:<api> next dev -p <web>`.
+Where: `server/src/platform/config.ts:85`, `scripts/e2e.sh:32`.
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-17 — `eslint --fix` leaves a whitespace-only line when it drops a disable directive

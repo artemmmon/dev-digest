@@ -71,8 +71,8 @@
     "filesCount": "{count} files",
     "findingLines": "{count} finding-lines",
     "groupedByRole": "Smart Diff · grouped by role",
-    "smartOrder": "Smart",
-    "originalOrder": "Original",
+    "smartOrder": "Smart order",
+    "originalOrder": "Original order",
     "orderGroupLabel": "File order",
     "filesWithFindings": "{count, plural, one {# file with findings} other {# files with findings}}",
     "reviewNotRun": "Run a review to see findings inline in Files changed."

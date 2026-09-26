@@ -4,7 +4,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { SEV } from "@devdigest/ui";
+import { Icon, SEV } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { commentTargetFor, type CommentThread, type DiffCommentApi, cs } from "../comments";
 import { worstSeverity, type DiffFindingApi } from "../findings";
@@ -45,14 +45,15 @@ export function CodeLine({
   const target = commenting?.canComment ? commentTargetFor(ln) : null;
   const showAdd = hover && !!target && !composing;
   const worst = lineFindings?.length ? worstSeverity(lineFindings) : null;
+  const WorstIcon = worst ? Icon[SEV[worst].icon] : null;
 
   return (
     <div
-      style={{ ...cs.rowWrap, position: "relative" }}
+      style={cs.rowWrap}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div style={lineRowFor(ln.kind)}>
+      <div style={{ ...lineRowFor(ln.kind), position: "relative" }}>
         {worst && (
           <span
             style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: SEV[worst].c }}
@@ -78,11 +79,21 @@ export function CodeLine({
         <span className="mono" style={s.lineText}>
           {ln.text || " "}
         </span>
-        {worst && (
+        {worst && WorstIcon && (
           <span
             className="mono"
-            style={{ marginLeft: "auto", paddingRight: 12, fontSize: 11, fontWeight: 600, color: SEV[worst].c }}
+            style={{
+              marginLeft: "auto",
+              paddingRight: 12,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10.5,
+              fontWeight: 600,
+              color: SEV[worst].c,
+            }}
           >
+            <WorstIcon size={11} />
             {t(`diffViewer.severityWord.${worst}`)}
           </span>
         )}

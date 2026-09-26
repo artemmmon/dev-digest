@@ -171,7 +171,7 @@ describe("DiffTab — Smart Diff role groups", () => {
 
     // 2 files with findings (service.ts + other.ts), not the 3 findings.
     const coreHeader = screen.getByRole("button", { name: /Core logic/ });
-    expect(within(coreHeader).getByLabelText("2 files with findings")).toHaveTextContent("● 2");
+    expect(within(coreHeader).getByLabelText("2 files with findings")).toHaveTextContent("2");
     expect(screen.getAllByRole("img", { name: "This file has review findings" })).toHaveLength(2);
 
     expect(screen.getByText("Off-by-one")).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe("DiffTab — Smart Diff role groups", () => {
     const user = userEvent.setup();
     renderWithIntl(<DiffTab prId="pr1" filesCount={FILES.length} files={FILES} />);
 
-    await user.click(screen.getByRole("button", { name: "Original" }));
+    await user.click(screen.getByRole("button", { name: "Original order" }));
     const pathRegex = /^(pnpm-lock\.yaml|src\/service\.ts|src\/other\.ts|src\/service\.test\.ts|src\/index\.ts|README\.md)$/;
     const paths = screen.getAllByText(pathRegex);
     expect(paths.map((el) => el.textContent)).toEqual(FILES.map((f) => f.path));

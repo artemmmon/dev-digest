@@ -132,3 +132,7 @@ P3 (nice-to-have):
 - Whether GitHub comments should ever stay hidden even when the latest round has findings was
   raised and decided against (2026-09-26): the toggle's default is "shown when there are
   findings" everywhere.
+- Whether a dependency manifest (`package.json`, `pubspec.yaml`) classifies as `core` or `wiring`
+  was raised and decided (2026-09-26): **`wiring`** — it hooks a dependency into the app, it isn't
+  the substance of the change. Their lock files (`pnpm-lock.yaml`, `pubspec.lock`, …) still
+  classify as `boilerplate`, since that rule is checked first.

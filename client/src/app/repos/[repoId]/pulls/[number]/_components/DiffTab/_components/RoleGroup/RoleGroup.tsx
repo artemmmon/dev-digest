@@ -31,6 +31,7 @@ export function RoleGroup({
   const t = useTranslations("prReview");
   const meta = ROLE_META[role];
   const [open, setOpen] = React.useState(meta.defaultOpen);
+  const [hovered, setHovered] = React.useState(false);
   const count = React.useMemo(
     () => countFilesWithFindings(files, findings?.findings ?? []),
     [files, findings],
@@ -42,24 +43,25 @@ export function RoleGroup({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        style={{ ...unstyledButton, ...s.header, width: "100%" }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{ ...unstyledButton, ...s.header(hovered, open), width: "100%" }}
       >
-        <Icon.ChevronRight size={13} style={chevronFor(open)} />
+        <Icon.ChevronRight size={14} style={chevronFor(open)} />
         <span style={s.colorSquare(meta.color)} />
         <span style={s.label}>{t(meta.labelKey)}</span>
         <span style={s.desc}>{t(meta.descKey)}</span>
-        {showCounter && count > 0 && (
-          <span style={s.counter} aria-label={t("smartDiff.filesWithFindings", { count })}>
-            ● {count}
-          </span>
-        )}
-        <span style={s.filesCount}>{t("smartDiff.filesCount", { count: files.length })}</span>
+        <span style={s.right}>
+          {showCounter && count > 0 && (
+            <span style={s.counter} aria-label={t("smartDiff.filesWithFindings", { count })}>
+              <span style={s.counterDot} />
+              {count}
+            </span>
+          )}
+          <span style={s.filesCount}>{t("smartDiff.filesCount", { count: files.length })}</span>
+        </span>
       </button>
-      {open && (
-        <div style={s.body}>
-          <DiffViewer files={files} commenting={commenting} findings={findings} />
-        </div>
-      )}
+      {open && <DiffViewer files={files} commenting={commenting} findings={findings} />}
     </div>
   );
 }

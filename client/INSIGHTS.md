@@ -293,6 +293,31 @@ consumer side (`top: var(--pr-header-h, 0px)`) is unchanged.
 Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:8` (the hook),
 `src/app/repos/[repoId]/pulls/[number]/page.tsx:52` (measures + sets the variable).
 
+### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
+The wrapper `<div ref={headerRef}>` the previous fix put around `PrDetailHeader` (just to measure its
+height) became the sticky element's containing block: the wrapper's height equals the header's own
+height, so `PrDetailHeader`'s `position: sticky; top: 0` root had nowhere to stick within and scrolled
+away instead of staying pinned. Never wrap a sticky element in an extra div to measure it — forward the
+ref straight to the sticky element. `PrDetailHeader` now takes a plain `ref` prop (React 19: no
+`forwardRef` needed) attached to its own `s.root` div; `page.tsx` passes `ref={headerRef}` directly to
+`<PrDetailHeader>`, with no wrapper. Separately, `useElementHeight`'s `useRef` + `useEffect(fn, [])`
+observed nothing on the page's first render (still in its loading state, so `ref.current` was null) and
+never re-ran once the header mounted later — `--pr-header-h` stayed unset forever. Fixed by making the
+ref a callback backed by `useState`, so the observing effect's `[node]` dependency re-fires the moment
+the element actually mounts, loading state or not.
+Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:11` (callback ref),
+`src/app/repos/[repoId]/pulls/[number]/_components/PrDetailHeader/PrDetailHeader.tsx:26` (`ref` prop) and
+`:58` (attached to the sticky root).
+
+### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
+`useElementHeight` reported `entry.contentRect.height`, which excludes padding and border —
+`--pr-header-h` under-measured `PrDetailHeader`'s real box by exactly its vertical padding
+(124.8px reported vs. ~143px rendered), so `RoleGroup`'s sticky header sat ~18px under the PR
+header and was partly hidden. Sticky offsets need the border-box height. Fixed by reading
+`entry.borderBoxSize?.[0]?.blockSize` and falling back to `node.getBoundingClientRect().height`
+for jsdom, which has no `borderBoxSize`.
+Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:26`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception

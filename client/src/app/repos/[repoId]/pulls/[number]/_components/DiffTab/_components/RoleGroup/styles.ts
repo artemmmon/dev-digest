@@ -2,22 +2,27 @@ import type { CSSProperties } from "react";
 
 export const s = {
   wrap: {
-    border: "1px solid var(--border)",
-    borderRadius: 7,
-    overflow: "hidden",
+    marginBottom: 14,
   } satisfies CSSProperties,
-  header: {
+  /** Sticky and borderless (`diff.jsx` toggles a hover background instead of a border;
+      the sticky role keeps `--bg-primary` opaque so scrolled-under code never shows
+      through, and swaps to `--bg-surface` on hover like the design). */
+  header: (hovered: boolean, open: boolean): CSSProperties => ({
     position: "sticky",
     top: "var(--pr-header-h, 0px)",
     zIndex: 4,
-    background: "var(--bg-primary)",
+    background: hovered ? "var(--bg-surface)" : "var(--bg-primary)",
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    padding: "10px 12px",
+    gap: 9,
+    padding: "7px 10px",
+    marginLeft: -10,
+    marginBottom: open ? 8 : 0,
+    borderRadius: 7,
     cursor: "pointer",
-    borderBottom: "1px solid var(--border)",
-  } satisfies CSSProperties,
+    userSelect: "none",
+    transition: "background .12s",
+  }),
   colorSquare: (color: string): CSSProperties => ({
     width: 8,
     height: 8,
@@ -25,38 +30,47 @@ export const s = {
     background: color,
     flexShrink: 0,
   }),
-  label: { fontSize: 13, fontWeight: 600 } satisfies CSSProperties,
+  label: { fontSize: 12.5, fontWeight: 700, color: "var(--text-primary)" } satisfies CSSProperties,
   desc: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: "var(--text-muted)",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
+  right: {
+    marginLeft: "auto",
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    flexShrink: 0,
+  } satisfies CSSProperties,
   counter: {
-    fontSize: 12,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 10.5,
     fontWeight: 600,
     color: "var(--crit)",
+  } satisfies CSSProperties,
+  counterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 99,
+    background: "var(--crit)",
     flexShrink: 0,
   } satisfies CSSProperties,
   filesCount: {
-    marginLeft: "auto",
-    fontSize: 12,
+    fontSize: 11,
     color: "var(--text-muted)",
-    flexShrink: 0,
   } satisfies CSSProperties,
-  body: {
-    padding: 10,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  } satisfies CSSProperties,
-};
+} as const;
 
 export function chevronFor(open: boolean): CSSProperties {
   return {
     color: "var(--text-muted)",
     transform: open ? "rotate(90deg)" : "none",
-    transition: "transform .12s",
+    transition: "transform .15s",
+    flexShrink: 0,
   };
 }
