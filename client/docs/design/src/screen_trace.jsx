@@ -69,6 +69,8 @@ function TraceDrawer({ running, onClose, promptOpen }) {
   const T = window.TRACE;
   const PROMPT_BLOCKS = [
     { key: "system", label: "System", color: "var(--text-muted)", text: T.prompt.system },
+    { key: "skills", label: "Skills — enabled skill bodies", color: "#8b5cf6", text: T.prompt.skills },
+    { key: "projectContext", label: "Project context — attached specs (untrusted)", color: "var(--accent)", text: T.prompt.projectContext },
     { key: "repoSkeleton", label: "Repo skeleton — repo-intel (dynamic)", color: "var(--accent)", text: T.prompt.repoSkeleton },
     { key: "callers", label: "Callers of changed symbols — repo-intel (dynamic)", color: "var(--warn)", text: T.prompt.callers },
     { key: "user", label: "User / diff (dynamic)", color: "var(--ok)", text: T.prompt.user },

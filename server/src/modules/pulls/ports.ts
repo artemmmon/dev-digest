@@ -40,6 +40,9 @@ export interface DiffStats {
 }
 
 // ---- rollup inputs (consumed by the pure helpers in cost.ts / findings.ts) ----
+// `ReviewRow`/`RunRow` are structurally identical to the ones in `../_shared/latest-round.js`
+// (also used by Smart Diff); kept separate here so this core `ports.ts` stays pure (imports
+// only zod/other core — onion-architecture `core-is-pure`).
 
 export interface ReviewRow {
   prId: string;

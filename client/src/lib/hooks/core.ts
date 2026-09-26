@@ -19,6 +19,7 @@ import type {
   SpecFile,
   IndexStatus,
 } from "../types";
+import type { SmartDiffResponse } from "@devdigest/shared";
 
 // ---- Settings (F1: GET/PUT /settings, POST /settings/test-connection) ----
 export function useSettings() {
@@ -118,6 +119,16 @@ export function usePullDetail(prId: string | number | null | undefined) {
   return useQuery({
     queryKey: keys.pr.detail(prId),
     queryFn: () => api.get<PrDetail>(`/pulls/${prId}`),
+    enabled: prId != null,
+  });
+}
+
+/** Files changed grouped by role (core/tests/wiring/docs/boilerplate), pure and
+   review-independent (`GET /pulls/:id/smart-diff`). */
+export function usePrSmartDiff(prId: string | number | null | undefined) {
+  return useQuery({
+    queryKey: keys.pr.smartDiff(prId),
+    queryFn: () => api.get<SmartDiffResponse>(`/pulls/${prId}/smart-diff`),
     enabled: prId != null,
   });
 }

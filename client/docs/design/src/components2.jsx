@@ -22,14 +22,46 @@ function AgentCard({ ag, active, onClick }) {
 }
 
 function RunReviewDropdown({ size = "sm", kind = "primary" }) {
-  const items = [
-    { label: "Run all enabled agents", icon: "Play" }, { divider: true },
-    ...window.AGENTS.filter((a) => a.enabled).map((a) => ({ label: a.name, icon: "Cpu", hint: "~" + Math.round(a.stats7d.cost * 0 + 6) + "s" })),
-    { divider: true }, { label: "Configure agents…", icon: "Settings", muted: true },
-  ];
-  return React.createElement(window.Dropdown, { width: 240, align: "right",
-    trigger: React.createElement(window.Button, { kind, size, iconRight: "ChevronDown", icon: "Sparkles" }, "Run Review"),
-    items });
+  const [open, setOpen] = React.useState(false);
+  const enabled = window.AGENTS.filter((a) => a.enabled);
+  const [sel, setSel] = React.useState(enabled.map((a) => a.id));
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const toggle = (id) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
+  const all = sel.length === enabled.length;
+  const multi = sel.length > 1;
+  return React.createElement("div", { ref, style: { position: "relative", display: "inline-block" } },
+    React.createElement(window.Button, { kind, size, iconRight: "ChevronDown", icon: "Sparkles", onClick: () => setOpen(!open) }, "Run Review"),
+    open && React.createElement("div", { style: { position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 30, width: 288,
+      background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: 10, boxShadow: "0 14px 40px rgba(0,0,0,.4)", overflow: "hidden" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px 8px" } },
+        React.createElement("span", { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-muted)", textTransform: "uppercase" } }, "Pick agents to run"),
+        React.createElement("button", { onClick: () => setSel(all ? [] : enabled.map((a) => a.id)),
+          style: { border: "none", background: "transparent", color: "var(--accent-text)", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" } }, all ? "Clear" : "Select all")),
+      enabled.map((a) => {
+        const on = sel.includes(a.id);
+        return React.createElement("button", { key: a.id, onClick: () => toggle(a.id),
+          style: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 14px", border: "none", background: "transparent", cursor: "pointer", textAlign: "left" },
+          onMouseEnter: (e) => (e.currentTarget.style.background = "var(--bg-hover)"), onMouseLeave: (e) => (e.currentTarget.style.background = "transparent") },
+          React.createElement("span", { style: { width: 16, height: 16, borderRadius: 4, flexShrink: 0, display: "grid", placeItems: "center",
+            border: "1.5px solid " + (on ? "var(--accent)" : "var(--border-strong)"), background: on ? "var(--accent)" : "transparent" } },
+            on && React.createElement(window.Icon.Check, { size: 11, style: { color: "#fff" } })),
+          React.createElement(window.Icon.Cpu, { size: 14, style: { color: "var(--text-muted)", flexShrink: 0 } }),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 500, flex: 1 } }, a.name),
+          React.createElement("span", { className: "mono", style: { fontSize: 10.5, color: "var(--text-muted)" } }, "~6s"));
+      }),
+      React.createElement("div", { style: { padding: "10px 14px", borderTop: "1px solid var(--border)", marginTop: 4 } },
+        React.createElement(window.Button, { kind: "primary", size: "sm", icon: multi ? "Users" : "Play", disabled: sel.length === 0, onClick: () => setOpen(false),
+          style: { width: "100%", justifyContent: "center" } },
+          sel.length === 0 ? "Select an agent" : multi ? "Run multi-agent review (" + sel.length + ")" : "Run " + (enabled.find((a) => a.id === sel[0]) || {}).name)),
+      React.createElement("button", { onClick: () => setOpen(false),
+        style: { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 14px", border: "none", borderTop: "1px solid var(--border)", background: "transparent", cursor: "pointer", color: "var(--text-muted)", fontSize: 12, fontFamily: "inherit" } },
+        React.createElement(window.Icon.Settings, { size: 13 }), "Configure agents…")));
 }
 
 function AutoTriggerStatus({ on = true }) {
@@ -48,10 +80,17 @@ function EvalCaseRow({ ec, onClick }) {
     style: { display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 7, border: "1px solid var(--border)", background: h ? "var(--bg-hover)" : "var(--bg-elevated)", cursor: "pointer", marginBottom: 6 } },
     React.createElement(window.Icon[m.icon], { size: 15, style: { color: m.c, flexShrink: 0 } }),
     React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-      React.createElement("div", { className: "mono", style: { fontSize: 12.5, fontWeight: 600 } }, ec.name),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+        React.createElement("span", { className: "mono", style: { fontSize: 12.5, fontWeight: 600, minWidth: 0 } }, ec.name),
+        ec.type && React.createElement("span", { title: ec.from ? "Seeded from a " + ec.from + " finding" : undefined,
+          style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.03em", padding: "1px 7px", borderRadius: 4, textTransform: "uppercase", whiteSpace: "nowrap",
+            color: ec.type === "must_find" ? "var(--accent-text)" : "var(--text-muted)",
+            background: ec.type === "must_find" ? "var(--accent-bg)" : "var(--bg-hover)",
+            border: "1px solid " + (ec.type === "must_find" ? "var(--accent)" : "var(--border-strong)") } },
+          ec.type === "must_find" ? "must find" : "must not flag")),
       React.createElement("div", { style: { fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 } }, ec.result)),
-    React.createElement(window.Badge, { color: "var(--text-muted)" }, ec.expected),
-    React.createElement("div", { style: { display: "flex", gap: 2, opacity: h ? 1 : 0.4 } },
+    React.createElement("div", { style: { flexShrink: 0 } }, React.createElement(window.Badge, { color: "var(--text-muted)" }, ec.expected)),
+    React.createElement("div", { style: { display: "flex", gap: 2, flexShrink: 0, opacity: h ? 1 : 0.4 } },
       React.createElement(window.IconBtn, { icon: "Play", label: "Run", size: 26 }),
       React.createElement(window.IconBtn, { icon: "Edit", label: "Edit", size: 26 }),
       React.createElement(window.IconBtn, { icon: "Trash", label: "Delete", size: 26, danger: true })));

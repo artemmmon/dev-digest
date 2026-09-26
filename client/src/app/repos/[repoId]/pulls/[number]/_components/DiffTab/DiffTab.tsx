@@ -2,10 +2,24 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { SectionLabel, Button } from "@devdigest/ui";
-import { DiffViewer, type DiffCommentApi } from "@/components/diff-viewer";
-import { usePrComments, useCreatePrComment } from "@/lib/hooks/reviews";
+import { SectionLabel, Button, Icon } from "@devdigest/ui";
 import type { PrFile } from "@devdigest/shared";
+import { DiffViewer, type DiffCommentApi, type DiffFindingApi } from "@/components/diff-viewer";
+import {
+  usePrComments,
+  useCreatePrComment,
+  usePrReviews,
+  useFindingAction,
+} from "@/lib/hooks/reviews";
+import { usePrSmartDiff } from "@/lib/hooks/core";
+import { latestRoundFindings } from "@/lib/latest-round-findings";
+import { unstyledButton } from "@/lib/interactive";
+import { FindingCard } from "../FindingCard";
+import { buildRoleGroups } from "./helpers";
+import { RoleGroup } from "./_components/RoleGroup";
+import { s } from "./styles";
+
+type Order = "smart" | "original";
 
 interface DiffTabProps {
   prId: string | null;
@@ -13,51 +27,163 @@ interface DiffTabProps {
   files: PrFile[];
   /** Inline commenting is offered only on open PRs (GitHub rejects otherwise). */
   canComment?: boolean;
+  repoFullName?: string | null;
+  headSha?: string | null;
 }
 
-export function DiffTab({ prId, filesCount, files, canComment }: DiffTabProps) {
+export function DiffTab({
+  prId,
+  filesCount,
+  files,
+  canComment,
+  repoFullName,
+  headSha,
+}: DiffTabProps) {
   const t = useTranslations("shell");
+  const tp = useTranslations("prReview");
   const { data: comments } = usePrComments(prId);
   const create = useCreatePrComment(prId);
-  // Comments start hidden so the diff is clean by default — toggle to reveal.
-  const [showComments, setShowComments] = React.useState(false);
+  const { data: reviews } = usePrReviews(prId);
+  const {
+    data: smartDiff,
+    isLoading: smartDiffLoading,
+    isError: smartDiffError,
+  } = usePrSmartDiff(prId);
+  const action = useFindingAction();
+
+  const findings = React.useMemo(() => latestRoundFindings(reviews), [reviews]);
+  const hasReview = (reviews ?? []).some((r) => r.kind === "review");
+
+  const [order, setOrder] = React.useState<Order>("smart");
+  // null = never toggled by hand: the effective value defaults to "the latest
+  // round has findings", so a clean diff keeps today's hidden-by-default comments
+  // and a PR with findings shows them without a click (P1.5 / P2.7).
+  const [override, setOverride] = React.useState<boolean | null>(null);
+  const show = override ?? findings.length > 0;
 
   const commentCount = comments?.length ?? 0;
+  const toggleCount = commentCount + findings.length;
+
+  // "N files · +A −D" on the left of the order toggle (`diff.jsx`'s toolbar row).
+  const totals = React.useMemo(
+    () =>
+      files.reduce(
+        (acc, f) => ({ additions: acc.additions + f.additions, deletions: acc.deletions + f.deletions }),
+        { additions: 0, deletions: 0 },
+      ),
+    [files],
+  );
 
   const commenting: DiffCommentApi = {
     comments: comments ?? [],
     canComment: !!canComment && !!prId,
-    showComments,
+    showComments: show,
     posting: create.isPending,
     // A failure is toasted once by the global MutationCache handler; rethrown by
     // mutateAsync so the composer keeps the draft.
     onSubmit: async (input) => {
       const res = await create.mutateAsync(input);
-      setShowComments(true); // a just-posted comment shouldn't stay hidden
+      setOverride(true); // a just-posted comment shouldn't stay hidden
       return res;
     },
   };
+
+  const findingsApi: DiffFindingApi = {
+    findings,
+    show,
+    renderFinding: (f) => (
+      <FindingCard
+        f={f}
+        defaultExpanded
+        onAction={(a) => prId && action.mutate({ findingId: f.id, action: a, prId })}
+        pending={action.isPending}
+        repoFullName={repoFullName}
+        headSha={headSha}
+      />
+    ),
+  };
+
+  // While the smart diff hasn't loaded (or failed), fall back to Original so the
+  // diff is never blocked on it.
+  const useOriginal = order === "original" || smartDiffLoading || smartDiffError || !smartDiff;
+  const roleGroups = React.useMemo(
+    () => (smartDiff ? buildRoleGroups(smartDiff, files).filter((g) => g.files.length > 0) : []),
+    [smartDiff, files],
+  );
 
   return (
     <section>
       <SectionLabel
         icon="Code"
         right={
-          commentCount > 0 ? (
+          toggleCount > 0 ? (
             <Button
               kind="ghost"
               size="sm"
-              icon={showComments ? "EyeOff" : "Eye"}
-              onClick={() => setShowComments((v) => !v)}
+              icon={show ? "EyeOff" : "Eye"}
+              onClick={() => setOverride(!show)}
             >
-              {showComments ? t("diffViewer.hideComments") : t("diffViewer.showComments")} ({commentCount})
+              {show ? t("diffViewer.hideComments") : t("diffViewer.showComments")} ({toggleCount})
             </Button>
           ) : undefined
         }
       >
-        {t("diffViewer.filesChanged", { count: filesCount })}
+        {t("diffViewer.reviewerOrderedDiff")}
       </SectionLabel>
-      <DiffViewer files={files} commenting={commenting} />
+
+      <div style={s.toolbar}>
+        <span style={s.summary}>
+          {tp("smartDiff.filesCount", { count: filesCount })}
+          {" · "}
+          <span className="mono tnum">
+            <span style={{ color: "var(--code-add-text)" }}>+{totals.additions}</span>{" "}
+            <span style={{ color: "var(--code-del-text)" }}>−{totals.deletions}</span>
+          </span>
+        </span>
+        <div role="group" aria-label={tp("smartDiff.orderGroupLabel")} style={s.orderGroup}>
+          <button
+            type="button"
+            aria-pressed={order === "smart"}
+            style={{ ...unstyledButton, ...s.orderButton(order === "smart") }}
+            onClick={() => setOrder("smart")}
+          >
+            {tp("smartDiff.smartOrder")}
+          </button>
+          <button
+            type="button"
+            aria-pressed={order === "original"}
+            style={{ ...unstyledButton, ...s.orderButton(order === "original") }}
+            onClick={() => setOrder("original")}
+          >
+            {tp("smartDiff.originalOrder")}
+          </button>
+        </div>
+      </div>
+
+      {useOriginal ? (
+        <DiffViewer files={files} commenting={commenting} findings={findingsApi} />
+      ) : (
+        <>
+          {!hasReview && (
+            <div style={s.reviewNotRun}>
+              <Icon.Sparkles size={14} />
+              {tp("smartDiff.reviewNotRun")}
+            </div>
+          )}
+          <div style={s.groups}>
+            {roleGroups.map((group) => (
+              <RoleGroup
+                key={group.role}
+                role={group.role}
+                files={group.files}
+                commenting={commenting}
+                findings={findingsApi}
+                showCounter={hasReview}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

@@ -153,6 +153,13 @@ h1, h2, h3, h4, p { margin: 0; }
 }
 @keyframes ddshimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
+/* deep-link landing pulse — overlays the line without clobbering its add/del bg */
+.dd-line-pulse::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: var(--accent); animation: ddlinepulse 1.5s ease-out forwards;
+}
+@keyframes ddlinepulse { from { opacity: 0.26; } to { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

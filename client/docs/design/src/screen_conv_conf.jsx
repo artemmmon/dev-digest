@@ -1,7 +1,46 @@
 /* screen_conv_conf.jsx — N7 Conventions extractor + N8 Conformance Report */
 
-function ConventionCard({ c }) {
-  return React.createElement("div", { style: { border: "1px solid var(--border)", borderRadius: 9, background: "var(--bg-elevated)", padding: 16, marginBottom: 12 } },
+// convention → editable draft skill (body is the only thing sent to the model)
+function slugifyRule(rule) {
+  const stop = ["always", "use", "the", "a", "an", "to", "of", "instead", "must", "should", "all", "in", "via", "through", "are", "is", "and", "with", "for"];
+  return rule.toLowerCase().replace(/`/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    .split("-").filter((w) => w && !stop.includes(w)).slice(0, 4).join("-");
+}
+function conventionsToDraft(list) {
+  const single = list.length === 1;
+  const name = single ? slugifyRule(list[0].rule) : "payments-api-conventions";
+  const description = single ? list[0].rule : list.length + " house conventions extracted from payments-api";
+  const sections = list.map((c) => "## " + slugifyRule(c.rule) + "\n" + c.rule + ".\n\nDetected in `" + c.evidence_path + "`:\n\n```\n" + c.evidence_snippet + "\n```").join("\n\n");
+  const body = "# " + name + "\n\nHouse conventions for `payments-api`. Flag changes that violate any rule below and cite the offending `file:line`.\n\n" + sections;
+  return { name, description, type: "convention", enabled: true, body, count: list.length };
+}
+
+function CreateSkillModal({ draft, onClose }) {
+  const d = draft;
+  const footer = React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
+    React.createElement("span", { style: { fontSize: 11.5, color: "var(--text-muted)", marginRight: "auto", display: "inline-flex", alignItems: "center", gap: 6 } },
+      React.createElement(window.Icon.GitCommit, { size: 13 }), "Saved as ", React.createElement("span", { className: "mono", style: { color: "var(--text-secondary)" } }, "v1"), " · added to Skills Lab"),
+    React.createElement(window.Button, { kind: "ghost", onClick: onClose }, "Cancel"),
+    React.createElement(window.Button, { kind: "primary", icon: "Sparkles" }, "Create skill"));
+  return React.createElement(window.Modal, { width: 760, title: "Create skill from conventions", subtitle: d.name, onClose, footer },
+    React.createElement("div", { style: { padding: "18px 22px 8px" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", borderRadius: 8, background: "var(--accent-bg)", border: "1px solid var(--border)", marginBottom: 18 } },
+        React.createElement(window.Icon.Wrench, { size: 15, style: { color: "var(--accent)", flexShrink: 0 } }),
+        React.createElement("span", { style: { fontSize: 12.5, color: "var(--text-secondary)" } },
+          "Merged from ", React.createElement("b", { style: { color: "var(--text-primary)" } }, d.count + " accepted convention" + (d.count === 1 ? "" : "s")),
+          " in ", React.createElement("span", { className: "mono", style: { color: "var(--accent-text)" } }, "payments-api"), ". Everything below is editable before you save.")),
+      React.createElement(window.FormField, { label: "Name", required: true }, React.createElement(window.TextInput, { value: d.name, mono: true })),
+      React.createElement(window.FormField, { label: "Description" }, React.createElement(window.TextInput, { value: d.description })),
+      React.createElement("div", { style: { display: "flex", gap: 14 } },
+        React.createElement("div", { style: { flex: 1 } }, React.createElement(window.FormField, { label: "Type" }, React.createElement(window.SelectInput, { value: d.type, options: ["rubric", "convention", "security", "custom"] }))),
+        React.createElement("div", { style: { flex: 1 } }, React.createElement(window.FormField, { label: "Enabled", hint: "Whether this block is added to agents' prompts." },
+          React.createElement("div", { style: { display: "flex", alignItems: "center", height: 36 } }, React.createElement(window.Toggle, { on: d.enabled, onChange: () => {}, size: 17 }))))),
+      React.createElement(window.FormField, { label: "Skill body", required: true, hint: "The only text sent to the model. Merged from the accepted rules + evidence — edit freely." },
+        React.createElement(window.CodeEditor, { code: d.body, filename: d.name + ".md" }))));
+}
+
+function ConventionCard({ c, accepted, onToggle }) {
+  return React.createElement("div", { style: { border: "1px solid var(--border)", borderLeft: "3px solid " + (accepted ? "var(--ok)" : "var(--border)"), borderRadius: 9, background: "var(--bg-elevated)", padding: 16, marginBottom: 12, transition: "border-color .12s" } },
     React.createElement("div", { style: { display: "flex", gap: 14 } },
       React.createElement("div", { style: { flex: 1, minWidth: 0 } },
         React.createElement("div", { style: { fontSize: 14, fontWeight: 600, fontStyle: "italic", lineHeight: 1.4 } }, c.rule),
@@ -15,25 +54,35 @@ function ConventionCard({ c }) {
           React.createElement("div", { style: { width: 90 } }, React.createElement(window.ProgressBar, { value: c.confidence * 100, height: 5, color: c.confidence >= 0.85 ? "var(--ok)" : "var(--warn)" })),
           React.createElement("span", { className: "mono tnum", style: { fontSize: 11, color: "var(--text-secondary)" } }, Math.round(c.confidence * 100) + "%"))),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7, flexShrink: 0, width: 150 } },
-        React.createElement(window.Button, { kind: "primary", size: "sm", icon: "Sparkles", full: true }, "Accept as Skill"),
-        React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "Edit", full: true }, "Edit first"),
+        accepted
+          ? React.createElement(window.Button, { kind: "primary", size: "sm", icon: "Check", full: true, onClick: onToggle }, "Accepted")
+          : React.createElement(window.Button, { kind: "secondary", size: "sm", icon: "Plus", full: true, onClick: onToggle }, "Accept"),
         React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "X", full: true }, "Reject"))));
 }
 
-function ScreenConventions({ h = 760, empty }) {
+function ScreenConventions({ h = 760, empty, createOpen }) {
+  const [accepted, setAccepted] = React.useState(() => { const m = {}; window.CONVENTIONS.forEach((c) => { m[c.id] = true; }); return m; });
+  const [create, setCreate] = React.useState(!!createOpen);
+  const acceptedList = window.CONVENTIONS.filter((c) => accepted[c.id]);
+  const allOn = acceptedList.length === window.CONVENTIONS.length;
+  const toggle = (id) => setAccepted((s) => ({ ...s, [id]: !s[id] }));
+  const setAll = (v) => { const m = {}; window.CONVENTIONS.forEach((c) => { m[c.id] = v; }); setAccepted(m); };
   if (empty) return React.createElement(window.AppFrame, { active: "conventions", h, crumb: [{ label: "Skills Lab" }, { label: "Conventions" }] },
     React.createElement(window.EmptyState, { icon: "ListChecks", title: "No conventions extracted yet", body: "Scan the repo to surface house-rules — naming, error handling, structure — each backed by evidence you can turn into a Skill.", cta: "Run extraction" }));
   return React.createElement(window.AppFrame, { active: "conventions", h, crumb: [{ label: "Skills Lab" }, { label: "Conventions" }] },
+    create && acceptedList.length > 0 && React.createElement(CreateSkillModal, { draft: conventionsToDraft(acceptedList), onClose: () => setCreate(false) }),
     React.createElement("div", { style: { padding: "20px 28px 40px", maxWidth: 880, margin: "0 auto" } },
       React.createElement("div", { style: { display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 18 } },
         React.createElement("div", { style: { flex: 1 } },
           React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" } }, "Conventions in ", React.createElement("span", { className: "mono", style: { color: "var(--accent-text)" } }, "payments-api")),
           React.createElement("p", { style: { fontSize: 13, color: "var(--text-secondary)", marginTop: 3 } }, "Detected from 84 sample files · last scan 1h ago")),
         React.createElement(window.Button, { kind: "secondary", size: "sm", icon: "RefreshCw" }, "Re-scan")),
-      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } },
-        React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "Check" }, "Accept all (3)"),
-        React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "X" }, "Reject all")),
-      window.CONVENTIONS.map((c) => React.createElement(ConventionCard, { key: c.id, c }))));
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 } },
+        React.createElement(window.Button, { kind: "ghost", size: "sm", icon: allOn ? "X" : "Check", onClick: () => setAll(!allOn) }, allOn ? "Deselect all" : "Accept all"),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, acceptedList.length + " of " + window.CONVENTIONS.length + " accepted"),
+        React.createElement("div", { style: { marginLeft: "auto" } },
+          React.createElement(window.Button, { kind: "primary", size: "sm", icon: "Sparkles", onClick: () => acceptedList.length && setCreate(true), style: acceptedList.length ? undefined : { opacity: 0.5 } }, "Create skill"))),
+      window.CONVENTIONS.map((c) => React.createElement(ConventionCard, { key: c.id, c, accepted: !!accepted[c.id], onToggle: () => toggle(c.id) }))));
 }
 
 /* ---- N8 Conformance Report ---- */

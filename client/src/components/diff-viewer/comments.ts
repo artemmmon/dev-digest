@@ -107,7 +107,11 @@ export function partitionThreads(
 
 // ---- styles (layout only; cards/inputs/buttons reuse @devdigest/ui) ----
 export const cs = {
-  rowWrap: { position: "relative" } satisfies CSSProperties,
+  // No `position` here on purpose: the severity stripe and the "+" affordance are
+  // scoped to the code row itself (`lineRowFor`/`lineNo`), not to this wrapper, so
+  // an absolutely-positioned stripe never stretches down into the finding card or
+  // thread rail rendered below the row.
+  rowWrap: {} satisfies CSSProperties,
   addBtn: {
     position: "absolute",
     left: 2,

@@ -114,7 +114,10 @@ function Timeline({ onOpenTrace }) {
 function ReviewRunCard({ run, defaultOpen, onOpenTrace }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const v = VERDICT_META[run.verdict];
-  const shown = run.findings;
+  const [activeSeverity, setActiveSeverity] = React.useState(null);
+  const sevCounts = {};
+  (run.findings || []).forEach((f) => { sevCounts[f.severity] = (sevCounts[f.severity] || 0) + 1; });
+  const shown = activeSeverity ? run.findings.filter((f) => f.severity === activeSeverity) : run.findings;
   return React.createElement("div", { style: { border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", background: "var(--bg-elevated)" } },
     React.createElement("div", { onClick: () => setOpen((o) => !o), style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer" } },
       React.createElement("div", { style: { width: 24, height: 24, borderRadius: 6, background: "var(--accent-bg)", color: "var(--accent)", display: "grid", placeItems: "center", flexShrink: 0 } }, React.createElement(window.Icon.Cpu, { size: 13 })),
@@ -141,6 +144,19 @@ function ReviewRunCard({ run, defaultOpen, onOpenTrace }) {
         React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 } },
           React.createElement(window.CircularScore, { score: run.score, size: 46, stroke: 4.5 }),
           React.createElement("span", { style: { fontSize: 9.5, color: "var(--text-muted)", letterSpacing: "0.04em" } }, "PR SCORE"))),
+      // severity filter pills
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 } },
+        ["CRITICAL", "WARNING", "SUGGESTION"].filter((sv) => sevCounts[sv]).map((sv) => {
+          const s = window.SEV[sv];
+          const on = activeSeverity === sv;
+          return React.createElement("button", {
+            key: sv, type: "button",
+            onClick: () => setActiveSeverity((cur) => (cur === sv ? null : sv)),
+            style: { display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 999, cursor: "pointer", font: "inherit", fontSize: 12, fontWeight: 600, transition: "all .13s", border: "1px solid " + (on ? s.c : "var(--border)"), background: on ? s.bg : "transparent", color: on ? s.c : "var(--text-muted)" } },
+            React.createElement(window.Icon[s.icon], { size: 13 }),
+            React.createElement("span", null, s.label || sv.charAt(0) + sv.slice(1).toLowerCase()),
+            React.createElement("span", { className: "tnum", style: { opacity: 0.75 } }, sevCounts[sv]));
+        })),
       // finding cards
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         shown.map((f, i) => React.createElement(window.FindingCard, { key: f.id, f, idx: i })))));

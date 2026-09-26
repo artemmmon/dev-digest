@@ -74,9 +74,12 @@ function invalidateRuns(qc: QueryClient, prId: string | null | undefined) {
 
 /**
  * Live-run bookkeeping of the PR page: the server-sourced in-flight runs and the
- * history, plus `onRunsSettled` — call it once when the streams end to refresh the
- * PR's runs and reviews and the PR list (its COST / SCORE / FINDINGS describe the
- * latest round, so they change too).
+ * history. `onRunsStarted` only nudges the active-runs query — it doubles as RunStatus's
+ * SSE "done" callback (FindingsTab), since either event (a run starting, or its stream
+ * ending) only means the active-runs LIST may have changed. The one full refresh (runs,
+ * reviews, the PR list, intent, Smart Diff) happens exactly once, below, the moment that
+ * refetch actually reports zero live runs — so an SSE `onDone` and the 4s poll can never
+ * double-fire it for the same settle.
  */
 export function usePrRunTracking(prId: string | null | undefined) {
   const qc = useQueryClient();
@@ -94,9 +97,23 @@ export function usePrRunTracking(prId: string | null | undefined) {
     // A run derives the intent as shared pre-work when none is stored yet, so the
     // card's empty state must refresh once the run settles (no SSE event for this).
     void qc.invalidateQueries({ queryKey: keys.pr.intent(prId) });
+    // Smart Diff's finding dots/counters read the reviews query indirectly
+    // (`latestRoundFindings`), but the server's own `finding_lines` need a refetch too.
+    void qc.invalidateQueries({ queryKey: keys.pr.smartDiff(prId) });
   }, [qc, prId]);
 
-  return { liveRunIds, history, onRunsStarted, onRunsSettled };
+  // The SINGLE trigger for the full refresh: a >0 → 0 transition in the polled
+  // active-runs count. This fires whether that transition was noticed through
+  // RunStatus's SSE `onDone` (Findings tab — `onRunsStarted` reused as the done
+  // callback, immediately refetching active-runs) or through the 4s poll alone (Files
+  // changed tab, which never mounts RunStatus).
+  const prevLiveCount = React.useRef(liveRunIds.length);
+  React.useEffect(() => {
+    if (prevLiveCount.current > 0 && liveRunIds.length === 0) onRunsSettled();
+    prevLiveCount.current = liveRunIds.length;
+  }, [liveRunIds.length, onRunsSettled]);
+
+  return { liveRunIds, history, onRunsStarted };
 }
 
 /** Delete one run from the PR's run history (+ its trace). */
