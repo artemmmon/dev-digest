@@ -56,9 +56,16 @@
     "blockers": " · {count} blockers"
   },
   "smartDiff": {
-    "coreLabel": "Core",
+    "coreLabel": "Core logic",
+    "testsLabel": "Tests",
     "wiringLabel": "Wiring",
+    "docsLabel": "Docs",
     "boilerplateLabel": "Boilerplate",
+    "coreDesc": "The substance of the change — review closely",
+    "testsDesc": "Checks the change — skim for coverage",
+    "wiringDesc": "Hooks the core into the app",
+    "docsDesc": "Explains the change — read if needed",
+    "boilerplateDesc": "Generated / mechanical — skim",
     "largeTitle": "This PR is large ({lines} changed lines)",
     "largeBody": "Consider splitting it into smaller, focused PRs for easier review:",
     "filesCount": "{count} files",
@@ -71,7 +78,12 @@
       "SUGGESTION": "suggestion",
       "INFO": "info"
     },
-    "outOfPatchTitle": "{count, plural, one {# finding outside this diff} other {# findings outside this diff}}"
+    "outOfPatchTitle": "{count, plural, one {# finding outside this diff} other {# findings outside this diff}}",
+    "smartOrder": "Smart",
+    "originalOrder": "Original",
+    "orderGroupLabel": "File order",
+    "filesWithFindings": "{count, plural, one {# file with findings} other {# files with findings}}",
+    "reviewNotRun": "Run a review to see findings inline in Files changed."
   },
   "list": {
     "breadcrumb": "Pull Requests",

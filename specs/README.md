@@ -15,7 +15,7 @@ affected packages under **Design**.
 - [06-repo-stack](06-repo-stack.md) — done — server, client
 - [07-flutter-first-review](07-flutter-first-review.md) — done — server, client
 - [08-intent-layer](08-intent-layer.md) — done — server, reviewer-core, client, e2e
-- [09-smart-diff](09-smart-diff.md) — in progress — server, client
+- [09-smart-diff](09-smart-diff.md) — done — server, client
 
 Per-package slices of these two live in `server/specs/`, `client/specs/`,
 `reviewer-core/specs/` and `e2e/specs/`.

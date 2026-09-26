@@ -263,6 +263,24 @@ Where: `docs/design/src/diff.jsx:20`, `docs/design/src/diff.jsx:197`.
 never import the card. Same pattern as `DiffCommentApi`'s `showComments`/`comments` split.
 Where: `src/components/diff-viewer/findings.ts:11` (`DiffFindingApi`), `src/components/diff-viewer/FileCard/FileCard.tsx:150`.
 
+### 2026-09-26 — The comments toggle defaults to "shown when the latest round has findings"
+`DiffTab`'s visibility is one `override` state (`useState<boolean | null>(null)`, never toggled by hand
+yet) plus a derived `show = override ?? findings.length > 0`. A PR with no findings keeps the old
+hidden-by-default GitHub-comments behaviour; a PR whose latest review round has findings shows both
+the comments and the findings without a click. The same `show` value drives both `DiffCommentApi.showComments`
+and `DiffFindingApi.show`, so the two slots can never disagree.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.tsx:61` (`show`).
+
+### 2026-09-26 — Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`
+`PrDetailHeader` is itself sticky at `top: 0`, and its height isn't static (title wrapping, the closed-PR
+banner). It measures itself with a `ResizeObserver` (guarded with `typeof ResizeObserver !== "undefined"`
+for jsdom) and writes `--pr-header-h: <height>px` on its own `parentElement` — the ancestor it shares with
+the tab content — so a second sticky layer further down the page can `position: sticky; top: var(--pr-header-h,
+0px)` without hardcoding an offset or prop-drilling a height value. Smart Diff's `RoleGroup` headers are the
+first consumer.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/PrDetailHeader/PrDetailHeader.tsx:56` (the effect),
+`src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/_components/RoleGroup/styles.ts:11` (the consumer).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception

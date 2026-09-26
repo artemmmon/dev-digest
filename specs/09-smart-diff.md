@@ -1,5 +1,5 @@
 # Smart Diff: role-ordered Files changed with inline findings
-Status: in progress
+Status: done
 Lesson: L03
 
 ## Goal
