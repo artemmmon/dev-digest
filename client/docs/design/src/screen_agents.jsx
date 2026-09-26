@@ -53,6 +53,10 @@ function SkillsTab({ ag }) {
       })));
 }
 
+function ContextTab({ ag }) {
+  return React.createElement(window.ProjectContextList, { key: ag.id, initialAttached: (window.AGENT_CONTEXT || {})[ag.id] || [] });
+}
+
 function StatBig({ label, value, suffix, sub, spark, color, arc }) {
   return React.createElement("div", { style: { flex: 1, padding: 15, borderRadius: 9, border: "1px solid var(--border)", background: "var(--bg-elevated)" } },
     React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
@@ -115,41 +119,97 @@ function StatsTab() {
 }
 
 function CITab() {
-  const exported = true;
-  if (!exported) return React.createElement("div", { style: { maxWidth: 600, textAlign: "center", padding: "40px 0" } },
-    React.createElement(window.EmptyState, { icon: "Workflow", title: "Not exported to CI", body: "Run this agent automatically on pull requests in CI.", cta: "Export to CI" }));
+  const [repos, setRepos] = React.useState([
+    ["acme/payments-api", "GitHub Actions", "succeeded", "4m ago"],
+    ["acme/billing-worker", "GitHub Actions", "succeeded", "1h ago"],
+  ]);
+  const [wizard, setWizard] = React.useState(false);
+  const [failOn, setFailOn] = React.useState("critical");
+  const exported = repos.length > 0;
+  const FAIL_OPTS = [["critical", "Critical"], ["warning", "Warning +"], ["never", "Never"]];
   return React.createElement("div", { style: { maxWidth: 720 } },
-    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 } },
-      React.createElement("h2", { style: { fontSize: 16, fontWeight: 700 } }, "CI deployment"),
-      React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)", dot: true }, "Active in 2 repos"),
-      React.createElement("div", { style: { marginLeft: "auto" } }, React.createElement(window.Button, { kind: "secondary", size: "sm", icon: "RefreshCw" }, "Update CI config"))),
-    [["acme/payments-api", "GitHub Actions", "succeeded", "4m ago"], ["acme/billing-worker", "GitHub Actions", "succeeded", "1h ago"]].map((r, i) =>
-      React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)", marginBottom: 8 } },
-        React.createElement(window.Icon.GitBranch, { size: 16, style: { color: "var(--text-muted)" } }),
-        React.createElement("span", { className: "mono", style: { fontSize: 13, fontWeight: 600, flex: 1 } }, r[0]),
-        React.createElement(window.Badge, { color: "var(--text-secondary)", icon: "Workflow" }, r[1]),
-        React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)", dot: true }, r[2]),
-        React.createElement("span", { style: { fontSize: 11.5, color: "var(--text-muted)" } }, r[3]))));
+    wizard && window.ExportWizard && React.createElement(window.ExportWizard, { onClose: () => setWizard(false) }),
+    !exported
+      ? React.createElement("div", { style: { maxWidth: 600, textAlign: "center", padding: "40px 0" } },
+          React.createElement(window.EmptyState, { icon: "Workflow", title: "Not in CI yet", body: "Deploy this agent to run automatically on every pull request in a repo's CI pipeline.", cta: "Add to CI", onCta: () => setWizard(true) }))
+      : React.createElement(React.Fragment, null,
+          React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 } },
+            React.createElement("h2", { style: { fontSize: 16, fontWeight: 700 } }, "CI deployment"),
+            React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)", dot: true }, "Active in " + repos.length + " repos"),
+            React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: 8 } },
+              React.createElement(window.Button, { kind: "secondary", size: "sm", icon: "RefreshCw" }, "Update CI config"),
+              React.createElement(window.Button, { kind: "primary", size: "sm", icon: "Plus", onClick: () => setWizard(true) }, "Add to CI"))),
+          React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)", marginBottom: 16 } },
+            React.createElement("div", { style: { minWidth: 0, flex: 1 } },
+              React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, "Fail CI on"),
+              React.createElement("div", { style: { fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 } }, "Exit non-zero when a finding at or above this severity lands. Pair with a required status check to block merges.")),
+            React.createElement("div", { style: { display: "flex", gap: 2, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 7, padding: 2, flexShrink: 0 } },
+              FAIL_OPTS.map(([k, label]) => React.createElement("button", { key: k, onClick: () => setFailOn(k),
+                style: { padding: "5px 12px", fontSize: 12, fontWeight: 600, borderRadius: 5, border: "none", cursor: "pointer",
+                  background: failOn === k ? "var(--bg-elevated)" : "transparent", color: failOn === k ? "var(--text-primary)" : "var(--text-muted)" } }, label)))),
+          repos.map((r, i) =>
+            React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)", marginBottom: 8 } },
+              React.createElement(window.Icon.GitBranch, { size: 16, style: { color: "var(--text-muted)" } }),
+              React.createElement("span", { className: "mono", style: { fontSize: 13, fontWeight: 600, flex: 1 } }, r[0]),
+              React.createElement(window.Badge, { color: "var(--text-secondary)", icon: "Workflow" }, r[1]),
+              React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)", dot: true }, r[2]),
+              React.createElement("span", { style: { fontSize: 11.5, color: "var(--text-muted)" } }, r[3]))),
+          React.createElement("button", { onClick: () => setWizard(true),
+            style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px dashed var(--border-strong)", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 2 } },
+            React.createElement(window.Icon.Plus, { size: 15 }), "Add repository")));
 }
 
-function EvalsTab({ onOpenCase }) {
+function EvalMetricStrip() {
+  const E = window.EVAL;
+  const items = [
+    ["Recall", E.current.recall, E.delta.recall, "var(--accent)"],
+    ["Precision", E.current.precision, E.delta.precision, "var(--ok)"],
+    ["Citation accuracy", E.current.citation, E.delta.citation, "var(--warn)"],
+    ["Traces passed", E.current.traces_passed / E.current.traces_total, null, "var(--text-secondary)"],
+  ];
+  return React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 18 } },
+    items.map(([l, v, d, c], i) => React.createElement("div", { key: i, style: { flex: 1, padding: "11px 13px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--bg-elevated)" } },
+      React.createElement("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 } }, l),
+      React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 7 } },
+        React.createElement("span", { className: "tnum", style: { fontSize: 22, fontWeight: 700, color: c } },
+          l === "Traces passed" ? E.current.traces_passed + "/" + E.current.traces_total : Math.round(v * 100) + "%"),
+        d != null && React.createElement("span", { className: "tnum", style: { fontSize: 11.5, fontWeight: 600, color: d >= 0 ? "var(--ok)" : "var(--crit)" } },
+          (d >= 0 ? "▲ " : "▼ ") + Math.abs(Math.round(d * 100)) + "pt")))));
+}
+
+function EvalsTab({ onOpenCase, onOpenDashboard }) {
+  const cases = window.EVAL_CASES;
+  const pass = cases.filter((c) => c.status === "pass").length;
+  const ran = cases.filter((c) => c.status !== "never").length;
   return React.createElement("div", { style: { maxWidth: 720 } },
+    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14 } },
+      React.createElement(window.SectionLabel, { icon: "Gauge" }, "Eval metrics"),
+      React.createElement("div", { style: { marginLeft: "auto" } },
+        React.createElement(window.MonoLink, { onClick: onOpenDashboard }, "View full dashboard →"))),
+    React.createElement(EvalMetricStrip),
+    React.createElement("div", { style: { fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, marginBottom: 20 } },
+      React.createElement(window.Icon.Code, { size: 12 }),
+      "Scoring is mechanical — a finding counts when file matches and line ranges overlap. No model call in the scorer."),
     React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 } },
       React.createElement("h2", { style: { fontSize: 16, fontWeight: 700 } }, "Eval cases"),
-      React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)" }, "3 / 5 passing"),
+      React.createElement(window.Badge, { color: pass === ran ? "var(--ok)" : "var(--warn)", bg: pass === ran ? "var(--ok-bg)" : "var(--warn-bg)" }, pass + " / " + ran + " passing"),
+      React.createElement(window.Badge, { color: "var(--text-muted)" }, cases.length + " cases"),
       React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: 8 } },
         React.createElement(window.Button, { kind: "secondary", size: "sm", icon: "Play" }, "Run all evals"),
         React.createElement(window.Button, { kind: "primary", size: "sm", icon: "Plus", onClick: onOpenCase }, "New eval case"))),
     window.EVAL_CASES.map((ec) => React.createElement(window.EvalCaseRow, { key: ec.id, ec, onClick: onOpenCase })));
 }
 
-function ScreenAgents({ tab = "Config", h = 860, onOpenCase, onOpenTrace }) {
+function ScreenAgents({ tab = "Config", h = 860, onOpenCase, onOpenTrace, onOpenDashboard }) {
   const [sel, setSel] = React.useState("ag1");
   const [t, setT] = React.useState(tab);
+  const [caseOpen, setCaseOpen] = React.useState(false);
   React.useEffect(() => setT(tab), [tab]);
   const ag = window.AGENTS.find((a) => a.id === sel);
+  const openCase = onOpenCase || (() => setCaseOpen(true));
   return React.createElement(window.AppFrame, { active: "agents", h, crumb: [{ label: "Skills Lab" }, { label: "Agents" }] },
-    React.createElement("div", { style: { display: "flex", height: h - 52 } },
+    React.createElement("div", { style: { position: "relative", display: "flex", height: h - 52 } },
+      caseOpen && React.createElement(window.EvalCaseEditor, { onClose: () => setCaseOpen(false) }),
       // left list
       React.createElement("div", { style: { width: 280, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--bg-surface)" } },
         React.createElement("div", { style: { padding: "14px 14px 10px" } },
@@ -168,11 +228,12 @@ function ScreenAgents({ tab = "Config", h = 860, onOpenCase, onOpenTrace }) {
           React.createElement(window.Icon.Cpu, { size: 18, style: { color: "var(--accent)" } }),
           React.createElement("h1", { style: { fontSize: 17, fontWeight: 700 } }, ag.name),
           React.createElement("div", { style: { marginLeft: "auto" } }, React.createElement(window.RunReviewDropdown, { kind: "secondary" }))),
-        React.createElement("div", { style: { marginTop: 12 } }, React.createElement(window.Tabs, { tabs: ["Config", "Skills", "Evals", "Stats", "CI"], value: t, onChange: setT })),
+        React.createElement("div", { style: { marginTop: 12 } }, React.createElement(window.Tabs, { tabs: ["Config", "Skills", "Context", "Evals", "Stats", "CI"], value: t, onChange: setT })),
         React.createElement("div", { style: { flex: 1, overflow: "auto", padding: 24 } },
           t === "Config" && React.createElement(ConfigTab, { ag }),
           t === "Skills" && React.createElement(SkillsTab, { ag }),
-          t === "Evals" && React.createElement(EvalsTab, { onOpenCase }),
+          t === "Context" && React.createElement(ContextTab, { ag }),
+          t === "Evals" && React.createElement(EvalsTab, { onOpenCase: openCase, onOpenDashboard }),
           t === "Stats" && React.createElement(StatsTab),
           t === "CI" && React.createElement(CITab)))));
 }
