@@ -22,7 +22,7 @@ import { useActiveRepo, useRepoNotFound } from "@/lib/repo-context";
 import { ApiError } from "@/lib/api";
 import { githubPrUrl } from "@/lib/github-urls";
 import { useSearchParamState } from "@/lib/use-search-param-state";
-import { useElementHeight } from "./useElementHeight";
+import { useElementHeight } from "./use-element-height";
 
 export default function PRDetailPage() {
   const t = useTranslations("prReview");

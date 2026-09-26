@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useElementHeight } from "./useElementHeight";
+import { useElementHeight } from "./use-element-height";
 
 class MockResizeObserver {
   static instances: MockResizeObserver[] = [];

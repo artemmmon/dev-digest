@@ -290,7 +290,7 @@ the header with a small `useElementHeight(ref)` hook colocated in the route fold
 jsdom's absent `ResizeObserver`), and sets `--pr-header-h` as an inline style on that wrapper.
 `PrDetailHeader` no longer has an effect or a ref; it only renders its own sticky `s.root`. `RoleGroup`'s
 consumer side (`top: var(--pr-header-h, 0px)`) is unchanged.
-Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:8` (the hook),
+Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:13` (the hook),
 `src/app/repos/[repoId]/pulls/[number]/page.tsx:52` (measures + sets the variable).
 
 ### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
@@ -305,7 +305,7 @@ observed nothing on the page's first render (still in its loading state, so `ref
 never re-ran once the header mounted later — `--pr-header-h` stayed unset forever. Fixed by making the
 ref a callback backed by `useState`, so the observing effect's `[node]` dependency re-fires the moment
 the element actually mounts, loading state or not.
-Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:11` (callback ref),
+Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:16` (callback ref),
 `src/app/repos/[repoId]/pulls/[number]/_components/PrDetailHeader/PrDetailHeader.tsx:26` (`ref` prop) and
 `:58` (attached to the sticky root).
 
@@ -316,7 +316,7 @@ Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:11` (callback 
 header and was partly hidden. Sticky offsets need the border-box height. Fixed by reading
 `entry.borderBoxSize?.[0]?.blockSize` and falling back to `node.getBoundingClientRect().height`
 for jsdom, which has no `borderBoxSize`.
-Where: `src/app/repos/[repoId]/pulls/[number]/useElementHeight.ts:26`.
+Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:26`.
 
 ## Tool & Library Notes
 

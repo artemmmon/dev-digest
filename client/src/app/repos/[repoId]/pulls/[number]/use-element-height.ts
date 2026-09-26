@@ -1,4 +1,4 @@
-/* useElementHeight.ts — the PR-detail route measures its own header, rather than the
+/* use-element-height.ts — the PR-detail route measures its own header, rather than the
    header publishing its height onto DOM it doesn't own (client INSIGHTS.md, "Sticky
    elements under the PR header"). ResizeObserver is guarded: jsdom has none.
    The ref is a callback ref (not `useRef`) so the effect re-runs when the element
