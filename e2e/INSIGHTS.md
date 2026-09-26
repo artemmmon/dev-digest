@@ -46,6 +46,15 @@ Installed `agent-browser@0.38.1` (the CI pin) and ran `../scripts/e2e.sh`: 9/9 f
 shell — prefix it, as with Node 22.
 Where: `README.md:52`, `../scripts/e2e.sh:25`.
 
+### 2026-09-24 — `find role <role> --name <n>` with no explicit action DEFAULTS TO CLICK
+`agent-browser find`'s help lists "Actions (default: click)" — a step that only wants to
+assert a button exists (e.g. the Intent card's "Derive intent", which triggers an LLM call
+if actually clicked) must name a non-mutating action explicitly. `text` reads the element's
+accessible text without clicking it (`find role heading text --name Welcome` in the CLI's own
+examples is the same pattern for read-only inspection). Every existing `find role button …`
+step in this repo happens to already want the click, so this default has never bitten before.
+Where: `specs/11-pr-intent.flow.json` (`find role button text --name "Derive intent"`).
+
 ### 2026-09-19 — `wait --text` matches rendered text: CSS `text-transform` counts
 `wait --text` compares against `innerText`, case-sensitively, so a heading styled
 `text-transform: uppercase` (table column heads, `SectionLabel`) must be waited for as

@@ -117,6 +117,20 @@ repo-intel pipeline ignores the signal today, so its overlap is bounded, not imp
 waiting for its key holds a p-queue slot.
 Where: `src/platform/jobs.ts:31`, `src/modules/_shared/jobs.ts:1`.
 
+### 2026-09-24 — `pr_intent` scaffolding on `ReviewStore` was unused; the intent module now owns it via a port
+`ReviewStore.upsertIntent`/`getIntent` (and their `pull.repo.ts` implementations) were dead code — nothing called them; the
+intent layer (L03) instead gets its own `modules/intent/{ports,repository,service}.ts`, and `reviews` reaches it only through
+the structural `ReviewDeps.intent` port (`IntentPort.forRun`), wired to `container.intentService` in the composition root. The
+two modules never import each other directly. Where: `src/modules/reviews/ports.ts:147` (`ReviewStore`, now ends at
+`// ---- runs + traces ----` with no intent section), `src/modules/reviews/deps.ts:9` (`IntentPort`).
+
+### 2026-09-24 — `review_intent` defaulted to `openai/gpt-4.1` while the picker always saves `openrouter`
+Same trap as the earlier `model-router.ts` entry: `FEATURE_MODELS`'s `review_intent` entry (`contracts/platform.ts:52`) had
+`defaultProvider: 'openai'`, but `SettingsModels.tsx` always persists `provider: 'openrouter'` when a user changes the model —
+so an unconfigured workspace ran a different default (openai/gpt-4.1) than any workspace that had ever touched the picker
+(openrouter/whatever). Fixed to `openrouter/deepseek/deepseek-v4-flash` (D8), matching the already-used default elsewhere.
+Where: `src/vendor/shared/contracts/platform.ts:52`.
+
 ### 2026-09-19 — Where a shared contract goes so both rings can import it
 A file named `ports.ts` counts as core for depcruise — including `modules/_shared/ports.ts`, which
 holds `JobQueue`, `RunBusPort`, the job kinds and `repoJobKey`. An adapter may not import any
@@ -312,6 +326,30 @@ the test does. Don't trust `pnpm typecheck` passing as proof a new `*.it.test.ts
 correctly — run it.
 Where: `tsconfig.json:28` (`include`), `test/seed.it.test.ts` (where this was caught).
 
+### 2026-09-24 — IntentRepository reads tables owned by pulls/repos
+`IntentRepository.context` selects `pull_requests`, `repos` and `pr_files` directly (same shared-table
+precedent as `reviews/repository/pull.repo.ts`); depcruise cannot see this coupling. Accepted for L03 —
+when those tables change shape, update this repository too, or move the reads to function ports on
+`IntentDeps` like `conventionsDeps` and keep `IntentStore` to `pr_intent` only.
+Where: src/modules/intent/repository.ts:42, src/platform/container.ts:150
+
+### 2026-09-25 — Agent models tag `Finding.scope` unreliably; hunk ranges fix it
+On a real PR (cs2-lineups #8) only 3 of 6 deepseek-v4-flash agents tagged obvious out-of-scope
+findings `out_of_scope`; the rest left client-file bugs "in scope". Fix: the intent classifier
+cites numbered hunk ids it judges incidental, the server maps them to line ranges
+(`incidental_changes`), and `applyScopePolicy` treats any finding inside one as out of scope → 5/6
+agents folded correctly. Limits: hunk headers only (no diff bodies, by spec), so one hunk mixing
+in- and out-of-scope code can't be split; asked "judge by path + context", the model also flagged
+pubspec.yaml/lockfiles, hence the `NEVER_INCIDENTAL_PATTERN` guard.
+Where: src/modules/intent/domain.ts:76, ../reviewer-core/src/scope.ts:60
+
+### 2026-09-26 — PR-detail refresh didn't update `head_sha`
+`replaceDetail` (run on every `GET /pulls/:id`) refreshed body/files/commits but not `head_sha`/`title`/
+`base` — only the list sync did. After a push the row kept the old SHA while `pr_files` showed the new
+commit, so intent `stale` never fired and a re-derive stored the old SHA. It now sets them too. The
+existing stale test hid it by updating `head_sha` in the DB directly — test through `GET /pulls/:id`.
+Where: src/modules/pulls/repository.ts:156, test/intent.it.test.ts
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -372,6 +410,13 @@ and adapts. `lookup` is never called for an IP-literal host (`https://169.254.16
 instead (`assertPublicHttpsUrl`, and `IP_LITERAL` in `url.ts`, which cannot import `node:net`: the application ring only allows
 `application-allowed-packages`). WHATWG `URL` already turns `2130706433` and `0x7f.1` into dotted form.
 Where: `src/adapters/http/safe-fetch.ts:36`, `src/modules/skills/url.ts:12`.
+
+### 2026-09-24 — deepseek-v4-flash spends max_tokens on reasoning first
+It is a reasoning model: `max_tokens` covers reasoning + answer. With 600 the intent classifier got
+`finish_reason: "length"`, 600 reasoning tokens and EMPTY content → "structured output failed schema
+validation" (looks like a schema bug, isn't). Give reasoning models a budget of thousands (intent uses
+4000, ~$0.0007/call); to see it, tee `fetch` and read `choices[0].finish_reason` + `usage.completion_tokens_details.reasoning_tokens`.
+Where: src/modules/intent/constants.ts:15
 
 ## Recurring Errors & Fixes
 
@@ -436,6 +481,28 @@ Pressing Run Scan again succeeded every time; good scans took 52-115 s. `maxRetr
 the call once in `extract` or loosen/repair the field that fails. Until then a scan failure is not a reason to debug the repo.
 Where: `src/modules/conventions/service.ts:158`.
 
+### 2026-09-24 — Adding shared pre-work to every review run made every un-mocked `reviews.it.test.ts`/`skills.it.test.ts` app hit real OpenRouter
+The intent layer (L03) calls `deps.intent.forRun()` once per batch inside `ReviewRunExecutor.executeRuns`, and `review_intent`
+defaults to the `openrouter` provider (`FEATURE_MODELS`). Any test app built with `buildApp({ overrides: { llm: { openai: mock } } })`
+— i.e. every existing `appWith`/`makeApp` helper that only mocked the AGENT's own provider — left `openrouter` unmocked, so
+`container.llm('openrouter')` fell through to a REAL `LocalSecretsProvider` reading `~/.devdigest/secrets.json`. On a machine with a
+real key configured (any dev box that's run `./scripts/dev.sh`), this makes a genuine network call to OpenRouter on every review run,
+even though `IntentService.forRun` itself fails open on error — the call SUCCEEDS, so there's no error to fail open from, just several
+extra seconds and (observed) flakiness serving-order-dependent across the file (`server/test/skills.it.test.ts`: 18s → 3.4s after the
+fix; `reviews.it.test.ts`: 43s and 3 unrelated tests failing → 3.2s and all green). Fix: add `secrets: new MockSecretsProvider({})` to
+any `buildApp` override set that runs a review but doesn't already mock every provider it might resolve to — this makes BOTH
+`container.github()` and `container.llm('openrouter')` throw `ConfigError`, which `IntentService` swallows deterministically (D9),
+with zero network. A future feature that adds its own always-on pre-work LLM call needs the same audit of every `.it.test.ts` overrides object.
+Where: `src/modules/reviews/run-executor.ts:124` (`this.deps.intent.forRun`), `test/reviews.it.test.ts:169` (`appWith`), `test/skills.it.test.ts:63` (`makeApp`).
+
+### 2026-09-24 — Line-level scanners over PR text/diffs must skip URLs and hunk bodies
+Two bugs caught by implementation-verifier in the intent layer: a bare-path regex over the PR body
+also matched the path tail of every URL (`https://notion.so/x.md` → fetched `notion.so/x.md` from the
+PR repo → spurious `not_found` that lowered confidence), and a raw-diff parser took an in-hunk
+`+++ …` body line as a file header, leaking body text into the classifier prompt. Strip URLs and
+markdown targets before scanning for bare paths; count `@@ -a,b +c,d @@` line totals to skip bodies.
+Where: src/modules/intent/links.ts:88, src/modules/intent/hunks.ts:49
+
 ## Open Questions
 
 ### 2026-09-15 — Failed background job may crash the process (unverified)
@@ -471,6 +538,15 @@ move it. "Never re-suggest" compares word sets (Jaccard >= 0.8) against accepted
 reviewer reworded may be proposed again in the model's original wording. A skill made from accepted rules is a snapshot;
 rejecting a rule later does not change it. Decide if a `scans` table (and matching by evidence) is worth it.
 Where: `src/modules/conventions/service.ts:70` (`list`), `src/modules/conventions/dedup.ts:33` (`dedupeCandidates`).
+
+### 2026-09-24 — Two independent closing-issue detectors now exist, with different regexes and never persisted the same way
+`OctokitGitHubClient.resolveLinkedIssue` (`octokit.ts:152`) keeps the OLD loose regex (`(?:closes|fixes|resolves)?\s*#(\d+)`,
+keyword optional, first match only) feeding `PrDetail.linked_issue` — display-only, never persisted. The intent layer
+(L03, `modules/intent/links.ts`) uses GraphQL `closingIssuesReferences` first (D6), then a stricter regex set (bare `#N`,
+`owner/repo#N`, an issue URL, deduped, no keyword requirement) feeding the stored, LLM-visible `pr_intent.sources`. Nothing
+unifies them; a PR whose `linked_issue` (Overview tab) differs from `pr_intent`'s picked issue is possible and not a bug.
+Decide whether `PrDetail.linked_issue` should be retired in favour of the intent layer's detector.
+Where: `src/adapters/github/octokit.ts:150` (`resolveLinkedIssue`), `src/modules/intent/links.ts:15` (`extractIssueRefs`).
 
 ## Session Notes
 

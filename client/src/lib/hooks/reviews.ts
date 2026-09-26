@@ -91,6 +91,9 @@ export function usePrRunTracking(prId: string | null | undefined) {
   const onRunsSettled = React.useCallback(() => {
     invalidateRuns(qc, prId);
     void qc.invalidateQueries({ queryKey: keys.allPulls() });
+    // A run derives the intent as shared pre-work when none is stored yet, so the
+    // card's empty state must refresh once the run settles (no SSE event for this).
+    void qc.invalidateQueries({ queryKey: keys.pr.intent(prId) });
   }, [qc, prId]);
 
   return { liveRunIds, history, onRunsStarted, onRunsSettled };

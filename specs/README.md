@@ -14,6 +14,7 @@ affected packages under **Design**.
 - [05-file-language-and-dart-codegen](05-file-language-and-dart-codegen.md) — done — server, client
 - [06-repo-stack](06-repo-stack.md) — done — server, client
 - [07-flutter-first-review](07-flutter-first-review.md) — done — server, client
+- [08-intent-layer](08-intent-layer.md) — done — server, reviewer-core, client, e2e
 
 Per-package slices of these two live in `server/specs/`, `client/specs/`,
 `reviewer-core/specs/` and `e2e/specs/`.

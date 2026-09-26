@@ -36,6 +36,16 @@ export function wrapUntrusted(label: string, content: string): string {
 
 /** Cap the PR description so a huge author body can't blow the token budget. */
 const MAX_PR_DESCRIPTION_CHARS = 4000;
+/** Cap the derived-intent block (already capped server-side; this is a second floor). */
+const MAX_INTENT_CHARS = 1500;
+
+// Trusted instruction (D12a) — OUTSIDE the intent fence, unlike the intent text
+// itself. Scope tagging never changes severity and never justifies omitting a
+// finding; it only feeds the deterministic post-filter in `scope.ts`.
+export const INTENT_SCOPE_RULE =
+  "Tag each finding `scope`: `out_of_scope` only when it concerns behaviour the intent " +
+  "lists out of scope or unrelated to its in-scope goals. Scope never lowers severity " +
+  'and never justifies omitting a finding; judge the code on its merits.';
 
 export interface PromptParts {
   /** Agent's system prompt (trusted). */
@@ -67,6 +77,13 @@ export interface PromptParts {
    * undefined → section omitted.
    */
   prDescription?: string;
+  /**
+   * Derived PR intent (L03; untrusted — model-derived from author-controlled
+   * text). Delimiter-wrapped + truncated, rendered right after `## PR
+   * description`, followed by the trusted `INTENT_SCOPE_RULE` outside the
+   * fence. Empty/undefined → section omitted (no behavior change).
+   */
+  intent?: string;
   /** The unified diff / user task (untrusted content). */
   diff: string;
   /** Optional task framing line, e.g. "Review PR #482 '…'". */
@@ -102,10 +119,20 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
       ? parts.prDescription.slice(0, MAX_PR_DESCRIPTION_CHARS)
       : undefined;
 
+  const intent =
+    parts.intent && parts.intent.trim().length > 0
+      ? parts.intent.slice(0, MAX_INTENT_CHARS)
+      : undefined;
+
   const userSections: string[] = [];
   if (parts.task) userSections.push(parts.task);
   if (prDescription) {
     userSections.push(`## PR description\n${wrapUntrusted('pr-description', prDescription)}`);
+  }
+  if (intent) {
+    userSections.push(
+      `## PR intent (derived; a hint, not a spec)\n${wrapUntrusted('pr-intent', intent)}\n\n${INTENT_SCOPE_RULE}`,
+    );
   }
   if (skillsBlock) userSections.push(`## Skills / rules\n${skillsBlock}`);
   if (memoryBlock) userSections.push(`## Relevant memory\n${memoryBlock}`);
@@ -135,6 +162,7 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
     callers: parts.callers ?? null,
     repo_map: parts.repoMap ?? null,
     pr_description: prDescription ?? null,
+    intent: intent ?? null,
     user,
   };
 

@@ -35,6 +35,9 @@ import { SafeHttpFetcher } from '../adapters/http/safe-fetch.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
 import type { ReviewDeps } from '../modules/reviews/deps.js';
+import { IntentRepository } from '../modules/intent/repository.js';
+import type { IntentDeps } from '../modules/intent/ports.js';
+import { IntentService } from '../modules/intent/service.js';
 import { SettingsRepository } from '../modules/settings/repository.js';
 import { RepoRepository } from '../modules/repos/index.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
@@ -101,6 +104,8 @@ export class Container {
   private _archive?: ArchiveReader;
   private _http?: RemoteFileFetcher;
   private _reviewRepo?: ReviewRepository;
+  private _intentRepo?: IntentRepository;
+  private _intentService?: IntentService;
   private _pullsRepo?: PullsRepository;
   private _settingsRepo?: SettingsRepository;
   private _reposRepo?: RepoRepository;
@@ -190,11 +195,35 @@ export class Container {
       repoIntel: this.repoIntel,
       bus: this.runBus,
       tokenizer: this.tokenizer,
+      // Structural port onto the intent service (L03) — reviews never imports
+      // `modules/intent` directly; the container is the only file that knows both.
+      intent: this.intentService,
     };
+  }
+
+  get intentService(): IntentService {
+    return (this._intentService ??= new IntentService(this.intentDeps));
   }
 
   get reviewRepo(): ReviewRepository {
     return (this._reviewRepo ??= new ReviewRepository(this.db));
+  }
+
+  get intentRepo(): IntentRepository {
+    return (this._intentRepo ??= new IntentRepository(this.db));
+  }
+
+  /** Collaborators of the intent service, wired from the container (L03). */
+  get intentDeps(): IntentDeps {
+    return {
+      store: this.intentRepo,
+      github: () => this.github(),
+      git: this.git,
+      llm: (provider) => this.llm(provider),
+      resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'review_intent'),
+      systemPrompt: () => renderPrompt('intent.system.md', {}),
+      tokenizer: this.tokenizer,
+    };
   }
 
   get codeIndex(): CodeIndex {

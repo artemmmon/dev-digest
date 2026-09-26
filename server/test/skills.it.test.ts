@@ -7,7 +7,7 @@ import { waitForPrRuns } from './helpers/runs.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
-import { MockGitClient, MockGitHubClient, MockLLMProvider } from '../src/adapters/mocks.js';
+import { MockGitClient, MockGitHubClient, MockLLMProvider, MockSecretsProvider } from '../src/adapters/mocks.js';
 import { ValidationError } from '../src/platform/errors.js';
 import { AgentsRepository } from '../src/modules/agents/repository.js';
 import * as t from '../src/db/schema.js';
@@ -64,6 +64,10 @@ d('skills (Testcontainers pg)', () => {
         git: new MockGitClient({ diff: DIFF }),
         github: new MockGitHubClient(),
         llm: { openai: llm },
+        // L03: every review run also derives/reuses the PR's intent (default
+        // provider `openrouter`, not mocked here) — an empty secrets store
+        // keeps that deterministically fail-open (D9), no real network call.
+        secrets: new MockSecretsProvider({}),
         http: {
           fetch: async (url) => {
             requested.push(url.href);

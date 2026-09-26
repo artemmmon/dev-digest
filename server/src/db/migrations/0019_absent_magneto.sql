@@ -1,0 +1,1 @@
+ALTER TABLE "pr_intent" ADD COLUMN "incidental_changes" jsonb DEFAULT '[]'::jsonb NOT NULL;

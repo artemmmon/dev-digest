@@ -41,6 +41,17 @@ describe("FindingCard (smoke, both themes)", () => {
     });
   });
 
+  it("shows the outside-PR-scope badge only for an out_of_scope finding", () => {
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded onAction={() => {}} />);
+    expect(screen.queryByText("Outside PR scope")).not.toBeInTheDocument();
+    cleanup();
+
+    renderWithIntl(
+      <FindingCard f={{ ...FINDING, kind: "out_of_scope" }} defaultExpanded onAction={() => {}} />,
+    );
+    expect(screen.getByText("Outside PR scope")).toBeInTheDocument();
+  });
+
   it("fires accept/dismiss actions", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();

@@ -57,8 +57,8 @@ flowchart LR
   the handler runs — handlers never hand-roll `Schema.parse(req.body)`. Most routes also declare
   a zod `response` schema, so a handler returning the wrong shape fails loudly (500) in tests.
 - **Rate limiting:** a global 120/min limit (disabled under `NODE_ENV=test`), with
-  tighter per-route caps on expensive endpoints (e.g. `POST /pulls/:id/review`);
-  SSE and `/health*` are exempt.
+  tighter per-route caps on expensive endpoints (e.g. `POST /pulls/:id/review`,
+  `POST /pulls/:id/intent` at 10/min); SSE and `/health*` are exempt.
 - Modules are registered statically in `src/modules/index.ts` (one import + one
   `app.register` each); the engine reaps orphaned `running` runs on boot.
 
@@ -75,6 +75,7 @@ flowchart TB
   end
   subgraph Review["Review & runs"]
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
+    intent["intent<br/>/pulls/:id/intent (GET · POST)"]
   end
   subgraph Agents["Agents"]
     agents["agents<br/>/agents · /agents/:id · /agents/:id/skills"]
@@ -143,6 +144,60 @@ What the reviewer actually sends to the model is assembled in
 - **Grounding is mandatory.** Every finding must cite a line that exists in the
   diff or it is dropped (`groundFindings`), and the score is recomputed from the
   surviving findings — the model's self-reported score is ignored.
+
+## PR intent (L03)
+
+Before the per-agent loop, `run-executor.ts` resolves the PR's intent once per
+review batch (`ReviewDeps.intent.forRun`, backed by `modules/intent/`) and
+shares it with every agent:
+
+- **Sources, never diff bodies.** Title, body, the linked issue (GitHub GraphQL
+  `closingIssuesReferences` when the PR targets the repo's default branch,
+  otherwise a regex fallback on `#N` / `owner/repo#N` / an issue URL — D6),
+  Jira/Linear-style keys (always `unreachable`, never fetched), same-repo docs
+  at the PR's head SHA (`GitHubClient.getFileContent`, 64 KB cap, no URL
+  fetching → no SSRF), and the changed files' **hunk headers only** (`@@ … @@`
+  lines, never the added/removed body text).
+- **Confidence is evidence-tiered, not self-reported.** `basis: documented`
+  needs a substantive body or a `used` linked source; the tier (`high` /
+  `medium` / `low`) starts at `high`/`low` and drops one step per linked source
+  that isn't `used` — see `modules/intent/confidence.ts`.
+- **Stored once per PR** (`pr_intent`) and reused by every review run — after
+  the PR head moves it is flagged `stale` (and the scope filter turns off) until
+  someone clicks "Re-derive intent" (`POST /pulls/:id/intent`); a run derives
+  only when no intent exists yet and never re-derives on its own (D1).
+- **Classifier model is a Settings choice.** Settings → Feature models →
+  "PR Review · Intent" (`settings.feature_models.review_intent`, resolved by
+  `resolveFeatureModel` on every derive). Default
+  `openrouter / deepseek/deepseek-v4-flash`; pick any cheap model that supports
+  **structured outputs** (e.g. `qwen/qwen3.7-flash` does not). Its tokens and
+  cost are stored on `pr_intent` and logged, not added to the PR-list COST.
+- **Risk-area chips** merge two producers (D13): a pure server rule (auth
+  surface, new dependency, DB migration, CI/deploy config, env/secrets config —
+  `modules/intent/risk-areas.ts`) and up to 3 semantic chips from the
+  classifier itself, deduped, rule chips first, at most 6 total.
+- **The scope policy never hides a serious finding.** The intent is fenced
+  into the agent prompt (`## PR intent`, after `## PR description`) with a
+  trusted, un-fenced rule: a finding's `scope` tag never changes its severity
+  or justifies dropping it. The deterministic enforcement runs in
+  `@devdigest/reviewer-core`'s `applyScopePolicy`, AFTER grounding, and only
+  when the intent is fresh and at least `medium` tier: an `out_of_scope`
+  finding below `WARNING` is dropped; at `WARNING` or above, every such
+  finding in the run is folded into exactly ONE `kind: 'out_of_scope'` signal
+  finding (max severity, lists every folded finding) — so scope can reduce
+  noise, never coverage.
+- **Incidental changes make scope deterministic.** The classifier sees every
+  hunk header numbered (`H1`, `H2`, …) and returns the ids of hunks unrelated to
+  the stated goal (only for a `documented` intent; manifests/lockfiles never
+  count). They are stored as `incidental_changes` (path + new-side line range),
+  listed on the Intent card and in the agent prompt, and passed to
+  `applyScopePolicy` as `outOfScopeRanges`: a finding inside one is out of scope
+  even when the agent model tagged it `in_scope` or not at all.
+- **Fail-open (D9).** A missing key, a GitHub error, or a classifier failure
+  never fails the review: `IntentService.forRun` logs the reason and returns
+  `null`; the run just proceeds without an intent section. The Live Log always
+  shows prompt sections + sizes, the resolved model, a token estimate and each
+  source's status — never secrets, bodies, issue/doc text, or diff content.
 
 ## Testing
 

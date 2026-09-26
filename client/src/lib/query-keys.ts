@@ -28,6 +28,7 @@ export const keys = {
     runs: (prId: Id) => ["pr", prId, "runs"] as const,
     activeRuns: (prId: Id) => ["pr", prId, "active-runs"] as const,
     comments: (prId: Id) => ["pr", prId, "comments"] as const,
+    intent: (prId: Id) => ["pr", prId, "intent"] as const,
   },
   runTrace: (runId: Id) => ["run-trace", runId] as const,
 

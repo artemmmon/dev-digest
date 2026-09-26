@@ -127,6 +127,20 @@
       "when": 1790161671089,
       "tag": "0017_skinny_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790250835572,
+      "tag": "0018_broken_marten_broadcloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790320617958,
+      "tag": "0019_absent_magneto",
+      "breakpoints": true
     }
   ]
 }

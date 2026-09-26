@@ -1,0 +1,48 @@
+{
+  "card": {
+    "label": "Intent",
+    "inScope": "In scope",
+    "outOfScope": "Out of scope",
+    "riskAreas": "Risk areas",
+    "incidental": "Incidental changes (treated as out of scope)",
+    "tier": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "basis": {
+      "documented": "documented",
+      "inferred": "inferred"
+    },
+    "riskArea": {
+      "auth": "Authentication risk",
+      "dependency": "New dependency",
+      "migration": "Database migration",
+      "ci_config": "CI/deploy configuration",
+      "secrets_config": "Secrets or env configuration",
+      "performance": "Performance",
+      "api_contract": "API contract",
+      "data": "Data handling",
+      "other": "Other risk area"
+    },
+    "missingContext": "Missing context",
+    "stale": "Derived for {sha}; the PR has changed",
+    "derive": "Derive intent",
+    "rederive": "Re-derive intent",
+    "emptyBody": "No intent derived yet for this PR. Derive it to see what this PR is meant to do before reading the review.",
+    "sourceKind": {
+      "title": "title",
+      "body": "body",
+      "issue": "issue",
+      "ticket": "ticket",
+      "doc": "doc",
+      "files": "files"
+    },
+    "sourceStatus": {
+      "used": "used",
+      "unreachable": "unreachable",
+      "not_found": "not found",
+      "too_large": "too large"
+    }
+  }
+}

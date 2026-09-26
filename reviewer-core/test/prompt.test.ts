@@ -4,7 +4,7 @@
  * truncation, and ordering (before the diff).
  */
 import { describe, it, expect } from 'vitest';
-import { assemblePrompt, wrapUntrusted } from '../src/prompt.js';
+import { assemblePrompt, wrapUntrusted, INTENT_SCOPE_RULE } from '../src/prompt.js';
 
 function userOf(parts: Parameters<typeof assemblePrompt>[0]): string {
   const { messages } = assemblePrompt(parts);
@@ -62,6 +62,45 @@ describe('assemblePrompt — ## PR description', () => {
       prDescription: 'x'.repeat(10_000),
     });
     expect((assembly.pr_description as string).length).toBe(4000);
+  });
+});
+
+describe('assemblePrompt — ## PR intent (L03)', () => {
+  it('renders the fenced intent after PR description, followed by the trusted scope rule outside the fence', () => {
+    const { messages, assembly } = assemblePrompt({
+      system: 'sys',
+      diff: 'DIFF',
+      prDescription: 'why',
+      intent: 'Adds a rate limiter to the public endpoints.',
+    });
+    const user = messages[1]!.content;
+    expect(user).toContain('## PR intent (derived; a hint, not a spec)');
+    expect(user).toContain('<untrusted source="pr-intent">');
+    expect(user).toContain('Adds a rate limiter to the public endpoints.');
+    expect(user).toContain(INTENT_SCOPE_RULE);
+    expect(user.indexOf('## PR description')).toBeLessThan(
+      user.indexOf('## PR intent (derived; a hint, not a spec)'),
+    );
+    expect(user.indexOf('## PR intent (derived; a hint, not a spec)')).toBeLessThan(
+      user.indexOf('## Diff to review'),
+    );
+    // the trusted rule sits OUTSIDE the fenced block
+    const fenceEnd = user.indexOf('</untrusted>', user.indexOf('pr-intent'));
+    expect(user.indexOf(INTENT_SCOPE_RULE)).toBeGreaterThan(fenceEnd);
+    expect(assembly.intent).toContain('Adds a rate limiter');
+  });
+
+  it('omits the section (and the scope rule) when intent is undefined or blank', () => {
+    const empty = userOf({ system: 'sys', diff: 'DIFF' });
+    expect(empty).not.toContain('## PR intent');
+    expect(empty).not.toContain(INTENT_SCOPE_RULE);
+    expect(assemblePrompt({ system: 'sys', diff: 'DIFF' }).assembly.intent ?? null).toBeNull();
+    expect(userOf({ system: 'sys', diff: 'DIFF', intent: '   ' })).not.toContain('## PR intent');
+  });
+
+  it('caps a huge intent block at 1500 chars', () => {
+    const { assembly } = assemblePrompt({ system: 'sys', diff: 'D', intent: 'x'.repeat(5000) });
+    expect((assembly.intent as string).length).toBe(1500);
   });
 });
 

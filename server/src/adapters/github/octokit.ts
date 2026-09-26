@@ -11,7 +11,9 @@ import type {
   OpenPrPayload,
   CommitFilesPayload,
   IssueMeta,
+  RepoFileContent,
 } from '@devdigest/shared';
+import { INTENT_LIMITS } from '@devdigest/shared';
 import { withRetry, withTimeout } from '../../platform/resilience.js';
 import { AppError, ExternalServiceError } from '../../platform/errors.js';
 
@@ -351,6 +353,91 @@ export class OctokitGitHubClient implements GitHubClient {
       body: res.data.body,
       state: res.data.state,
     };
+  }
+
+  /**
+   * Issues this PR's description closes, via GraphQL. Built with variables, never
+   * string interpolation. Only nodes in THIS repo are returned — GitHub can link a
+   * cross-repo closing reference, but the intent layer treats other repos as
+   * `unreachable` (D4/D6).
+   */
+  async closingIssues(repo: RepoRef, n: number): Promise<IssueMeta[]> {
+    return this.call('load closing issues', async () => {
+      const res = await this.octokit.graphql<{
+        repository: {
+          pullRequest: {
+            closingIssuesReferences: {
+              nodes: Array<{
+                number: number;
+                title: string;
+                body: string | null;
+                state: string;
+                repository: { nameWithOwner: string };
+              }>;
+            } | null;
+          } | null;
+        } | null;
+      }>(
+        `query ClosingIssues($owner: String!, $name: String!, $number: Int!) {
+          repository(owner: $owner, name: $name) {
+            pullRequest(number: $number) {
+              closingIssuesReferences(first: 5) {
+                nodes { number title body state repository { nameWithOwner } }
+              }
+            }
+          }
+        }`,
+        { owner: repo.owner, name: repo.name, number: n },
+      );
+      const nodes = res.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+      const sameRepo = `${repo.owner}/${repo.name}`;
+      return nodes
+        .filter((node) => node.repository.nameWithOwner === sameRepo)
+        .map((node) => ({
+          number: node.number,
+          title: node.title,
+          body: node.body,
+          state: node.state.toLowerCase(),
+        }));
+    });
+  }
+
+  /**
+   * Read one file's raw content at `ref` (contents API). Size is checked BEFORE
+   * decoding (`size > docMaxBytes` → `too_large`), so a huge file is never base64-
+   * decoded into memory. A directory or a missing path both come back `not_found`.
+   */
+  async getFileContent(
+    repo: RepoRef,
+    path: string,
+    ref: string,
+  ): Promise<RepoFileContent | { status: 'not_found' | 'too_large' }> {
+    return this.call('read the file', async () => {
+      try {
+        const res = await this.octokit.rest.repos.getContent({
+          owner: repo.owner,
+          repo: repo.name,
+          path,
+          ref,
+        });
+        const data = res.data;
+        if (Array.isArray(data) || data.type !== 'file') {
+          return { status: 'not_found' as const };
+        }
+        if (data.size > INTENT_LIMITS.docMaxBytes) {
+          return { status: 'too_large' as const };
+        }
+        const content = Buffer.from(data.content, data.encoding as BufferEncoding).toString(
+          'utf-8',
+        );
+        return { content, size: data.size };
+      } catch (err) {
+        if ((err as { status?: unknown }).status === 404) {
+          return { status: 'not_found' as const };
+        }
+        throw err;
+      }
+    });
   }
 
   async currentLogin(): Promise<string> {

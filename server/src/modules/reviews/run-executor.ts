@@ -1,11 +1,11 @@
-import type { Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
-import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
+import type { PrIntent, Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
+import { reviewPullRequest, countBlockers, type ScopeFilter } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type { AgentRecord } from '../agents/types.js';
 import type { ReviewDeps, RunRepo } from './deps.js';
 import type { FindingRow, PullRow, ReviewRow } from './ports.js';
-import { REVIEW_STRATEGY } from './constants.js';
-import { skillBlockText, taskLine } from './helpers.js';
+import { REVIEW_STRATEGY, SCOPE_MIN_SIGNAL_SEVERITY } from './constants.js';
+import { intentBlockText, shouldFilterScope, skillBlockText, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 import { excludeFromReview } from './diff-filter.js';
 import { partitionSkills } from './applicability.js';
@@ -117,6 +117,31 @@ export class ReviewRunExecutor {
     }
     runLog.info(`Diff ready — ${diff.files.length} changed file(s); starting ${jobs.length} agent run(s)`);
 
+    // PR intent (L03) — shared pre-work, once per batch: reuses the stored
+    // intent (no LLM call) or derives once. Fail-open (D9): `IntentService.forRun`
+    // never throws, but the port is injected, so this call is defensively
+    // wrapped too — a failure here never calls `failAll`; the review just
+    // continues without an intent section.
+    let intentResult: Awaited<ReturnType<ReviewDeps['intent']['forRun']>> = null;
+    try {
+      intentResult = await this.deps.intent.forRun(
+        { workspaceId, prId: pull.id, diff },
+        (kind, msg, data) => runLog.event(kind, msg, data),
+      );
+    } catch (err) {
+      runLog.info(`intent skipped: ${(err as Error).message}`);
+    }
+    const intentBlock = intentResult ? intentBlockText(intentResult.intent, intentResult.stale) : undefined;
+    const scopeFilterOn = intentResult
+      ? shouldFilterScope(intentResult.intent.confidence_tier, intentResult.stale)
+      : false;
+    const scopeFilter: ScopeFilter | undefined = scopeFilterOn
+      ? {
+          minSignalSeverity: SCOPE_MIN_SIGNAL_SEVERITY,
+          outOfScopeRanges: intentResult?.intent.incidental_changes ?? [],
+        }
+      : undefined;
+
     for (const { agent, runId } of jobs) {
       const agentStart = Date.now();
       logger?.info(
@@ -124,7 +149,18 @@ export class ReviewRunExecutor {
         `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
       );
       try {
-        const outcome = await this.runOneAgent(workspaceId, pull, repo, diff, agent, runId, runLog);
+        const outcome = await this.runOneAgent(
+          workspaceId,
+          pull,
+          repo,
+          diff,
+          agent,
+          runId,
+          runLog,
+          intentBlock,
+          intentResult,
+          scopeFilter,
+        );
         logger?.info(
           {
             runId,
@@ -157,6 +193,9 @@ export class ReviewRunExecutor {
     agent: AgentRecord,
     runId: string,
     parentLog: RunLogger,
+    intentBlock: string | undefined,
+    intentResult: { intent: PrIntent; stale: boolean } | null,
+    scopeFilter: ScopeFilter | undefined,
   ): Promise<RunOutcome> {
     const start = Date.now();
     // Narrow the fanned-out pre-work logger to THIS run; the shared diff/intent
@@ -207,6 +246,17 @@ export class ReviewRunExecutor {
         runLog,
       );
 
+      // L03 — the PR's derived intent (shared pre-work, resolved once per batch
+      // in executeRuns) is attached to EVERY agent, at every tier (D10); the
+      // block itself says so explicitly when the tier is low or missing context.
+      if (intentResult) {
+        const intentTokens = intentBlock ? this.deps.tokenizer.count(intentBlock) : 0;
+        runLog.info(
+          `intent attached (≈${intentTokens} tokens, tier ${intentResult.intent.confidence_tier}` +
+            `, stale=${intentResult.stale}, scope filter ${scopeFilter ? 'on' : 'off'})`,
+        );
+      }
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -228,6 +278,9 @@ export class ReviewRunExecutor {
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
+        // L03 — the PR's derived intent + the deterministic scope post-filter.
+        ...(intentBlock ? { intent: intentBlock } : {}),
+        ...(scopeFilter ? { scopeFilter } : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),

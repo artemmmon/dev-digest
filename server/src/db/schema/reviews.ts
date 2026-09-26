@@ -7,6 +7,7 @@ import {
   jsonb,
   timestamp,
   doublePrecision,
+  boolean,
   index,
   check,
 } from 'drizzle-orm/pg-core';
@@ -75,14 +76,40 @@ export const findings = pgTable(
   }),
 );
 
-export const prIntent = pgTable('pr_intent', {
-  prId: uuid('pr_id')
-    .primaryKey()
-    .references(() => pullRequests.id, { onDelete: 'cascade' }),
-  intent: text('intent').notNull(),
-  inScope: jsonb('in_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-  outOfScope: jsonb('out_of_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-});
+export const prIntent = pgTable(
+  'pr_intent',
+  {
+    prId: uuid('pr_id')
+      .primaryKey()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    intent: text('intent').notNull(),
+    inScope: jsonb('in_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    outOfScope: jsonb('out_of_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    confidenceTier: text('confidence_tier').notNull().default('low'),
+    basis: text('basis').notNull().default('inferred'),
+    missingContext: boolean('missing_context').notNull().default(false),
+    /** IntentSource[] — metadata only (id/kind/ref/status/via/chars/truncated), never source text. */
+    sources: jsonb('sources').$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    /** RiskArea[] — rule chips first, model chips merged in, ≤ 6 total (D13). */
+    riskAreas: jsonb('risk_areas').$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    /** IncidentalChange[] — hunks unrelated to the stated intent (scope policy input). */
+    incidentalChanges: jsonb('incidental_changes').$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    headSha: text('head_sha'),
+    provider: text('provider'),
+    model: text('model'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    costUsd: doublePrecision('cost_usd'),
+    derivedAt: timestamp('derived_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    tierCk: check(
+      'pr_intent_tier_ck',
+      sql`${t.confidenceTier} in ('high', 'medium', 'low')`,
+    ),
+    basisCk: check('pr_intent_basis_ck', sql`${t.basis} in ('documented', 'inferred')`),
+  }),
+);
 
 export const prBrief = pgTable('pr_brief', {
   prId: uuid('pr_id')
