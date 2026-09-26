@@ -210,6 +210,14 @@ process that loses the bind race is silent, and `localhost` then reaches the oth
 from `WEB_PORT`) and start the web with `NEXT_PUBLIC_API_BASE=http://localhost:<api> next dev -p <web>`.
 Where: `server/src/platform/config.ts:85`, `scripts/e2e.sh:32`.
 
+### 2026-09-26 — `claude plugin update --scope project` can miss a stale project install
+In this worktree `installed_plugins.json` had the project-scope entry of `screencast-demo-maker` at 1.1.0 while the
+user scope was 1.2.0; `claude plugin update … --scope project` answered "already at the latest version (1.2.0)"
+and changed nothing, although `install` itself reported "installed: 1.1.0". What worked: `claude plugin uninstall
+… --scope project` then `install … --scope project` — it rewrites `.claude/settings.json` (moves `enabledPlugins`),
+so `git checkout .claude/settings.json` afterwards — then `doctor.mjs --fix` from the new cache folder for Playwright.
+Where: `.claude/settings.json:24`, `docs/demo-video.md:36`.
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-17 — `eslint --fix` leaves a whitespace-only line when it drops a disable directive
@@ -279,6 +287,13 @@ clone by owner/name, not `repos.clone_path`) fails silently → "Stack not detec
 at the main checkout's absolute `server/clones` and restart the API (boot backfill re-detects).
 New agents/skills from a branch arrive only via `pnpm db:seed` — `--no-seed` hides them.
 Where: `server/src/modules/repos/service.ts:93`, `server/src/modules/repos/routes.ts:36`.
+
+### 2026-09-26 — `PR_SELF_REVIEW_OVERRIDE` does nothing when the branch has no verdict at all
+The override only turns an existing BLOCK verdict into a pass; with no verdict file the pre-push hook refuses
+before it ever reads the variable ("no verdict for branch …"), so `git push` fails and a following `gh pr create`
+reports "No commits between main and <branch>". For a throwaway fixture branch either run `/pr-self-review` on it
+first (then override a BLOCK) or push it from your own terminal with `git push --no-verify`.
+Where: `.claude/skills/pr-self-review/assets/gate-check.mjs:62`, `.claude/skills/pr-self-review/assets/gate-check.mjs:76`.
 
 ## Open Questions
 
