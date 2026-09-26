@@ -42,7 +42,7 @@ Wiring (2), Docs (1), Boilerplate (1); Docs and Boilerplate collapsed.
 
 ## 3. Run review — 15 s (+ cut)
 **Show:** PR header, Run Review dropdown.
-**Do:** open Run Review → click the "all agents" item; hold on the running state ~3 s.
+**Do:** open the Run Review dropdown → click "Run all enabled agents"; hold on the running state ~3 s.
 **Say (s3-01):** «Тепер запускаю рев’ю всіма агентами. Поки воно триває, групи вже на місці — групування не чекає на модель.»
 **Say (s3-02):** «Рев’ю займає хвилину-дві, тож цей відрізок я пропускаю.»
 
@@ -93,6 +93,10 @@ P2.7 (hiding findings with the comments toggle), P3.1 sticky header, P3.2 collap
 ## Unverified claims
 - s4-01 "оновилась сама, без перезавантаження" — implemented (`usePrRunTracking` settle refresh, unit-tested)
   but not yet watched live in a browser; check it on the first take.
-- s5 — the first file with a dot and its line depend on the model's findings on the day.
+- s5 — the first file with a dot and its line depend on the model's findings on the day. Rehearsal on
+  2026-09-26 (5 agents, deepseek-v4-flash, ~$0.003, ~60 s): Core logic `● 1` and Tests `● 1`; in
+  `run-duration.ts` a CRITICAL "Unit mismatch: seconds passed as milliseconds to pretty-ms" under line 6
+  (`blocker`) and a WARNING on line 7; two CRITICAL "missing test" findings in the test file. The rehearsal
+  runs were deleted afterwards.
 - s7-01 "безкоштовне, миттєве" — true by construction (no LLM, GitHub or git call in `smart-diff`), but no
   frame proves it.
