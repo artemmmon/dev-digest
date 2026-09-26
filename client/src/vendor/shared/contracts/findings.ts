@@ -20,11 +20,16 @@ export const FindingKind = z.enum([
   'lethal_trifecta',
   'phantom',
   'hook',
+  'out_of_scope',
 ]);
 export type FindingKind = z.infer<typeof FindingKind>;
 
 export const Verdict = z.enum(['request_changes', 'approve', 'comment']);
 export type Verdict = z.infer<typeof Verdict>;
+
+/** Tags a finding against the PR's derived intent (D12); never changes severity or drops a finding. */
+export const FindingScope = z.enum(['in_scope', 'out_of_scope']);
+export type FindingScope = z.infer<typeof FindingScope>;
 
 export const TrifectaComponent = z.enum([
   'private_data_access',
@@ -56,6 +61,8 @@ export const Finding = z.object({
   suggestion: z.string().nullish(), // markdown
   confidence: z.number().min(0).max(1),
   kind: FindingKind.nullish(),
+  /** In/out of the PR's derived intent (D12); nullish so untagged findings count as in-scope. */
+  scope: FindingScope.nullish(),
   // Lethal-trifecta variant fields (present only when kind === 'lethal_trifecta')
   trifecta_components: z.array(TrifectaComponent).nullish(),
   evidence: z.array(TrifectaEvidence).nullish(),

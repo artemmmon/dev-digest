@@ -12,6 +12,13 @@
 export const REVIEW_STRATEGY = 'single-pass' as const;
 
 /**
+ * Intent scope policy (L03, D12): out-of-scope findings at or above this severity are
+ * folded into ONE out-of-scope signal per agent run; lower ones are dropped. When the
+ * filter is on at all is decided by `shouldFilterScope` (helpers.ts).
+ */
+export const SCOPE_MIN_SIGNAL_SEVERITY = 'WARNING' as const;
+
+/**
  * Paths dropped from the diff BEFORE it is handed to a review agent.
  *
  * These are generated or fixture files: reviewing them burns context and, worse,

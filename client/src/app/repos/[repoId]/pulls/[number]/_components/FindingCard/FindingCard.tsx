@@ -10,6 +10,7 @@ import {
   Icon,
   SeverityBadge,
   CategoryTag,
+  Badge,
   MonoLink,
   ConfidenceNum,
   Button,
@@ -69,6 +70,9 @@ export function FindingCard({
               {f.title}
             </button>
             <CategoryTag category={f.category as Category} />
+            {f.kind === "out_of_scope" && (
+              <Badge icon="Target">{t("finding.outOfScope")}</Badge>
+            )}
             {accepted && <span style={s.acceptedTag}>{t("finding.accepted")}</span>}
             {dismissed && <span style={s.dismissedTag}>{t("finding.dismissed")}</span>}
           </div>

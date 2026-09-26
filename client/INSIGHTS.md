@@ -217,6 +217,17 @@ file), but worth knowing before adding a `title`/tooltip to a chip elsewhere ins
 row: it does NOT override the name, it just prepends visible text to it.
 Where: `src/components/diff-viewer/FileCard/FileCard.tsx:64`.
 
+### 2026-09-24 — `docs/design/src/screen_pr_detail.jsx`'s `RiskPillRow` has a `severity` field the real `RiskArea` contract doesn't
+The mockup's `window.RISKS` items carry `{kind, title, severity, explanation, file_refs}` and
+color the chip border by severity (`RISK_SEV`). The intent-layer spec's final `RiskArea`
+contract (D13, user-decided 2026-09-24) is `{kind, label, origin: 'rule'|'model'}` — no
+severity, no explanation, no file refs; the two chip producers (rule-derived + classifier)
+never computed one. `IntentCard`'s risk chips are therefore plain `Badge`s (icon + label only,
+no color-by-severity, no click-to-expand). Don't backport the mockup's severity styling without
+first checking whether the shipped contract actually has the field.
+Where: `docs/design/src/screen_pr_detail.jsx:21` (`RISK_SEV`), `src/vendor/shared/contracts/brief.ts`
+(`RiskArea`), `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/IntentCard/IntentCard.tsx`.
+
 ### 2026-09-23 — The Agent editor's Config tab always PUTs the full config; the Skill detail Config tab PUTs only what's dirty
 Two forms that look alike save differently: `SkillDetail`'s ConfigTab diffs the draft
 against the loaded skill (`changedFields`) and sends only the changed keys, so an
@@ -230,6 +241,15 @@ save payload is safe just because the other form's dirty-diffing would have prot
 Where: `src/app/agents/[id]/_components/AgentEditor/_components/ConfigTab/ConfigTab.tsx:46`
 (`save`), `src/app/skills/_components/SkillDetail/SkillDetail.tsx:50` (`changedFields`, for contrast).
 
+### 2026-09-24 — Reserve a grid cell for an unbuilt future card without a visible empty placeholder
+The Overview tab's `IntentCard` is the left cell of a "two-column" grid whose right cell is
+reserved for the L04 Blast Radius card (not built yet). A literal `1fr 1fr` template would
+leave a blank box on the right today. `gridTemplateColumns: "repeat(auto-fit, minmax(320px,
+1fr))"` collapses unused tracks: with one child it spans the full width now, and becomes a
+real two-column layout the moment a second child is added later — no conditional markup,
+no placeholder `<div>`.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/styles.ts:6` (`s.grid`).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -238,6 +258,18 @@ hook, but `apiFetch` IS the seam, so it trips on itself. Keep the single
 `eslint-disable-next-line` there rather than narrowing the rule by path — the disable
 comment is the documentation that this is the one allowed call site.
 Where: `src/lib/api.ts:26`, `eslint.config.mjs:38`.
+
+### 2026-09-24 — `@devdigest/ui`'s `Badge` has no `title`/`aria-label` pass-through
+`Badge` (`vendor/ui/primitives/Badge.tsx`) only takes `children`, `icon`, `color`, `bg`,
+`dot`, `mono`, `style` — no way to give the icon an accessible name distinct from the
+visible label. `IntentCard`'s risk-area chips need one (the icon encodes `kind`; the label
+is a low-trust server string, D13), so it wraps each `Badge` in a plain `<span title=…
+aria-label=…>` combining the i18n `card.riskArea.<kind>` string with the label
+(`"Authentication risk: <label>"`), instead of editing the vendored primitive for one
+call site. Do the same rather than adding a `title`/`aria-label` prop to `Badge` for a
+single consumer.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/IntentCard/IntentCard.tsx:88`
+(`riskAreaMessageKey` chip wrapper), `src/vendor/ui/primitives/Badge.tsx:5`.
 
 
 ### 2026-09-15 — Tailwind v4 scans every text file under client/, docs included

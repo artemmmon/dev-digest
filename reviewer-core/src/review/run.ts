@@ -9,6 +9,7 @@ import type {
 import { Review as ReviewSchema } from '@devdigest/shared';
 import { assemblePrompt } from '../prompt.js';
 import { groundFindings, groundingSummary } from '../grounding.js';
+import { applyScopePolicy, type ScopeFilter } from '../scope.js';
 import { reduceReviews, scoreFromFindings, sliceDiff } from './reduce.js';
 
 /**
@@ -71,6 +72,16 @@ export interface ReviewInput {
   /** PR author's description/body (untrusted; truncated + delimiter-wrapped in
       the prompt). Empty/undefined → section omitted. */
   prDescription?: string;
+  /**
+   * Derived PR intent block (L03; untrusted, rendered + fenced downstream).
+   * Empty/undefined → section omitted, and `scopeFilter` (below) has no effect.
+   */
+  intent?: string;
+  /**
+   * Scope post-filter (D12), applied AFTER grounding. Undefined = no filtering
+   * (identity) — the caller only sets this for a fresh, tier ≥ medium intent.
+   */
+  scopeFilter?: ScopeFilter;
   /** Task framing line, e.g. "Review PR #482 …". */
   task?: string;
   /** Override the structured-output retry budget. */
@@ -135,6 +146,7 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
     callers: input.callers,
     repoMap: input.repoMap,
     prDescription: input.prDescription,
+    intent: input.intent,
     task: input.task,
   };
 
@@ -204,13 +216,27 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
   }
   emit('result', `Citation grounding: ${grounding}`);
 
-  // Score is derived from the findings that SURVIVED grounding (not the model's
-  // self-reported number, and not the pre-grounding set) so the score, the
-  // findings list, and the deterministic event always agree.
+  // Deterministic scope post-filter (D12), AFTER grounding: it only ever acts
+  // on findings that already survived the citation gate. `scopeFilter`
+  // undefined (no intent, low tier, or stale) is the identity transform.
+  const scoped = applyScopePolicy(ground.kept, input.scopeFilter);
+  if (input.scopeFilter) {
+    emit(
+      'info',
+      scoped.foldedSerious > 0
+        ? `scope: dropped ${scoped.droppedMinor} minor out-of-scope finding(s); 1 signal folding ${scoped.foldedSerious} serious`
+        : `scope: dropped ${scoped.droppedMinor} minor out-of-scope finding(s); no serious out-of-scope findings`,
+    );
+  }
+  const allDropped = [...ground.dropped, ...scoped.dropped];
+
+  // Score is derived from the findings that SURVIVED grounding AND the scope
+  // policy (not the model's self-reported number, and not the pre-filter set)
+  // so the score, the findings list, and the deterministic event always agree.
   return {
-    review: { ...merged, findings: ground.kept, score: scoreFromFindings(ground.kept) },
+    review: { ...merged, findings: scoped.kept, score: scoreFromFindings(scoped.kept) },
     grounding,
-    dropped: ground.dropped,
+    dropped: allDropped,
     mode,
     assembly,
     chunks: chunks.map((c) => ({ label: c.label })),

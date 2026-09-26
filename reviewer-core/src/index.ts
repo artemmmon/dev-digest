@@ -15,9 +15,13 @@
 export {
   assemblePrompt,
   wrapUntrusted,
+  INTENT_SCOPE_RULE,
   type PromptParts,
   type AssembledPrompt,
 } from './prompt.js';
+
+// Deterministic scope post-filter (D12), applied after grounding.
+export { applyScopePolicy, type ScopeFilter, type ScopePolicyResult, type ScopeRange } from './scope.js';
 
 // Unified-diff parser (hunks + the new-side lines each one covers — what grounding needs).
 export { parseUnifiedDiff } from './diff.js';

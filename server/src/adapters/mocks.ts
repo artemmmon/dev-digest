@@ -17,6 +17,7 @@ import type {
   OpenPrPayload,
   CommitFilesPayload,
   IssueMeta,
+  RepoFileContent,
   GitClient,
   CloneOptions,
   UnifiedDiff,
@@ -125,6 +126,10 @@ export interface MockGitHubOptions {
   login?: string;
   /** Existing inline review comments returned by listReviewComments. */
   comments?: PrReviewComment[];
+  /** Keyed `<owner>/<name>#<n>` — closingIssues() result for that PR; default []. */
+  closingIssues?: Record<string, IssueMeta[]>;
+  /** Keyed `<owner>/<name>:<path>@<ref>` — getFileContent() result for that read. */
+  files?: Record<string, RepoFileContent | { status: 'not_found' | 'too_large' }>;
 }
 
 export class MockGitHubClient implements GitHubClient {
@@ -232,6 +237,20 @@ export class MockGitHubClient implements GitHubClient {
 
   async getIssue(_repo: RepoRef, n: number): Promise<IssueMeta> {
     return { number: n, title: `Issue #${n}`, body: 'mock issue', state: 'open' };
+  }
+
+  async closingIssues(repo: RepoRef, n: number): Promise<IssueMeta[]> {
+    return this.opts.closingIssues?.[`${repo.owner}/${repo.name}#${n}`] ?? [];
+  }
+
+  async getFileContent(
+    repo: RepoRef,
+    path: string,
+    ref: string,
+  ): Promise<RepoFileContent | { status: 'not_found' | 'too_large' }> {
+    return (
+      this.opts.files?.[`${repo.owner}/${repo.name}:${path}@${ref}`] ?? { status: 'not_found' }
+    );
   }
 
   async currentLogin(): Promise<string> {

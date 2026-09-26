@@ -3,6 +3,7 @@ import {
   Review,
   Finding,
   Intent,
+  PrIntent,
   BlastRadius,
   Risks,
   PrHistory,
@@ -13,6 +14,7 @@ import {
   MemoryItem,
   RunTrace,
   RunStats,
+  PromptAssembly,
   Settings,
   Repo,
   PrDetail,
@@ -69,7 +71,7 @@ describe('AI contracts parse fixtures', () => {
 
   it('Intent / BlastRadius / Risks / PrHistory', () => {
     expect(() =>
-      Intent.parse({ intent: 'x', in_scope: ['a'], out_of_scope: ['b'] }),
+      Intent.parse({ summary: 'x', in_scope: ['a'], out_of_scope: ['b'] }),
     ).not.toThrow();
     expect(() =>
       BlastRadius.parse({
@@ -215,6 +217,82 @@ describe('platform DTOs', () => {
         commits: [],
       }),
     ).not.toThrow();
+  });
+
+  it('Finding without scope parses (untagged findings count as in-scope)', () => {
+    const f = Finding.parse({
+      id: 'f3',
+      severity: 'WARNING',
+      category: 'bug',
+      title: 'no scope tag',
+      file: 'a.ts',
+      start_line: 1,
+      end_line: 1,
+      rationale: 'r',
+      confidence: 0.5,
+    });
+    expect(f.scope).toBeUndefined();
+    expect(
+      Finding.parse({
+        id: 'f4',
+        severity: 'SUGGESTION',
+        category: 'style',
+        title: 'tagged',
+        file: 'a.ts',
+        start_line: 1,
+        end_line: 1,
+        rationale: 'r',
+        confidence: 0.5,
+        kind: 'out_of_scope',
+        scope: 'out_of_scope',
+      }).scope,
+    ).toBe('out_of_scope');
+  });
+
+  it('PromptAssembly without intent parses (fail-open when the intent call fails)', () => {
+    const assembly = PromptAssembly.parse({ system: 's', user: 'u' });
+    expect(assembly.intent).toBeUndefined();
+    expect(PromptAssembly.parse({ system: 's', user: 'u', intent: 'block' }).intent).toBe(
+      'block',
+    );
+  });
+
+  it('PrIntent round-trips the full stored shape', () => {
+    const stored = {
+      pr_id: 'pr-1',
+      summary: 'Adds rate limiting to public endpoints.',
+      in_scope: ['rate limiter middleware'],
+      out_of_scope: ['auth changes'],
+      confidence_tier: 'high',
+      basis: 'documented',
+      missing_context: false,
+      sources: [
+        { id: 's1', kind: 'body', ref: 'body', status: 'used', chars: 120 },
+        {
+          id: 's2',
+          kind: 'issue',
+          ref: '#12',
+          status: 'used',
+          via: 'graphql',
+          chars: 300,
+          truncated: false,
+        },
+      ],
+      risk_areas: [
+        { kind: 'dependency', label: 'new dependency redis', origin: 'rule' },
+        { kind: 'performance', label: 'Adds Redis round-trip per request', origin: 'model' },
+      ],
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v4-flash',
+      head_sha: 'abc123',
+      tokens_in: 3900,
+      tokens_out: 141,
+      cost_usd: 0.0004,
+      derived_at: '2026-09-24T00:00:00Z',
+    };
+    expect(() => PrIntent.parse(stored)).not.toThrow();
+    const parsed = PrIntent.parse(stored);
+    expect(parsed.risk_areas.map((r) => r.origin)).toEqual(['rule', 'model']);
   });
 
   it('PrMeta carries the list-only findings_by_severity breakdown', () => {

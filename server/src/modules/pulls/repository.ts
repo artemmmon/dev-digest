@@ -150,6 +150,12 @@ export class PullsRepository implements PullStore {
       await tx
         .update(t.pullRequests)
         .set({
+          // The head/title/base move with every push/edit; refresh them together with
+          // the files, or the row points at an old commit while `pr_files` show the new
+          // one (intent `stale` never fires; a re-derive stores the old SHA).
+          headSha: detail.head_sha,
+          title: detail.title,
+          base: detail.base,
           body: detail.body ?? null,
           additions: detail.additions,
           deletions: detail.deletions,

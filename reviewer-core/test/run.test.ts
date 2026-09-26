@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { LLMProvider, StructuredResult } from '@devdigest/shared';
+import type { LLMProvider, StructuredResult, UnifiedDiff } from '@devdigest/shared';
 import { MockLLMProvider, MockGitClient } from '../../server/src/adapters/mocks.js';
 import { reviewPullRequest } from '../src/index.js';
 
@@ -134,5 +134,99 @@ describe('reviewPullRequest (engine)', () => {
     await reviewPullRequest({ systemPrompt: 's', model: 'm', diff, llm: recorder, sessionId: 'sess-abc' });
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every((s) => s === 'sess-abc')).toBe(true);
+  });
+});
+
+describe('reviewPullRequest — intent slot + scope policy (L03)', () => {
+  const twoFileDiff: UnifiedDiff = {
+    raw: 'diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,2 @@\n+x\ndiff --git a/y.ts b/y.ts\n--- a/y.ts\n+++ b/y.ts\n@@ -1,1 +1,2 @@\n+y',
+    files: [
+      {
+        path: 'x.ts',
+        additions: 1,
+        deletions: 0,
+        hunks: [
+          { file: 'x.ts', oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, newLineNumbers: [1, 2] },
+        ],
+      },
+      {
+        path: 'y.ts',
+        additions: 1,
+        deletions: 0,
+        hunks: [
+          { file: 'y.ts', oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, newLineNumbers: [1, 2] },
+        ],
+      },
+    ],
+  };
+
+  it('map-reduce: every chunk carries the intent in its user prompt', async () => {
+    const seenUsers: string[] = [];
+    const empty = { verdict: 'approve', summary: 's', score: 100, findings: [] };
+    const recorder: LLMProvider = {
+      id: 'openrouter',
+      async completeStructured<T>(req): Promise<StructuredResult<T>> {
+        seenUsers.push(req.messages[1]!.content);
+        return { data: empty as unknown as T, model: req.model, tokensIn: 0, tokensOut: 0, costUsd: 0, raw: '', attempts: 1 };
+      },
+      async listModels() {
+        return [];
+      },
+      async complete() {
+        throw new Error('not used');
+      },
+      async embed() {
+        return [];
+      },
+    };
+    const outcome = await reviewPullRequest({
+      systemPrompt: 's',
+      model: 'm',
+      diff: twoFileDiff,
+      llm: recorder,
+      strategy: 'map-reduce',
+      intent: 'Adds a widget.',
+    });
+    expect(outcome.mode).toBe('map-reduce');
+    expect(seenUsers).toHaveLength(2);
+    expect(seenUsers.every((u) => u.includes('Adds a widget.'))).toBe(true);
+  });
+
+  it('the score is computed AFTER the scope policy, not on the pre-filter findings', async () => {
+    const fixture = {
+      verdict: 'request_changes',
+      summary: 's',
+      score: 0,
+      findings: [
+        {
+          id: 'f1',
+          severity: 'WARNING',
+          category: 'bug',
+          title: 'out of scope thing',
+          file: 'x.ts',
+          start_line: 1,
+          end_line: 1,
+          rationale: 'r',
+          confidence: 0.9,
+          kind: 'finding',
+          scope: 'out_of_scope',
+        },
+      ],
+    };
+    const llm = new MockLLMProvider('openai', { structured: fixture });
+    const outcome = await reviewPullRequest({
+      systemPrompt: 's',
+      model: 'm',
+      diff: twoFileDiff,
+      llm,
+      strategy: 'single-pass',
+      scopeFilter: { minSignalSeverity: 'CRITICAL' }, // WARNING is below threshold → dropped
+    });
+    // The finding is grounded (line 1 is in the diff) but then dropped by the
+    // scope policy — the score must reflect the EMPTY kept set (100), not the
+    // grounded-but-pre-scope set (which would score 88).
+    expect(outcome.review.findings).toHaveLength(0);
+    expect(outcome.review.score).toBe(100);
+    expect(outcome.dropped.some((d) => d.reason === 'out_of_scope')).toBe(true);
   });
 });

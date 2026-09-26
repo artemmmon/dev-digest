@@ -26,6 +26,7 @@ Each has its own `AGENTS.md` — read it before working in that package.
 ./scripts/dev.sh              # docker → migrate → seed → api + web
 ./scripts/dev.sh --db-only    # Postgres + migrate + seed only
 ./scripts/e2e.sh              # hermetic e2e on alternate ports
+./scripts/check-changed.sh    # typecheck · lint · test · arch for the packages you touched, failures only
 ```
 Per-package build/test commands live in each package's `AGENTS.md`.
 Every package exposes the same three checks: `typecheck` · `lint` · `test`.
@@ -42,7 +43,8 @@ Every package exposes the same three checks: `typecheck` · `lint` · `test`.
 - i18n: one file per feature, `client/messages/en/<camelCase>.json`, `camelCase` keys
   nested by UI area.
 - Docs: specs `specs/NN-short-name.md` · decision records `docs/NNNN-short-title.md` ·
-  guides `docs/kebab-case-topic.md` · e2e flows `e2e/specs/NN-name.flow.json`.
+  guides `docs/kebab-case-topic.md` · development plans `docs/plans/NN-short-name.md`
+  (from the `planner` agent) · e2e flows `e2e/specs/NN-name.flow.json`.
 - DB tables and columns are `snake_case` (`agent_runs.cost_usd`) and the Zod wire
   contracts keep that spelling; only React props and locals are `camelCase`.
 - Git: branches `lesson-NN`, commit subjects `type: imperative summary`

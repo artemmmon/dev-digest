@@ -115,6 +115,25 @@ server's, so it still fails on any REAL content drift while tolerating this one 
 mechanical difference.
 Where: `scripts/shared-contracts.sh` (`strip_js_extensions`).
 
+### 2026-09-24 — routing.json maps no skill to server test files
+`server-app`'s glob (`server/src/{modules,platform,adapters}/**/*.ts`) ignores `**/*.test.ts`, and
+server tests live in `server/test/` rather than beside the subject, so no `routing.json` rule ever
+matches a server test path. An agent writing or reviewing server tests must route skills by the
+file *under test*, not the test file itself.
+Where: `.claude/skills/pr-self-review/assets/routing.json:103` (`server-app` rule, `ignore` list),
+`.claude/skills/onion-architecture/references/tools.md:101` ("Server tests live in `server/test/`").
+
+### 2026-09-24 — Module-wide architecture findings cannot go through pr-finding-verifier
+severity.md's evidence bar only accepts a finding whose `line` is a changed line, and
+`pr-finding-verifier` is spawned by `pr-self-review` only and refutes anything outside the diff. So
+`architecture-reviewer`'s `mode: module` findings that fall outside the requested diff are marked
+`"in_change": false` and stay informational — they cannot be sent through the same verification
+path as a `pr-self-review` CRITICAL.
+Where: `.claude/skills/pr-self-review/references/severity.md:48` (evidence bar, "Pre-existing
+problems... are not reported"), `.claude/agents/pr-finding-verifier.md:3` ("Spawned by
+pr-self-review only"), `.claude/agents/pr-finding-verifier.md:14-16` (checks the line is inside the
+change; `refuted` when "not caused by this change").
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
@@ -175,6 +194,14 @@ cache folder. Never hard-code a plugin path in docs: let the skill run `doctor.m
 own copy. Claude Code re-installs only when `plugin.json` `version` changes, so bump it (and the
 `marketplace.json` entry) every release; `claude plugin tag` checks the two agree.
 Where: docs/demo-video.md:36
+
+### 2026-09-26 — Subagent cost is context length × calls, not the model
+Cache reads were 98% of the Intent Layer run's 168.6M tokens, and Opus 5.5 and Sonnet 5 read cache
+at the same $0.20/M (Sonnet's rate assumed), so a cheaper model only saves on output and cache writes.
+One implementer ran 290 calls up to a 535K context (101.7M tokens, 60%); replayed as three fresh step
+groups it is 45M. Split long work into step groups and start a new main session after an hour's break:
+its 1h cache is rewritten at 2× input price (216K–312K tokens each time).
+Where: docs/agent-workflow-cost.md:28, .claude/agents/README.md:88
 
 ## Recurring Errors & Fixes
 
@@ -252,6 +279,13 @@ Where: `server/src/modules/repos/service.ts:93`, `server/src/modules/repos/route
 Comments reference internal IDs (F1, A2, A6, T1.3, T2.2, T3) with no legend anywhere.
 Where: `server/src/platform/model-router.ts:2` ("A6 — Cost discipline (§11)").
 
+### 2026-09-26 — Should the planner write its own plan file?
+Giving `planner` `Write`/`Edit` in its frontmatter (so it saves `docs/plans/NN-*.md` and returns a
+short summary) was denied by the auto-mode classifier as self-modification. So the planner still
+returns the full plan, and the main session keeps it in context (~13K tokens × every later call,
+~$1 on Intent Layer). The user decides whether to make that change by hand.
+Where: .claude/agents/planner.md:4
+
 ## Session Notes
 
 ### 2026-09-17 — Closing the HW1 documentation criteria (L01)
@@ -261,3 +295,9 @@ entries a verified `file:line` anchor, and filled the eight empty per-package `d
 `specs/` folders with one doc + one spec each. The PR-list COST stays scoped to the latest
 review round; the reasoning now lives in an ADR instead of only in a commit message.
 Where: `server/docs/0001-latest-review-is-a-batch.md`, `.claude/skills/engineering-insights/SKILL.md:5`.
+
+### 2026-09-26 — Token-cost rules for the agent workflow
+Measured where Intent Layer's tokens went and turned it into rules: step groups with a brief marker
+in plans, implementer fix mode, `implementation-verifier` on sonnet, narrow diffs, and
+`scripts/check-changed.sh` (one line per check, output only on failure).
+Where: docs/agent-workflow-cost.md:1, scripts/check-changed.sh:1

@@ -5,7 +5,13 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { RunBus } from '../src/platform/sse.js';
 import { seed } from '../src/db/seed.js';
-import { MockLLMProvider, MockEmbedder, MockGitClient, MockGitHubClient } from '../src/adapters/mocks.js';
+import {
+  MockLLMProvider,
+  MockEmbedder,
+  MockGitClient,
+  MockGitHubClient,
+  MockSecretsProvider,
+} from '../src/adapters/mocks.js';
 import * as t from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import type { Review } from '@devdigest/shared';
@@ -57,6 +63,61 @@ const REVIEW_FIXTURE: Review = {
       rationale: 'This line does not exist in the diff.',
       confidence: 0.5,
       kind: 'finding',
+    },
+  ],
+};
+
+/** Intent classifier fixture (L03): review_intent defaults to openrouter. */
+const INTENT_FIXTURE = {
+  summary: 'Adds rate limiting to the public API.',
+  in_scope: ['rate limiter middleware'],
+  out_of_scope: ['auth changes'],
+};
+
+/** One out-of-scope SUGGESTION (dropped) + two out-of-scope WARNINGs (folded into one). */
+const SCOPE_FIXTURE: Review = {
+  verdict: 'comment',
+  summary: 'Some findings fall outside the stated scope.',
+  score: 90,
+  findings: [
+    {
+      id: 's1',
+      severity: 'SUGGESTION',
+      category: 'style',
+      title: 'Unrelated style nit',
+      file: 'src/config.ts',
+      start_line: 10,
+      end_line: 10,
+      rationale: 'r',
+      confidence: 0.6,
+      kind: 'finding',
+      scope: 'out_of_scope',
+    },
+    {
+      id: 'w1',
+      severity: 'WARNING',
+      category: 'bug',
+      title: 'Unrelated bug A',
+      file: 'src/config.ts',
+      start_line: 11,
+      end_line: 11,
+      rationale: 'r',
+      confidence: 0.7,
+      kind: 'finding',
+      scope: 'out_of_scope',
+    },
+    {
+      id: 'w2',
+      severity: 'WARNING',
+      category: 'bug',
+      title: 'Unrelated bug B',
+      file: 'src/config.ts',
+      start_line: 12,
+      end_line: 12,
+      rationale: 'r',
+      confidence: 0.75,
+      kind: 'finding',
+      scope: 'out_of_scope',
     },
   ],
 };
@@ -121,6 +182,11 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
         llm: {
           [provider]: new MockLLMProvider(provider, { structured }),
         },
+        // L03: every review run also derives/reuses the PR's intent, which
+        // defaults to the `openrouter` provider — an empty secrets store keeps
+        // that deterministically fail-open (D9) instead of racing a real key
+        // that might be configured on the machine running the suite.
+        secrets: new MockSecretsProvider({}),
       },
     });
   }
@@ -230,6 +296,79 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     ).json();
     expect(reviews[0].findings).toHaveLength(1);
     expect(reviews[0].model).toBe('claude-x');
+    await app.close();
+  });
+
+  it('L03: trace carries prompt_assembly.intent; the scope policy folds/drops out-of-scope findings; a stale intent disables it', async () => {
+    const { pr, repo } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const app = await buildApp({
+      config: config(),
+      db: pg.handle.db,
+      overrides: {
+        embedder: new MockEmbedder(),
+        git: new MockGitClient({ diff: DIFF }),
+        github: new MockGitHubClient({
+          // PR body says "Closes #471." and targets the default branch (main) —
+          // GraphQL resolves it, giving a `documented`/`high` intent.
+          closingIssues: {
+            [`${repo.owner}/${repo.name}#482`]: [
+              { number: 471, title: 'Rate limit abuse', body: 'Public endpoints get hammered.', state: 'open' },
+            ],
+          },
+        }),
+        llm: {
+          openai: new MockLLMProvider('openai', { structured: SCOPE_FIXTURE }),
+          openrouter: new MockLLMProvider('openrouter', { structured: INTENT_FIXTURE }),
+        },
+      },
+    });
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'ScopeAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+
+    // ---- Phase 1: a fresh, high-confidence intent — the filter is ON -------
+    const first = await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } });
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    const runId1 = first.json().runs[0].run_id;
+    const trace1 = (await app.inject({ method: 'GET', url: `/runs/${runId1}/trace` })).json();
+    expect(trace1.prompt_assembly.intent).toContain('Adds rate limiting to the public API.');
+
+    const intentRes = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/intent` })).json();
+    expect(intentRes.intent.confidence_tier).toBe('high');
+    expect(intentRes.stale).toBe(false);
+
+    const reviews1 = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/reviews` })).json();
+    expect(reviews1).toHaveLength(1);
+    // 1 SUGGESTION dropped, 2 WARNINGs folded into exactly one out_of_scope signal
+    expect(reviews1[0].findings).toHaveLength(1);
+    expect(reviews1[0].findings[0].kind).toBe('out_of_scope');
+    expect(reviews1[0].findings[0].severity).toBe('WARNING');
+    expect(reviews1[0].findings[0].rationale).toContain('Unrelated bug A');
+    expect(reviews1[0].findings[0].rationale).toContain('Unrelated bug B');
+
+    // ---- Phase 2: the PR head moves — the stored intent is now stale, and the
+    // scope filter turns off (D2: outdated scope must not delete a finding) ---
+    await pg.handle.db.update(t.pullRequests).set({ headSha: 'new-head-sha' }).where(eq(t.pullRequests.id, pr.id));
+
+    const second = await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } });
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 2 });
+
+    const staleIntent = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/intent` })).json();
+    expect(staleIntent.stale).toBe(true);
+
+    const runId2 = second.json().runs[0].run_id;
+    const secondReview = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/reviews` }))
+      .json()
+      .find((r: { run_id: string }) => r.run_id === runId2);
+    // identity: all three out-of-scope findings persist, nothing dropped or folded
+    expect(secondReview.findings).toHaveLength(3);
+    expect(secondReview.findings.every((f: { kind: string | null }) => f.kind !== 'out_of_scope')).toBe(true);
+
     await app.close();
   });
 

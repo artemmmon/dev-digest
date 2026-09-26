@@ -31,12 +31,18 @@ flowchart TD
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state<br/>GET /pulls/:id/reviews (lazy, FINDINGS hover popover)"| API
-  PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments<br/>POST /pulls/:id/review · /findings/:id/(accept|dismiss)"| API
+  PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent<br/>POST /pulls/:id/review · /pulls/:id/intent · /findings/:id/(accept|dismiss)"| API
   AGENTS -->|"/agents · /agents/:id · /agents/:id/skills"| API
   SKILLS -->|"/skills · /skills/:id/enabled · /skills/import/preview"| API
   SKILL -->|"/skills/:id · /skills/:id/versions · /skills/:id/agents"| API
   SETTINGS -->|"/settings · /providers"| API
 ```
+
+The PR detail's Overview tab renders the `IntentCard` first (before the PR
+description): the PR's derived `{ summary, in_scope, out_of_scope }`, risk-area
+chips, a confidence badge and a Derive / Re-derive intent action
+(`src/lib/hooks/intent.ts`, `_components/OverviewTab/_components/IntentCard`).
+A `FindingCard` with `kind: 'out_of_scope'` shows an "Outside PR scope" badge.
 
 Cross-cutting chrome lives in `src/components/app-shell` (nav, breadcrumbs,
 `g`-then-key shortcuts). Pages are thin; feature logic sits in colocated

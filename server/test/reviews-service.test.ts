@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { MockGitClient, MockLLMProvider } from '../src/adapters/mocks.js';
 import { RunBus } from '../src/platform/sse.js';
 import { ReviewService } from '../src/modules/reviews/service.js';
+import { ReviewRunExecutor } from '../src/modules/reviews/run-executor.js';
 import type { ReviewDeps } from '../src/modules/reviews/deps.js';
 import type {
   FindingRow,
@@ -73,6 +74,9 @@ function fakeStore(state: StoreState): ReviewStore {
   } as unknown as ReviewStore;
 }
 
+/** A no-op stub: never derives, always "no intent" — most tests don't exercise the run path. */
+const fakeIntent: ReviewDeps['intent'] = { forRun: async () => null };
+
 function setup(agents: AgentRecord[] = [agent({})], prFiles: string[] = []) {
   const state: StoreState = { runs: new Map(), cancelled: [], reviews: [], prFiles };
   const bus = new RunBus(1_000);
@@ -82,6 +86,7 @@ function setup(agents: AgentRecord[] = [agent({})], prFiles: string[] = []) {
     git: new MockGitClient(),
     llm: async () => new MockLLMProvider('openai'),
     repoIntel: {} as RepoIntel,
+    intent: fakeIntent,
     bus,
   };
   return { state, bus, service: new ReviewService(deps) };
@@ -214,5 +219,80 @@ describe('ReviewService.reviewsForPull', () => {
       ['r1', 'Security'],
       ['r2', null],
     ]);
+  });
+});
+
+describe('ReviewRunExecutor — a throwing intent resolver still completes the runs (D9, defense in depth)', () => {
+  it('never calls failAll: the agent run still completes even though deps.intent.forRun rejects', async () => {
+    const completed: { runId: string; status: string }[] = [];
+    const traced: string[] = [];
+    const bus = new RunBus(1_000);
+    const store: ReviewStore = {
+      insertReview: async () =>
+        ({
+          id: 'review-1',
+          workspaceId: 'ws',
+          prId: 'pr1',
+          agentId: 'a1',
+          runId: 'run-1',
+          kind: 'review',
+          verdict: 'approve',
+          summary: 's',
+          score: 100,
+          model: 'gpt-4.1',
+          createdAt: new Date(),
+        }) as ReviewRow,
+      insertFindings: async () => [],
+      markReviewed: async () => {},
+      completeAgentRun: async (runId, values) => {
+        completed.push({ runId, status: values.status });
+      },
+      saveRunTrace: async (runId) => {
+        traced.push(runId);
+      },
+    } as unknown as ReviewStore;
+
+    const deps: ReviewDeps = {
+      reviews: store,
+      agents: { resolvedSkills: async () => [] } as unknown as AgentStore,
+      git: new MockGitClient(),
+      llm: async () =>
+        new MockLLMProvider('openai', {
+          structured: { verdict: 'approve', summary: 's', score: 100, findings: [] },
+        }),
+      repoIntel: {} as RepoIntel,
+      bus,
+      tokenizer: { count: () => 0 },
+      intent: { forRun: async () => Promise.reject(new Error('boom: intent store is down')) },
+    };
+
+    const executor = new ReviewRunExecutor(deps);
+    const pull = { id: 'pr1', number: 1, title: 't', author: 'a', base: 'main', headSha: 'sha1', body: null } as PullRow;
+    const agentRecord = {
+      id: 'a1',
+      workspaceId: 'ws',
+      name: 'Security',
+      description: '',
+      provider: 'openai',
+      model: 'gpt-4.1',
+      systemPrompt: 's',
+      outputSchema: null,
+      strategy: 'single-pass',
+      ciFailOn: 'critical',
+      repoIntel: false,
+      appliesTo: null,
+      enabled: true,
+      version: 1,
+      createdBy: null,
+      createdAt: new Date(),
+    } as AgentRecord;
+
+    await executor.executeRuns('ws', pull, { id: 'r1', owner: 'acme', name: 'repo' }, [
+      { agent: agentRecord, runId: 'run-1' },
+    ]);
+
+    // The run completed successfully — a throwing intent port never fails the batch.
+    expect(completed).toEqual([{ runId: 'run-1', status: 'done' }]);
+    expect(traced).toEqual(['run-1']);
   });
 });

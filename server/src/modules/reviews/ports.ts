@@ -1,4 +1,4 @@
-import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
+import type { Finding, RunSummary, RunTrace } from '@devdigest/shared';
 
 /**
  * Ports of the reviews module (onion-architecture: core declares, outer ring
@@ -143,10 +143,6 @@ export interface ReviewStore {
   ): Promise<{ finding: FindingRow; review: ReviewRow; pull: PullRow } | undefined>;
   setFindingAccepted(findingId: string, at: Date | null): Promise<FindingRow | undefined>;
   setFindingDismissed(findingId: string, at: Date | null): Promise<FindingRow | undefined>;
-
-  // ---- intent ----
-  upsertIntent(prId: string, intent: Intent): Promise<void>;
-  getIntent(prId: string): Promise<Intent | undefined>;
 
   // ---- runs + traces ----
   /** Create an agent_runs row in `running` state; returns its id (= the runId). */

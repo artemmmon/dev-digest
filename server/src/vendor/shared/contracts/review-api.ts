@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { Finding, Verdict } from './findings.js';
-import { Intent, SmartDiff } from './brief.js';
+import { SmartDiff } from './brief.js';
 
 /**
  * A2 — Review-Core API surface contracts. These extend the core
- * Review/Finding/Intent/SmartDiff contracts with the persisted/transport shapes
+ * Review/Finding/SmartDiff contracts with the persisted/transport shapes
  * the reviewer endpoints return. A2 owns this file; the barrel re-exports it.
  *
  * Distinct from `Finding` (the raw LLM-output unit): `FindingRecord` adds the
@@ -66,10 +66,6 @@ export const ReviewRunResponse = z.object({
   skipped_agents: z.array(SkippedAgent),
 });
 export type ReviewRunResponse = z.infer<typeof ReviewRunResponse>;
-
-/** Intent persisted for a PR (the Intent plus the pr_id it scopes). */
-export const PrIntentRecord = Intent.extend({ pr_id: z.string() });
-export type PrIntentRecord = z.infer<typeof PrIntentRecord>;
 
 /** Smart-diff response for a PR (the SmartDiff). */
 export const SmartDiffResponse = SmartDiff;

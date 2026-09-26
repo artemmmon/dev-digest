@@ -140,6 +140,12 @@ export interface CommitFilesPayload {
   files: CommitFile[];
 }
 
+/** A file's raw content read from the repo at a given ref, under the size cap. */
+export interface RepoFileContent {
+  content: string;
+  size: number;
+}
+
 export interface GitHubClient {
   listPullRequests(repo: RepoRef): Promise<PrMeta[]>;
   getPullRequest(repo: RepoRef, n: number): Promise<PrDetail>;
@@ -162,6 +168,21 @@ export interface GitHubClient {
   /** The open PR whose head is `branch`, if any (so re-publish reuses it). */
   findOpenPr(repo: RepoRef, branch: string): Promise<{ url: string } | null>;
   getIssue(repo: RepoRef, n: number): Promise<IssueMeta>;
+  /**
+   * Issues this PR's description closes, via GraphQL `closingIssuesReferences`
+   * (authoritative only when the PR targets the repo's default branch — GitHub
+   * links closing keywords on the default branch only). Same-repo nodes only.
+   */
+  closingIssues(repo: RepoRef, n: number): Promise<IssueMeta[]>;
+  /**
+   * Read one file's raw content from the repo at `ref` (contents API). Checks
+   * size BEFORE decoding; a directory or missing path is `not_found`.
+   */
+  getFileContent(
+    repo: RepoRef,
+    path: string,
+    ref: string,
+  ): Promise<RepoFileContent | { status: 'not_found' | 'too_large' }>;
   /** GET /user — for "posting as @user". */
   currentLogin(): Promise<string>;
 }

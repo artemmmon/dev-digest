@@ -23,6 +23,14 @@ Where: `package.json:10` (`build` is a type-check), `../scripts/dev.sh:80`.
 contract there changes the engine's types too; typecheck both packages.
 Where: `tsconfig.json:22`.
 
+### 2026-09-24 — `Finding` is both the wire contract and every agent's LLM structured-output schema
+`Review`/`Finding` (`findings.ts`) are what `completeStructured({ schema: Review, ... })` hands every provider to build its
+JSON schema/tool-use request — so a field added to `Finding` for engine-internal bookkeeping (L03's `scope`) changes the
+schema every agent model sees on every call, not just the persisted/API shape. Kept `.nullish()` (untagged findings count as
+in-scope, `scope.ts`) so an older/foreign model that ignores the new field still validates and loses nothing. A future
+Finding field must default the same way, or budget for it showing up as new request tokens for zero behavioural gain.
+Where: `../server/src/vendor/shared/contracts/findings.ts:47` (`Finding`), `src/scope.ts:1` (`applyScopePolicy`).
+
 ## Tool & Library Notes
 
 ### 2026-09-15 — Two zod copies in the server process
