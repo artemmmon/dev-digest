@@ -112,3 +112,19 @@ describe('deriveRuleRiskAreas — pubspec.yaml (Flutter/Dart)', () => {
     expect(deriveRuleRiskAreas([{ path: 'pubspec.yaml', patch }])).toEqual([]);
   });
 });
+
+describe('deriveRuleRiskAreas — package.json values must look like a version', () => {
+  it('flags real dependency entries but not other new string fields', () => {
+    const patch = [
+      '@@ -1,6 +1,10 @@',
+      '+  "packageManager": "pnpm@10.0.0",',
+      '+  "homepage": "https://example.com",',
+      '+    "ioredis": "^5.4.1",',
+      '+    "@acme/utils": "workspace:*",',
+    ].join('\n');
+    const labels = deriveRuleRiskAreas([{ path: 'package.json', patch }])
+      .filter((a) => a.kind === 'dependency')
+      .map((a) => a.label);
+    expect(labels).toEqual(['new dependency ioredis', 'new dependency @acme/utils']);
+  });
+});

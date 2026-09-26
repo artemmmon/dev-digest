@@ -7,7 +7,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Icon, SectionLabel, Badge, Button, Skeleton } from "@devdigest/ui";
+import { Icon, SectionLabel, Badge, Button, ErrorState, Skeleton } from "@devdigest/ui";
 import { usePrIntent, useDeriveIntent } from "@/lib/hooks/intent";
 import {
   basisMessageKey,
@@ -23,7 +23,7 @@ import { s } from "./styles";
 
 export function IntentCard({ prId, headSha }: { prId: string; headSha?: string | null }) {
   const t = useTranslations("intent");
-  const { data, isPending } = usePrIntent(prId, headSha);
+  const { data, isPending, isError, refetch } = usePrIntent(prId, headSha);
   const derive = useDeriveIntent(prId);
 
   if (isPending) {
@@ -31,6 +31,23 @@ export function IntentCard({ prId, headSha }: { prId: string; headSha?: string |
       <section>
         <SectionLabel icon="Target">{t("card.label")}</SectionLabel>
         <Skeleton height={160} />
+      </section>
+    );
+  }
+
+  // A failed GET must not look like "no intent yet" — that would invite a paid
+  // derive for a PR whose intent may well exist.
+  if (isError) {
+    return (
+      <section>
+        <SectionLabel icon="Target">{t("card.label")}</SectionLabel>
+        <div style={s.card}>
+          <ErrorState
+            title={t("card.errorTitle")}
+            body={t("card.errorBody")}
+            onRetry={() => void refetch()}
+          />
+        </div>
       </section>
     );
   }

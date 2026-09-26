@@ -1,0 +1,1 @@
+ALTER TABLE "pr_intent" ALTER COLUMN "cost_usd" SET DATA TYPE numeric(14, 8);

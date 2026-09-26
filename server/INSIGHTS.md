@@ -418,6 +418,13 @@ validation" (looks like a schema bug, isn't). Give reasoning models a budget of 
 4000, ~$0.0007/call); to see it, tee `fetch` and read `choices[0].finish_reason` + `usage.completion_tokens_details.reasoning_tokens`.
 Where: src/modules/intent/constants.ts:15
 
+### 2026-09-26 — drizzle 0.38 `numeric` reads back as a string
+`numeric()` has no `mode: 'number'` in drizzle-orm 0.38.4: selects return `"0.00073598"`, and zod
+`z.number()` then fails the whole row. `pr_intent.cost_usd` is `numeric(14,8)` (money is never a float), so
+the repository maps `Number(row.costUsd)` on read and `String(cost)` on write. Other `cost_usd` columns
+(runs, eval, ci) are still `double precision` — migrate them the same way if touched.
+Where: src/db/schema/reviews.ts:104, src/modules/intent/repository.ts
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — Local dev DB is ahead of this branch's migrations

@@ -17,8 +17,10 @@ export interface FileChange {
   patch?: string | null;
 }
 
-// package.json: `+    "name": "^1.2.3"`
-const DEPENDENCY_LINE = /^\+\s*"([^"\n]{1,60})"\s*:\s*"/;
+// package.json: `+    "name": "^1.2.3"` — the value must look like a version spec, so a new
+// top-level field (`"packageManager": "pnpm@10.0.0"`, `"homepage": "https://…"`) is not a dependency.
+const DEPENDENCY_LINE =
+  /^\+\s*"([^"\n]{1,60})"\s*:\s*"(?:[\^~>=<*]|\d|x\b|latest\b|next\b|workspace:|npm:|file:|link:|git(?:\+|:|hub:))/;
 const REMOVED_DEPENDENCY_LINE = /^-\s*"([^"\n]{1,60})"\s*:\s*"/;
 // pubspec.yaml: a top-level (2-space) entry with a version constraint, `+  crypto: ^3.0.3`.
 // git/path/sdk deps (no inline version) are skipped; `sdk`/`flutter` are not packages.

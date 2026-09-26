@@ -1,4 +1,5 @@
-/* IntentCard — full card, empty state + Derive, and missing-context/stale + Re-derive.
+/* IntentCard — three flows: the full card; waiting for the head SHA → empty state → Derive;
+   stale + missing context → Re-derive, then a failed load that must not look empty.
    Real hooks (usePrIntent/useDeriveIntent) over a mocked `api`, same pattern as
    ConventionsView.test.tsx: exercises the actual query/mutation wiring, not a stub. */
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -48,24 +49,7 @@ function respond(response: PrIntentResponse) {
 }
 
 describe("IntentCard", () => {
-  it("renders the summary, both scope columns, risk chips and the confidence badge", async () => {
-    respond({ intent: INTENT, stale: false, current_head_sha: "abc1234def" });
-    renderWithIntl(<IntentCard prId="pr1" headSha="abc1234def" />);
-
-    expect(
-      await screen.findByText("Adds a rate limiter middleware to the public API.", {
-        exact: false,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Add per-IP rate limiting")).toBeInTheDocument();
-    expect(screen.getByText("Refactor the auth middleware")).toBeInTheDocument();
-    expect(screen.getByText("new dependency ioredis")).toBeInTheDocument();
-    expect(screen.getByText("Adds a Redis round-trip per request")).toBeInTheDocument();
-    expect(screen.getByText("High", { exact: false })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Re-derive intent" })).toBeInTheDocument();
-  });
-
-  it("lists incidental changes with their line range and reason", async () => {
+  it("renders the full card, and hides the incidental block when there is none", async () => {
     respond({
       intent: {
         ...INTENT,
@@ -82,40 +66,41 @@ describe("IntentCard", () => {
       stale: false,
       current_head_sha: "abc1234def",
     });
-    renderWithIntl(<IntentCard prId="pr1" headSha="abc1234def" />);
+    const { unmount } = renderWithIntl(<IntentCard prId="pr1" headSha="abc1234def" />);
 
-    expect(await screen.findByText("Incidental changes (treated as out of scope)")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Adds a rate limiter middleware to the public API.", { exact: false }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Add per-IP rate limiting")).toBeInTheDocument();
+    expect(screen.getByText("Refactor the auth middleware")).toBeInTheDocument();
+    expect(screen.getByText("new dependency ioredis")).toBeInTheDocument();
+    expect(screen.getByText("Adds a Redis round-trip per request")).toBeInTheDocument();
     expect(screen.getByText("lib/data/lineups_api.dart:14–23")).toBeInTheDocument();
     expect(screen.getByText("— unrelated error handling", { exact: false })).toBeInTheDocument();
-  });
+    expect(screen.getByText("High", { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Re-derive intent" })).toBeInTheDocument();
 
-  it("hides the incidental block when there are none", async () => {
+    unmount();
     respond({ intent: INTENT, stale: false, current_head_sha: "abc1234def" });
     renderWithIntl(<IntentCard prId="pr1" headSha="abc1234def" />);
     await screen.findByText("Add per-IP rate limiting");
     expect(screen.queryByText("Incidental changes (treated as out of scope)")).not.toBeInTheDocument();
   });
 
-  it("waits for the PR detail's head SHA before fetching the intent", async () => {
-    respond({ intent: INTENT, stale: false, current_head_sha: "abc1234def" });
-    renderWithIntl(<IntentCard prId="pr1" />);
-    expect(screen.queryByText("Add per-IP rate limiting")).not.toBeInTheDocument();
-    expect(h.get).not.toHaveBeenCalled();
-  });
-
-  it("shows the empty state and derives on click", async () => {
+  it("waits for the head SHA, then shows the empty state and derives on click", async () => {
     respond({ intent: null, stale: false, current_head_sha: "abc1234def" });
     h.post.mockResolvedValue(INTENT);
     const user = userEvent.setup();
-    renderWithIntl(<IntentCard prId="pr1" headSha="abc1234def" />);
 
-    const button = await screen.findByRole("button", { name: "Derive intent" });
-    await user.click(button);
+    const { rerender } = renderWithIntl(<IntentCard prId="pr1" />);
+    expect(h.get).not.toHaveBeenCalled(); // no head SHA yet → no fetch that could race the detail refresh
 
+    rerender(<IntentCard prId="pr1" headSha="abc1234def" />);
+    await user.click(await screen.findByRole("button", { name: "Derive intent" }));
     await waitFor(() => expect(h.post).toHaveBeenCalledWith("/pulls/pr1/intent"));
   });
 
-  it("shows the missing-context marker and the stale note, and re-derives on click", async () => {
+  it("flags stale and missing context, re-derives on click, and shows an error (not the empty state) when loading fails", async () => {
     const stale: PrIntent = {
       ...INTENT,
       confidence_tier: "low",
@@ -129,13 +114,18 @@ describe("IntentCard", () => {
     respond({ intent: stale, stale: true, current_head_sha: "def5678abc" });
     h.post.mockResolvedValue(stale);
     const user = userEvent.setup();
-    renderWithIntl(<IntentCard prId="pr1" headSha="abc1234def" />);
+    const { unmount } = renderWithIntl(<IntentCard prId="pr1" headSha="def5678abc" />);
 
     expect(await screen.findByText("Missing context", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("docs/plans/x.md", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("abc1234", { exact: false })).toBeInTheDocument();
-
     await user.click(screen.getByRole("button", { name: "Re-derive intent" }));
     await waitFor(() => expect(h.post).toHaveBeenCalledWith("/pulls/pr1/intent"));
+
+    unmount();
+    h.get.mockRejectedValue(new Error("network down"));
+    renderWithIntl(<IntentCard prId="pr1" headSha="def5678abc" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load the intent");
+    expect(screen.queryByRole("button", { name: "Derive intent" })).not.toBeInTheDocument();
   });
 });

@@ -27,6 +27,8 @@
     },
     "missingContext": "Missing context",
     "stale": "Derived for {sha}; the PR has changed",
+    "errorTitle": "Couldn't load the intent",
+    "errorBody": "The intent for this PR didn't load. Check that the API is running, then retry.",
     "derive": "Derive intent",
     "rederive": "Re-derive intent",
     "emptyBody": "No intent derived yet for this PR. Derive it to see what this PR is meant to do before reading the review.",

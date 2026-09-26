@@ -7,6 +7,7 @@ import {
   jsonb,
   timestamp,
   doublePrecision,
+  numeric,
   boolean,
   index,
   check,
@@ -99,7 +100,8 @@ export const prIntent = pgTable(
     model: text('model'),
     tokensIn: integer('tokens_in'),
     tokensOut: integer('tokens_out'),
-    costUsd: doublePrecision('cost_usd'),
+    /** USD, exact (money is never a float); drizzle 0.38 reads numeric as a string. */
+    costUsd: numeric('cost_usd', { precision: 14, scale: 8 }),
     derivedAt: timestamp('derived_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

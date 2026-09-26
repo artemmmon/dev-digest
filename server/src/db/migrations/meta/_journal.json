@@ -141,6 +141,13 @@
       "when": 1790320617958,
       "tag": "0019_absent_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790410323195,
+      "tag": "0020_orange_johnny_storm",
+      "breakpoints": true
     }
   ]
 }

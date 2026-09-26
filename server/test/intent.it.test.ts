@@ -123,6 +123,9 @@ d('intent (Testcontainers pg)', () => {
     const fetched = await getIntent(app, pr.id);
     expect(fetched.intent?.summary).toBe(CLASSIFICATION_FIXTURE.summary);
     expect(fetched.stale).toBe(false);
+    // cost_usd is numeric(14,8) in Postgres (read back as a string) — the API still serves a number.
+    expect(body.cost_usd).toBe(0.001);
+    expect(fetched.intent?.cost_usd).toBe(0.001);
     await app.close();
   });
 

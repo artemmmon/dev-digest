@@ -42,7 +42,7 @@ function toPrIntent(prId: string, row: PrIntentRow): PrIntent | undefined {
     head_sha: row.headSha,
     tokens_in: row.tokensIn,
     tokens_out: row.tokensOut,
-    cost_usd: row.costUsd,
+    cost_usd: row.costUsd == null ? null : Number(row.costUsd),
     derived_at: row.derivedAt?.toISOString(),
   });
   return parsed.success ? parsed.data : undefined;
@@ -97,7 +97,7 @@ export class IntentRepository implements IntentStore {
       headSha: intent.head_sha ?? null,
       tokensIn: intent.tokens_in ?? null,
       tokensOut: intent.tokens_out ?? null,
-      costUsd: intent.cost_usd ?? null,
+      costUsd: intent.cost_usd == null ? null : String(intent.cost_usd),
       derivedAt: intent.derived_at ? new Date(intent.derived_at) : new Date(),
     };
     await this.db
