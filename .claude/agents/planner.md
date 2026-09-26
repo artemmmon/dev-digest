@@ -35,10 +35,15 @@ The request needs a specific outcome, a subject (feature, module, endpoint, scre
    - Follow the naming conventions and the "Do not touch" list in the root `AGENTS.md`.
 4. `engineering-insights` is preloaded so that you read `INSIGHTS.md` files the way they are written. You cannot write to them. When planning turns up something non-obvious, list it under "Insights to record", and the implementer files it.
 5. Order the steps so each one leaves the repo type-checking. The usual order is contracts → schema → repository → service → routes, then client data hooks → components → i18n, and tests go with each step.
+6. Split the steps into **step groups**. Each group runs in its own fresh `implementer`, one after another, so no single run drags a huge context through every later step. A group is a run of consecutive steps in one package or layer, about 3–5 steps or 15 files, and it ends with the repo type-checking. Parallel groups are allowed only when they touch disjoint packages, for example server and client after the contracts are in. For each group, name what the next group needs to know: new exported symbols, changed signatures, test fakes to update. That becomes the handoff between runs.
 
 ## Step 3: Return the plan
 
 Your final message is the plan and nothing else. Use the format below. Leave no section empty: write "None." when a section has nothing. The caller saves it as `docs/plans/NN-short-name.md`. Propose that file name, using the next free `NN` from `ls docs/plans`, or `01` if the folder does not exist. Stop after about 40 code reads or searches. Loading skills and their references does not count toward this limit. List what you could not resolve under "Risks & open questions" rather than guessing.
+
+The part above the `<!-- implementer-brief:end -->` marker is all an implementer reads, so it must be self-sufficient and short. Aim for 20 000 characters or less. A longer brief usually means the steps carry design prose that belongs below the marker, or the step groups are too big.
+
+When the caller sends corrections or new requirements, return only the changed sections, each under its own heading, plus a one-line list of what changed. Do not resend the whole plan: the caller already holds it, and every copy stays in the caller's context for the rest of the session.
 
 ### Development Plan format
 
@@ -53,16 +58,9 @@ Spec: <specs/NN-name.md or "none">
 In scope: ...
 Out of scope: ...
 
-## Context read
-- `path:line` — <what it tells the plan (AGENTS.md rule, INSIGHTS.md entry, spec section)>
-
-## Affected modules
-| Package | Path | Ring / layer | Change |
-|---|---|---|---|
-
-## Constraints honored
-| Rule | Source (`path:line`) | How the plan respects it |
-|---|---|---|
+## Step groups
+| Group | Steps | Package / layer | Runs after | Handoff to the next group |
+|---|---|---|---|---|
 
 ## Skills for implementer
 | Path glob (routing.json rule id) | Skills | Why they matter here |
@@ -86,12 +84,29 @@ Out of scope: ...
 | Package | Checks (from routing.json) |
 |---|---|
 Plus extra checks: <e.g. `./scripts/shared-contracts.sh check`>. Needs Postgres: yes/no.
-
-## Risks & open questions
-- ...
+All of the above in one command: `./scripts/check-changed.sh`.
 
 ## Insights to record
 - <target INSIGHTS.md> · <section> — <finding> (Where: `path:line`)
+
+<!-- implementer-brief:end -->
+
+## Context read
+- `path:line` — <what it tells the plan (AGENTS.md rule, INSIGHTS.md entry, spec section)>
+
+## Affected modules
+| Package | Path | Ring / layer | Change |
+|---|---|---|---|
+
+## Constraints honored
+| Rule | Source (`path:line`) | How the plan respects it |
+|---|---|---|
+
+## Design notes
+<optional: data flow, alternatives considered, decisions and why — anything a step does not need verbatim. Steps may point here as "see Design notes → <heading>".>
+
+## Risks & open questions
+- ...
 
 ## Handed off
 - Architecture reviewer: <spots worth a look>

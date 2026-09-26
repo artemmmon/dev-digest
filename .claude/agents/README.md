@@ -13,7 +13,7 @@ file. To add an agent, give it a row here.
 | [implementer](implementer.md) | Executes an approved plan in server/client, loads the matching skills, runs the checks, and checks its own diff against the plan | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes |
 | [test-writer](test-writer.md) | Writes behavioural tests for implemented server/client code (`mode: after`), or red-mode tests for an approved plan before implementation (`mode: red`); proves every test can fail and never fixes production code | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (tests only) |
 | [architecture-reviewer](architecture-reviewer.md) | Read-only audit of a module, package or branch diff against the onion and frontend-architecture rules; mechanical checks (`pnpm arch`, lint, shared-contracts check) first, judgement second | opus | Read, Grep, Glob, Bash · preloads `onion-architecture`, `frontend-architecture` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
-| [implementation-verifier](implementation-verifier.md) | Read-only traceability check of finished code against every Development Plan item and spec requirement; one verdict per item, PASS/FAIL/INCOMPLETE overall | opus | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
+| [implementation-verifier](implementation-verifier.md) | Read-only traceability check of finished code against every Development Plan item and spec requirement; one verdict per item, PASS/FAIL/INCOMPLETE overall | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
 | [doc-writer](doc-writer.md) | Turns an implemented plan, spec or report into docs grounded in the current code: picks the Diátaxis kind and location, updates the folder index, draws Mermaid diagrams | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `mermaid-diagram`, `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (docs only) |
 | [pr-skill-reviewer](pr-skill-reviewer.md) | Reviews changed lines against ONE skill, or for plain correctness | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
 | [pr-finding-verifier](pr-finding-verifier.md) | Tries to refute ONE CRITICAL finding | opus | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
@@ -32,8 +32,8 @@ pushes or opens PRs. For `git push`, `gh pr create` and `gh pr merge`, the `pr-s
 | Agent | Input | Output |
 |---|---|---|
 | researcher | One question (repository, external, or both) | Repository report and/or External report: Answer · Findings with evidence · Code map / Sources · Conflicts · **Not found** — or a Clarification report |
-| planner | One feature/fix request, optionally a `specs/NN-*.md` | Development Plan (`Status: draft`); the caller saves it as `docs/plans/NN-short-name.md` — or a Clarification report |
-| implementer | Path to an approved plan in `docs/plans/` | Code, tests, updated plan/spec `Status`, `INSIGHTS.md` entries; Implementation report (steps · deviations · skills applied · checks · not run · handoff to review) — or a Plan deviation report |
+| planner | One feature/fix request, optionally a `specs/NN-*.md` | Development Plan (`Status: draft`) with step groups and an implementer brief above `<!-- implementer-brief:end -->`; the caller saves it as `docs/plans/NN-short-name.md` — or a Clarification report |
+| implementer | Plan mode: plan path + step group (+ previous group's handoff). Fix mode: a gap list with `path:line` (verifier `To reach PASS`, reviewer CRITICALs) | Code, tests, updated plan/spec `Status`, `INSIGHTS.md` entries; Implementation report (steps · deviations · skills applied · checks · not run · handoff to the next group · handoff to review) — or a Plan deviation report |
 | test-writer | Plan path + `mode: after`/`red`, or target files/module + behaviour | Tests next to their subject; Test report (tests written · proof · stability · checks · bugs found) — or a Blocked report — or a Clarification report |
 | architecture-reviewer | `mode: diff` (+ `base`) or `mode: module` (+ `target`), optional plan path | One JSON object: `checks`, `findings` (with `in_change`), `rubric_read`, `not_checked` — or a clarification JSON |
 | implementation-verifier | Plan path (+ Implementation report, + `base`) | Implementation verification report: `PASS`/`FAIL`/`INCOMPLETE` verdict, traceability matrix, coverage gaps — or a Clarification report |
@@ -52,7 +52,7 @@ Architecture-reviewer CRITICALs with `in_change: true` may be re-checked by the 
 flowchart LR
   R[researcher<br/>optional] -->|research report| P[planner]
   P -->|Development Plan| S[saved plan<br/>docs/plans/NN-*.md]
-  S -->|you approve| I[implementer]
+  S -->|you approve| I[implementer<br/>one run per step group]
   S -.->|red mode| TW[test-writer]
   I -->|Implementation report| TW
   TW -->|Test report| PV[implementation-verifier]
@@ -79,10 +79,33 @@ flowchart LR
   subagents. When a request is vague, `researcher`, `planner`, `implementer`, `test-writer`,
   `architecture-reviewer`, `implementation-verifier` and `doc-writer` all return a Clarification or
   Plan deviation report instead of guessing, and the main session relays it.
-- **Verification is independent.** `implementation-verifier` (opus) re-checks every plan item
+- **Verification is independent.** `implementation-verifier` re-checks every plan item
   against the code itself; the implementer's Implementation report is a pointer to evidence, not
   evidence. It runs after implementation because it checks code against the plan, not the plan
-  itself.
+  itself. It runs on sonnet: its work is item-by-item traceability with `path:line` evidence,
+  while the judgement calls stay on opus (`planner`, `architecture-reviewer`).
+
+## Keeping token cost down
+
+Every tool call re-reads the agent's whole context, so cost grows with context length × number of
+calls, far more than with the model. On the Intent Layer feature, one implementer running 290
+calls up to a 535K-token context cost more than all planning and review together. The measurements
+behind these rules are in [docs/agent-workflow-cost.md](../../docs/agent-workflow-cost.md).
+
+- **One implementer run per step group.** Run the plan's step groups in order, each in a fresh
+  `implementer`, and pass along the previous run's "Handoff to the next group". Do not resume a
+  finished implementer for the next group.
+- **Pass paths, not content.** Prompts to agents carry the plan path, the group and the handoff,
+  never the plan text or a diff. Agents read diffs themselves, narrowly.
+- **Fixes go in fix mode.** Hand the verifier's `To reach PASS` list, or reviewer CRITICALs, to one
+  `implementer` in fix mode. The main session coordinates and does not edit code itself.
+- **Checks in one line each.** Agents run `./scripts/check-changed.sh`, which prints one line per
+  check and the output only for failures.
+- **Fresh main session after a break.** The main session's cache expires after an hour. Resuming a
+  250K+ context after a break rewrites all of it at twice the input price. After a break of more
+  than an hour, or when switching to manual testing or Q&A, start a new session from a short
+  handoff note: the plan path, what is done, what is open. Give the planner the full request up
+  front: a correction halfway through makes it write the plan twice.
 
 ## Sources
 

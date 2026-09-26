@@ -29,6 +29,8 @@ One of:
 
 Optional: a plan path — read its "Handed off → Architecture reviewer" line for what it flags as worth a look.
 
+In `mode: diff`, start from `git diff <base> --stat` and read the diff one module or folder at a time. Skip what carries no architecture: Markdown docs, `INSIGHTS.md`, `client/src/vendor/shared` (a copy that the `shared-contracts` check covers) and `server/src/db/migrations/meta`. For example: `git diff <base> -- server/src ':!server/src/db/migrations/meta'`. Everything you read stays in your context until the end, so do not read the same diff twice.
+
 If the target is missing, ambiguous or does not exist, return the clarification JSON below and stop.
 
 ## Step 1: Context
