@@ -250,6 +250,12 @@ real two-column layout the moment a second child is added later — no condition
 no placeholder `<div>`.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/styles.ts:6` (`s.grid`).
 
+### 2026-09-26 — The Smart Diff design mock disagrees with the HW3 task: the task wins
+`docs/design/src/diff.jsx` (refreshed 2026-09-26) has only core/wiring/boilerplate roles and sorts "Original order" by
+`path.localeCompare`; the task needs five roles (core → tests → wiring → docs → boilerplate) and GitHub's `PrFile[]` order.
+Build to the task; the derived tests/docs labels and colours are listed in `hw/L03/hw3-task.md` (repo root).
+Where: `docs/design/src/diff.jsx:20`, `docs/design/src/diff.jsx:197`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
