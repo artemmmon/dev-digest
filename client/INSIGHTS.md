@@ -256,6 +256,13 @@ Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/styles.ts:
 Build to the task; the derived tests/docs labels and colours are listed in `hw/L03/hw3-task.md` (repo root).
 Where: `docs/design/src/diff.jsx:20`, `docs/design/src/diff.jsx:197`.
 
+### 2026-09-26 — `components/diff-viewer` takes findings through a `renderFinding` slot, not by rendering `FindingCard` itself
+`components/` may not import `src/app` (client eslint boundary), and `FindingCard` lives under
+`app/repos/[repoId]/pulls/[number]/_components/`. `DiffFindingApi.renderFinding(f)` (a prop, like the existing
+`DiffCommentApi`) lets the route hand the viewer a render callback instead; `FileCard`/`CodeLine` only call it,
+never import the card. Same pattern as `DiffCommentApi`'s `showComments`/`comments` split.
+Where: `src/components/diff-viewer/findings.ts:11` (`DiffFindingApi`), `src/components/diff-viewer/FileCard/FileCard.tsx:150`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -408,6 +415,16 @@ While the tab is hidden (or the browser pane is in the background) TanStack paus
 is false, so `isLoading` (= pending && fetching) is false and `isError` is not yet true. A page branching on
 `isLoading` → `isError` → content then rendered its empty state under a failing API. Branch on `isPending` for the skeleton.
 Where: `src/app/repos/[repoId]/conventions/_components/ConventionsView/ConventionsView.tsx:189`.
+
+### 2026-09-26 — A mocked `api.get` in a hook test can receive one stray zero-arg call during teardown
+Testing `usePrRunTracking`'s active-runs → 0 transition (mocked `../api` via `vi.mock` + `vi.hoisted`), a `QueryObserver`
+unsubscribing mid-flight (when the test's `renderHook` tree unmounts while a refetch is still settling) calls the mocked
+`api.get` once with no arguments; the call is real (traced through `tinyspy`'s `spy`/`mockCall`, not a false stack), but
+its own async-stack frames point at Vitest's `callCleanupHooks`/`runTest`, not at any app code — a harness/teardown
+artifact, not a bug in the hook. A mock that assumes every call has a string `path` (`path.endsWith(...)`) throws and
+fails the test; guard it (`path?.endsWith(...)`) instead of chasing the caller further **(unverified: root cause in
+Vitest/TanStack Query internals, not confirmed beyond the observed stack)**.
+Where: `src/lib/hooks/reviews.test.tsx:181` (`usePrRunTracking` describe block).
 
 ## Open Questions
 

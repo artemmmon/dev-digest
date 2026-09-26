@@ -94,7 +94,19 @@ export function usePrRunTracking(prId: string | null | undefined) {
     // A run derives the intent as shared pre-work when none is stored yet, so the
     // card's empty state must refresh once the run settles (no SSE event for this).
     void qc.invalidateQueries({ queryKey: keys.pr.intent(prId) });
+    // Smart Diff's finding dots/counters read the reviews query indirectly
+    // (`latestRoundFindings`), but the server's own `finding_lines` need a refetch too.
+    void qc.invalidateQueries({ queryKey: keys.pr.smartDiff(prId) });
   }, [qc, prId]);
+
+  // The Files changed tab does not mount RunStatus (whose SSE `onSettled` normally
+  // drives this), and active runs only poll every 4s — so a >0 → 0 transition here is
+  // what refreshes findings/reviews while that tab stays open, without a reload.
+  const prevLiveCount = React.useRef(liveRunIds.length);
+  React.useEffect(() => {
+    if (prevLiveCount.current > 0 && liveRunIds.length === 0) onRunsSettled();
+    prevLiveCount.current = liveRunIds.length;
+  }, [liveRunIds.length, onRunsSettled]);
 
   return { liveRunIds, history, onRunsStarted, onRunsSettled };
 }
