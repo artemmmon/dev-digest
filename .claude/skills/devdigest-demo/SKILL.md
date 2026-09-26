@@ -6,7 +6,7 @@ description: DevDigest-specific conventions for recording demo videos of a lesso
 # DevDigest demo videos
 
 Project conventions only. The engine is the `screencast-demo-maker` Claude Code plugin
-(https://github.com/artemmmon/screencast-demo-maker, ≥ 1.1.0): skills `demo-setup`,
+(https://github.com/artemmmon/screencast-demo-maker, ≥ 1.2.0): skills `demo-setup`,
 `demo-scenario` (writes the shooting script) and `demo-film` (records it), subagent
 `frame-checker`. `.claude/settings.json` enables it for everyone who trusts this repo.
 
@@ -56,6 +56,10 @@ they live in `~/.cache/demo-video/<slug>/`.
 - Narration is in Ukrainian; filenames, code and this skill stay English.
 - Voice Eric (`cjVigY5qzO86Huf0OWal`) is an ElevenLabs default voice, so it works on anyone's
   account — but each person films with their **own** key; never use or ask for someone else's.
+- Eric is the team default in the committed `config.json`. A person's own voice (cloned or
+  from their Voice Library) goes in their personal file
+  `~/.config/screencast-demo-maker/config.json` (`tts.elevenlabs.voiceId`), never in
+  `hw/**/demo/config.json`; `doctor.mjs` shows which voice will narrate.
 
 ## Never click
 
