@@ -26,6 +26,7 @@ Each has its own `AGENTS.md` — read it before working in that package.
 ./scripts/dev.sh              # docker → migrate → seed → api + web
 ./scripts/dev.sh --db-only    # Postgres + migrate + seed only
 ./scripts/e2e.sh              # hermetic e2e on alternate ports
+./scripts/check-changed.sh    # typecheck · lint · test · arch for the packages you touched, failures only
 ```
 Per-package build/test commands live in each package's `AGENTS.md`.
 Every package exposes the same three checks: `typecheck` · `lint` · `test`.
