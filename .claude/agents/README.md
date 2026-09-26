@@ -8,7 +8,7 @@ file. To add an agent, give it a row here.
 
 | Agent | Responsibility | Model | Tools (allowed / denied) | Writes files |
 |---|---|---|---|---|
-| [researcher](researcher.md) | Answers one concrete question from the repo, external sources or both | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch, Skill · denied Write, Edit, NotebookEdit | no |
+| [researcher](researcher.md) | Answers one concrete question from the repo, external sources or both | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch, AskUserQuestion (filtered out when run as a subagent), Skill · denied Write, Edit, NotebookEdit | no |
 | [planner](planner.md) | Turns one request into a Development Plan that honors modules, skills, INSIGHTS.md and architecture rules | opus | Read, Grep, Glob, Bash, Skill · preloads `onion-architecture`, `frontend-architecture`, `engineering-insights` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
 | [implementer](implementer.md) | Executes an approved plan in server/client, loads the matching skills, runs the checks, and checks its own diff against the plan | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes |
 | [test-writer](test-writer.md) | Writes behavioural tests for implemented server/client code (`mode: after`), or red-mode tests for an approved plan before implementation (`mode: red`); proves every test can fail and never fixes production code | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (tests only) |
