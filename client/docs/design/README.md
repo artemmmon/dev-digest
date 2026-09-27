@@ -8,11 +8,12 @@ lessons). **Reference, not code**: never copy from it into `src/`.
 
 | Path | What | Edited by |
 |---|---|---|
-| `design.html` | Local copy of the standalone export — open in a browser to see the pan/zoom canvas (theme / density / accent tweaks in the panel). Git-ignored: appears after running the unpack script | re-export |
-| `artboards.md` | Index: every artboard → which component and props render it → source file | generated |
-| `src/*.jsx` | Screen and component sources the canvas renders | generated |
+| `design.html` | Local copy of the standalone export — open in a browser to click through the navigable app prototype (the latest export is a prototype, not the pan/zoom canvas). Git-ignored: appears after running the unpack script | re-export |
+| `artboards.md` | Index: every artboard → which component and props render it → source file | generated (see *Updating*) |
+| `src/*.jsx` | Screen and component sources the prototype renders | generated |
+| `src/app_shell.jsx` | Prototype router: sidebar routes → screens (`ROUTES`) | generated |
 | `src/tokens.css` | Colour and density tokens, dark + light | generated |
-| `src/canvas.jsx` | Canvas layout: sections, artboards, props per screen | generated |
+| `src/canvas.jsx` | Canvas layout: sections, artboards, props per screen — kept from the last canvas export | kept by hand |
 
 ## How to use it for a feature
 
@@ -45,7 +46,8 @@ until the design is re-exported.
 
 Known gaps between the mockups and the product: mock models are OpenAI (`gpt-4.1`,
 `gpt-4o`) and onboarding asks for an "OpenAI key", while the app defaults to OpenRouter.
-`src/screen_skills.jsx` (Skills Lab, Eval Dashboard) is in the export but on no artboard.
+`src/screen_skills.jsx` (Skills Lab, Eval Dashboard) is on no artboard, but the prototype routes
+to it (`skills`, `eval` in `src/app_shell.jsx`).
 Product behaviour follows `specs/` and the API contracts, not the mock data.
 
 ## Updating
@@ -58,3 +60,11 @@ node scripts/unpack-design.mjs "<path to export>.html"
 
 It replaces `src/`, `artboards.md` and `design.html`. This README is hand-written — update
 the tables above if screens are added or renamed.
+
+An **app-prototype** export (the current one, from
+https://claude.ai/artifact/KP2JTS2LE2eDQCTx6MU1hK) has no artboard canvas: the script
+writes a two-line `src/canvas.jsx` that mounts `AppRouter` and an `artboards.md` with only
+the source-file table. After unpacking one, restore the canvas layout
+(`git checkout HEAD -- client/docs/design/src/canvas.jsx`) and put the artboard tables
+from the previous `artboards.md` back above the new *Source files* table. The screen
+components the canvas references are still exported by the prototype's sources.

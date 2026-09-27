@@ -1,7 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import React from "react";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { RunEvent } from "@devdigest/shared";
-import { useRunEvents } from "./reviews";
+import { keys } from "../query-keys";
+
+const h = vi.hoisted(() => ({ get: vi.fn() }));
+vi.mock("../api", () => ({ api: { get: h.get }, API_BASE: "http://test" }));
+
+import { useRunEvents, usePrRunTracking } from "./reviews";
 
 /**
  * useRunEvents against a fake EventSource: the SSE contract (frames named after the
@@ -156,5 +163,62 @@ describe("useRunEvents", () => {
     const { result } = renderHook(() => useRunEvents(["r1"]));
     act(() => streamFor("r1")[0]!.emit("info", ": keepalive"));
     expect(result.current.events).toEqual([]);
+  });
+});
+
+describe("usePrRunTracking", () => {
+  beforeEach(() => h.get.mockReset());
+
+  function setup(prId = "pr1") {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+    const rendered = renderHook(() => usePrRunTracking(prId), { wrapper });
+    return { qc, ...rendered };
+  }
+
+  it("invalidates reviews and smart-diff once the active-run count drops from >0 to 0 (no RunStatus mounted to do it via SSE)", async () => {
+    // Guarded (not just `path.endsWith(...)`): a stray zero-arg call can land on this
+    // mock during test teardown once a query observer unsubscribes mid-flight — the
+    // harness's own cleanup, unrelated to the hook under test.
+    h.get.mockImplementation((path?: string) =>
+      Promise.resolve(
+        path?.endsWith("/runs/active")
+          ? [{ run_id: "r1", agent_id: null, agent_name: null, ran_at: null }]
+          : [],
+      ),
+    );
+    const { qc, result } = setup("pr1");
+    await waitFor(() => expect(result.current.liveRunIds).toEqual(["r1"]));
+
+    // Stub out invalidateQueries' own refetch: this test only checks which keys the
+    // hook asks to invalidate, not the server's answer to a background refetch.
+    const invalidateSpy = vi.spyOn(qc, "invalidateQueries").mockResolvedValue(undefined);
+    act(() => qc.setQueryData(keys.pr.activeRuns("pr1"), []));
+    await waitFor(() => expect(result.current.liveRunIds).toEqual([]));
+
+    const invalidatedKeys = invalidateSpy.mock.calls.map((c) =>
+      JSON.stringify((c[0] as { queryKey: unknown }).queryKey),
+    );
+    expect(invalidatedKeys).toEqual(
+      expect.arrayContaining([
+        JSON.stringify(keys.pr.reviews("pr1")),
+        JSON.stringify(keys.pr.smartDiff("pr1")),
+      ]),
+    );
+  });
+
+  it("does not call onRunsSettled while there were never any active runs", async () => {
+    h.get.mockResolvedValue([]);
+    const { qc, result } = setup("pr1");
+    await waitFor(() => expect(result.current.liveRunIds).toEqual([]));
+
+    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+    // Give the effect a tick to (not) fire.
+    await act(async () => undefined);
+    expect(invalidateSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: keys.pr.smartDiff("pr1") }),
+    );
   });
 });

@@ -25,11 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: devdigest/review-action@v1
+      - uses: actions/setup-node@v4
         with:
-          agent: security-reviewer
-          openai-key: \${{ secrets.OPENAI_API_KEY }}
+          node-version: 20
+      - name: Run DevDigest review
+        run: node .devdigest/runner.mjs review --agent security-reviewer --pr \${{ github.event.pull_request.number }} --fail-on critical
         env:
+          OPENROUTER_API_KEY: \${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}`;
 
 function FileTreeRow({ f, active, onClick }) {
@@ -73,23 +75,16 @@ function ExportWizard({ onClose }) {
       React.createElement(window.FormField, { label: "Trigger" },
         React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 7 } },
           ["pull_request:opened", "pull_request:synchronize", "pull_request:reopened"].map((t, i) => React.createElement(window.Chip, { key: i, active: i < 2, icon: i < 2 ? "Check" : null }, t)))),
-      React.createElement(window.FormField, { label: "Secrets expected", hint: "Add these to your repo's Actions secrets before the workflow runs." },
-        React.createElement("div", { style: { border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden" } },
-          [["OPENAI_API_KEY", "Your OpenAI key", false], ["GITHUB_TOKEN", "Auto-provided by Actions", true]].map((s, i) =>
-            React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderBottom: i === 0 ? "1px solid var(--border)" : "none", background: "var(--bg-elevated)" } },
-              React.createElement("span", { className: "mono", style: { fontSize: 12, fontWeight: 600, width: 160 } }, s[0]),
-              React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", flex: 1 } }, s[1]),
-              React.createElement(window.Badge, { color: s[2] ? "var(--ok)" : "var(--warn)", bg: s[2] ? "var(--ok-bg)" : "var(--warn-bg)", dot: true }, s[2] ? "ready" : "not set"))))),
       React.createElement(window.FormField, { label: "Post results as" },
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
           [["GitHub review", "recommended", true], ["PR comment", null, false], ["None (exit code only)", null, false]].map((r, i) =>
             React.createElement("label", { key: i, style: { display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" } },
               React.createElement("span", { style: { width: 16, height: 16, borderRadius: 99, border: "1.5px solid " + (r[2] ? "var(--accent)" : "var(--border-strong)"), display: "grid", placeItems: "center" } }, r[2] && React.createElement("span", { style: { width: 8, height: 8, borderRadius: 99, background: "var(--accent)" } })),
               r[0], r[1] && React.createElement(window.Badge, { color: "var(--accent-text)", bg: "var(--accent-bg)" }, r[1]))))),
-      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-surface)", opacity: 0.7 } },
-        React.createElement(window.Toggle, { on: false, onChange: () => {}, size: 16 }),
-        React.createElement("div", null, React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, "Block merge on findings"),
-          React.createElement("div", { style: { fontSize: 11.5, color: "var(--text-muted)" } }, "Requires a GitHub App — not available with PAT in local mode")))),
+      React.createElement("div", { style: { display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-surface)" } },
+        React.createElement(window.Icon.Info, { size: 15, style: { color: "var(--text-muted)", flexShrink: 0, marginTop: 1 } }),
+        React.createElement("div", { style: { fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 } },
+          "To block merges: set ", React.createElement("span", { style: { fontWeight: 600, color: "var(--text-primary)" } }, "Fail CI on"), " (CI tab) so the run exits non-zero, then add a ", React.createElement("span", { style: { fontWeight: 600, color: "var(--text-primary)" } }, "required status check"), " in the repo\u2019s GitHub branch protection. No GitHub App needed."))),
     // step 4 — install
     React.createElement("div", { key: 3, style: { maxWidth: 600 } },
       React.createElement("button", { style: { width: "100%", textAlign: "left", padding: 18, borderRadius: 10, border: "1.5px solid var(--accent)", background: "var(--accent-bg)", cursor: "pointer", marginBottom: 12 } },

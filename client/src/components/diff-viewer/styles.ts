@@ -3,7 +3,7 @@ import type { Line } from "./helpers";
 
 /** Co-located styles for the DiffViewer (extracted from inline styles). */
 export const s = {
-  list: { display: "flex", flexDirection: "column", gap: 10 } satisfies CSSProperties,
+  list: { display: "flex", flexDirection: "column", gap: 8 } satisfies CSSProperties,
   empty: { padding: "24px", fontSize: 14, color: "var(--text-muted)", textAlign: "center" } satisfies CSSProperties,
   fileCard: {
     border: "1px solid var(--border)",

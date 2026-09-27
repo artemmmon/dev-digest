@@ -250,6 +250,74 @@ real two-column layout the moment a second child is added later — no condition
 no placeholder `<div>`.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/styles.ts:6` (`s.grid`).
 
+### 2026-09-26 — The Smart Diff design mock disagrees with the HW3 task: the task wins
+`docs/design/src/diff.jsx` (refreshed 2026-09-26) has only core/wiring/boilerplate roles and sorts "Original order" by
+`path.localeCompare`; the task needs five roles (core → tests → wiring → docs → boilerplate) and GitHub's `PrFile[]` order.
+Build to the task; the derived tests/docs labels and colours are listed in `hw/L03/hw3-task.md` (repo root).
+Where: `docs/design/src/diff.jsx:20`, `docs/design/src/diff.jsx:197`.
+
+### 2026-09-26 — `components/diff-viewer` takes findings through a `renderFinding` slot, not by rendering `FindingCard` itself
+`components/` may not import `src/app` (client eslint boundary), and `FindingCard` lives under
+`app/repos/[repoId]/pulls/[number]/_components/`. `DiffFindingApi.renderFinding(f)` (a prop, like the existing
+`DiffCommentApi`) lets the route hand the viewer a render callback instead; `FileCard`/`CodeLine` only call it,
+never import the card. Same pattern as `DiffCommentApi`'s `showComments`/`comments` split.
+Where: `src/components/diff-viewer/findings.ts:11` (`DiffFindingApi`), `src/components/diff-viewer/FileCard/FileCard.tsx:150`.
+
+### 2026-09-26 — The comments toggle defaults to "shown when the latest round has findings"
+`DiffTab`'s visibility is one `override` state (`useState<boolean | null>(null)`, never toggled by hand
+yet) plus a derived `show = override ?? findings.length > 0`. A PR with no findings keeps the old
+hidden-by-default GitHub-comments behaviour; a PR whose latest review round has findings shows both
+the comments and the findings without a click. The same `show` value drives both `DiffCommentApi.showComments`
+and `DiffFindingApi.show`, so the two slots can never disagree.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.tsx:61` (`show`).
+
+### 2026-09-26 — Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`
+`PrDetailHeader` is itself sticky at `top: 0`, and its height isn't static (title wrapping, the closed-PR
+banner). It measures itself with a `ResizeObserver` (guarded with `typeof ResizeObserver !== "undefined"`
+for jsdom) and writes `--pr-header-h: <height>px` on its own `parentElement` — the ancestor it shares with
+the tab content — so a second sticky layer further down the page can `position: sticky; top: var(--pr-header-h,
+0px)` without hardcoding an offset or prop-drilling a height value. Smart Diff's `RoleGroup` headers are the
+first consumer.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/PrDetailHeader/PrDetailHeader.tsx:56` (the effect),
+`src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/_components/RoleGroup/styles.ts:11` (the consumer).
+
+### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
+`PrDetailHeader` writing a CSS variable onto `el.parentElement` reached into AppShell-owned DOM (the
+route returns a fragment, so the "parent" was whatever wrapped it) with no cleanup on unmount — an
+implicit contract between two features caught by architecture review. The route now owns the
+measurement: `page.tsx` renders one wrapper `<div>` around the header and the tab content, measures
+the header with a small `useElementHeight(ref)` hook colocated in the route folder (still guarded for
+jsdom's absent `ResizeObserver`), and sets `--pr-header-h` as an inline style on that wrapper.
+`PrDetailHeader` no longer has an effect or a ref; it only renders its own sticky `s.root`. `RoleGroup`'s
+consumer side (`top: var(--pr-header-h, 0px)`) is unchanged.
+Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:13` (the hook),
+`src/app/repos/[repoId]/pulls/[number]/page.tsx:52` (measures + sets the variable).
+
+### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
+The wrapper `<div ref={headerRef}>` the previous fix put around `PrDetailHeader` (just to measure its
+height) became the sticky element's containing block: the wrapper's height equals the header's own
+height, so `PrDetailHeader`'s `position: sticky; top: 0` root had nowhere to stick within and scrolled
+away instead of staying pinned. Never wrap a sticky element in an extra div to measure it — forward the
+ref straight to the sticky element. `PrDetailHeader` now takes a plain `ref` prop (React 19: no
+`forwardRef` needed) attached to its own `s.root` div; `page.tsx` passes `ref={headerRef}` directly to
+`<PrDetailHeader>`, with no wrapper. Separately, `useElementHeight`'s `useRef` + `useEffect(fn, [])`
+observed nothing on the page's first render (still in its loading state, so `ref.current` was null) and
+never re-ran once the header mounted later — `--pr-header-h` stayed unset forever. Fixed by making the
+ref a callback backed by `useState`, so the observing effect's `[node]` dependency re-fires the moment
+the element actually mounts, loading state or not.
+Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:16` (callback ref),
+`src/app/repos/[repoId]/pulls/[number]/_components/PrDetailHeader/PrDetailHeader.tsx:26` (`ref` prop) and
+`:58` (attached to the sticky root).
+
+### 2026-09-26 — Supersedes "Sticky elements under the PR header use `var(--pr-header-h)`, published by `PrDetailHeader`"
+`useElementHeight` reported `entry.contentRect.height`, which excludes padding and border —
+`--pr-header-h` under-measured `PrDetailHeader`'s real box by exactly its vertical padding
+(124.8px reported vs. ~143px rendered), so `RoleGroup`'s sticky header sat ~18px under the PR
+header and was partly hidden. Sticky offsets need the border-box height. Fixed by reading
+`entry.borderBoxSize?.[0]?.blockSize` and falling back to `node.getBoundingClientRect().height`
+for jsdom, which has no `borderBoxSize`.
+Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:26`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -348,6 +416,14 @@ toast has fired. Assert `expect(container).toHaveTextContent("")` (or query for 
 element) instead of checking the whole container is empty.
 Where: `src/test/render.tsx:22`, `src/components/repo-stack/RepoStackLabel.test.tsx`.
 
+### 2026-09-26 — RTL's `getByText` only matches an element's own direct text-node children, not nested elements' text
+`getNodeText` joins only `childNodes` of type `TEXT_NODE`, so a parent wrapping `{"1 file"}{" · "}<span>+1 −0</span>`
+matches `getByText(/^1 file ·/)` on the *outer* span alone — the inner `<span>` with the mono numbers never
+shows up as a competing match, and a sibling that renders exactly `"1 file"` (no trailing text) is unambiguous
+too. No need for `within`/testids to disambiguate two "1 file"-shaped strings nested one inside the other's
+sibling tree, as long as each element's own text differs.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.test.tsx` (singular file-count test), `DiffTab.tsx:135` (toolbar summary span).
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — The PR-list table card clipped anything absolutely positioned in a row
@@ -402,6 +478,16 @@ While the tab is hidden (or the browser pane is in the background) TanStack paus
 is false, so `isLoading` (= pending && fetching) is false and `isError` is not yet true. A page branching on
 `isLoading` → `isError` → content then rendered its empty state under a failing API. Branch on `isPending` for the skeleton.
 Where: `src/app/repos/[repoId]/conventions/_components/ConventionsView/ConventionsView.tsx:189`.
+
+### 2026-09-26 — A mocked `api.get` in a hook test can receive one stray zero-arg call during teardown
+Testing `usePrRunTracking`'s active-runs → 0 transition (mocked `../api` via `vi.mock` + `vi.hoisted`), a `QueryObserver`
+unsubscribing mid-flight (when the test's `renderHook` tree unmounts while a refetch is still settling) calls the mocked
+`api.get` once with no arguments; the call is real (traced through `tinyspy`'s `spy`/`mockCall`, not a false stack), but
+its own async-stack frames point at Vitest's `callCleanupHooks`/`runTest`, not at any app code — a harness/teardown
+artifact, not a bug in the hook. A mock that assumes every call has a string `path` (`path.endsWith(...)`) throws and
+fails the test; guard it (`path?.endsWith(...)`) instead of chasing the caller further **(unverified: root cause in
+Vitest/TanStack Query internals, not confirmed beyond the observed stack)**.
+Where: `src/lib/hooks/reviews.test.tsx:181` (`usePrRunTracking` describe block).
 
 ## Open Questions
 

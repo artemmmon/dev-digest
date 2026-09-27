@@ -10,8 +10,8 @@ import type { PrMeta } from "@/lib/types";
 import { SeverityCounts } from "@/components/severity-counts";
 import { SEVERITY_LIST, isEmptyCounts } from "@/lib/severity-counts";
 import { usePrReviews } from "@/lib/hooks/reviews";
+import { latestRoundFindings } from "@/lib/latest-round-findings";
 import { FindingsPopover } from "./_components/FindingsPopover";
-import { latestRoundFindings } from "./_components/FindingsPopover/helpers";
 
 /**
  * Grace period before a leave actually closes the popover. The pointer briefly leaves the

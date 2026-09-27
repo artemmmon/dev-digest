@@ -16,12 +16,32 @@ function TrifectaVenn({ components }) {
         labels[k]))));
 }
 
-function ActionRow({ onAccept, onDismiss }) {
+function ActionRow({ onAccept, onDismiss, onEval, status }) {
   return React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" } },
     React.createElement(window.Button, { kind: "secondary", size: "sm", icon: "Check", onClick: onAccept }, "Accept"),
     React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "X", onClick: onDismiss }, "Dismiss"),
     React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "Brain" }, "Learn"),
-    React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "MessageSquare" }, "Reply to author"));
+    React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "FlaskConical", onClick: onEval,
+      title: status === "dismissed" ? "Create a 'must NOT comment' eval case from this dismissal" : "Create a 'must find' eval case from this finding" }, "Turn into eval case"));
+}
+
+// build an eval-case seed from a finding + its disposition
+function findingToSeed(f, status) {
+  const dismissed = status === "dismissed";
+  const lineRange = f.start_line === f.end_line ? String(f.start_line) : f.start_line + "-" + f.end_line;
+  const slug = (f.title || "finding").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 34);
+  return {
+    direction: dismissed ? "negative" : "positive",
+    name: (dismissed ? "no-" : "must-find-") + slug,
+    file: f.file, line: f.start_line, lineRange,
+    title: f.title, severity: f.severity, category: f.category,
+    assertion: dismissed
+      ? "MUST NOT comment on " + f.file + ":" + lineRange + " (" + f.title + ")"
+      : "MUST find \u201C" + f.title + "\u201D at " + f.file + ":" + lineRange,
+    expected: dismissed
+      ? "[]  // dismissed \u2014 agent must produce no finding here"
+      : JSON.stringify([{ severity: f.severity, category: f.category, title: f.title, file: f.file, start_line: f.start_line }], null, 2),
+  };
 }
 
 function CodeBlock({ children, label }) {
@@ -41,6 +61,7 @@ const FINDING_STATUS_META = {
 function FindingCard({ f, idx, focused, status }) {
   const [expanded, setExpanded] = React.useState(idx === 0);
   const [st, setSt] = React.useState(status || "open");
+  const [evalSeed, setEvalSeed] = React.useState(null);
   React.useEffect(() => { if (status) setSt(status); }, [status]);
   const accepted = st === "accepted";
   const dismissed = st === "dismissed";
@@ -59,7 +80,8 @@ function FindingCard({ f, idx, focused, status }) {
       React.createElement("div", { style: { paddingTop: 1 } }, React.createElement(window.SeverityBadge, { severity: f.severity, compact: true })),
       React.createElement("div", { style: { flex: 1, minWidth: 0 } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-          React.createElement("span", { style: { fontSize: 13.5, fontWeight: 600, color: dim ? "var(--text-muted)" : "var(--text-primary)", textDecoration: accepted ? "line-through" : "none" } }, f.title),
+          React.createElement("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: dismissed ? "var(--text-muted)" : s.c } }, f.severity === "CRITICAL" ? "blocker" : f.severity.toLowerCase()),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 650, color: dim ? "var(--text-muted)" : "var(--text-primary)", textDecoration: accepted ? "line-through" : "none" } }, f.title),
           React.createElement(window.CategoryTag, { category: f.category }),
           st !== "open" && React.createElement(window.Badge, { color: sm.c, bg: sm.bg, icon: sm.icon }, sm.label)),
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginTop: 4 } },
@@ -68,14 +90,17 @@ function FindingCard({ f, idx, focused, status }) {
       React.createElement(window.Icon.ChevronDown, { size: 16, style: { color: "var(--text-muted)", transform: expanded ? "rotate(180deg)" : "none", transition: "transform .15s", marginTop: 2, flexShrink: 0 } })),
     expanded && React.createElement("div", { style: { padding: "0 14px 14px", borderTop: "1px solid var(--border)", marginTop: 0, paddingTop: 12 } },
       f.kind === "lethal_trifecta" && React.createElement("div", { style: { marginBottom: 12 } }, React.createElement(TrifectaVenn, { components: f.trifecta_components })),
-      React.createElement("div", { style: { fontSize: 13, lineHeight: 1.6, color: "var(--text-secondary)" } }, window.mdLite(f.rationale)),
-      f.suggestion && React.createElement("div", { style: { marginTop: 12 } },
-        React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase" } }, "Suggested fix"),
-        React.createElement("div", { style: { fontSize: 13, lineHeight: 1.6, color: "var(--text-secondary)" } }, window.mdLite(f.suggestion))),
-      React.createElement(ActionRow, { onAccept: () => setSt("accepted"), onDismiss: () => setSt("dismissed") })));
+      React.createElement("div", { style: { fontSize: 12.5, lineHeight: 1.6, color: "var(--text-secondary)", textWrap: "pretty" } }, window.mdLite(f.rationale)),
+      f.suggestion && React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10, padding: "9px 11px", borderRadius: 7, background: "var(--bg-surface)", border: "1px solid var(--border)" } },
+        React.createElement(window.Icon.Lightbulb, { size: 13, style: { color: "var(--sugg)", flexShrink: 0, marginTop: 2 } }),
+        React.createElement("div", null,
+          React.createElement("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 3, textTransform: "uppercase" } }, "Suggested fix"),
+          React.createElement("div", { style: { fontSize: 12.5, lineHeight: 1.6, color: "var(--text-secondary)", textWrap: "pretty" } }, window.mdLite(f.suggestion)))),
+      React.createElement(ActionRow, { status: st, onAccept: () => setSt("accepted"), onDismiss: () => setSt("dismissed"), onEval: () => setEvalSeed(findingToSeed(f, st)) }),
+      evalSeed && window.EvalCaseEditor && React.createElement(window.EvalCaseEditor, { seed: evalSeed, onClose: () => setEvalSeed(null) })));
 }
 
-function VerdictBanner() {
+function VerdictBanner({ onRegenerate, loading } = {}) {
   const V = window.VERDICT;
   const map = {
     request_changes: { c: "var(--crit)", bg: "var(--crit-bg)", icon: "XCircle", label: "Request changes" },
@@ -83,16 +108,24 @@ function VerdictBanner() {
     comment: { c: "var(--info)", bg: "var(--info-bg)", icon: "MessageSquare", label: "Comment" },
   };
   const m = map[V.verdict];
+  const provenance = "Verdict, findings and score come from the latest agent review; what / why / risks / review-focus come from the brief.";
   return React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "flex-start", padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)" } },
     React.createElement("div", { style: { width: 40, height: 40, borderRadius: 9, display: "grid", placeItems: "center", background: m.bg, color: m.c, flexShrink: 0 } },
       React.createElement(window.Icon[m.icon], { size: 22 })),
     React.createElement("div", { style: { flex: 1, minWidth: 0 } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
         React.createElement("span", { style: { fontSize: 16, fontWeight: 700, color: m.c } }, m.label),
-        React.createElement(window.Badge, { color: "var(--text-secondary)" }, "6 findings · 2 blockers")),
+        React.createElement(window.Badge, { color: "var(--text-secondary)" }, "6 findings · 2 blockers"),
+        React.createElement("span", { title: provenance, style: { display: "inline-flex", cursor: "help", color: "var(--text-muted)" } },
+          React.createElement(window.Icon.Info, { size: 13 }))),
       React.createElement("p", { style: { fontSize: 13.5, lineHeight: 1.55, color: "var(--text-secondary)", marginTop: 6, textWrap: "pretty" } }, V.summary)),
+    onRegenerate && React.createElement("div", { style: { flexShrink: 0 } },
+      React.createElement(window.IconBtn, { icon: "RefreshCw", label: "Re-run the brief for this PR", onClick: onRegenerate })),
     React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 } },
-      React.createElement(window.CircularScore, { score: V.score, size: 52, stroke: 5 }),
+      loading
+        ? React.createElement("div", { style: { width: 52, height: 52, display: "grid", placeItems: "center" } },
+            React.createElement(window.Icon.RefreshCw, { size: 24, style: { color: "var(--accent)", animation: "ddspin 0.8s linear infinite" } }))
+        : React.createElement(window.CircularScore, { score: V.score, size: 52, stroke: 5 }),
       React.createElement("span", { style: { fontSize: 10.5, color: "var(--text-muted)", letterSpacing: "0.04em" } }, "PR SCORE"),
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 5, marginTop: 5, paddingTop: 6, borderTop: "1px solid var(--border)" } },
         React.createElement(window.Icon.DollarSign, { size: 11, style: { color: "var(--text-muted)" } }),

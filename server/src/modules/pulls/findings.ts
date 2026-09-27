@@ -12,41 +12,15 @@ import { rollupSeverities } from './status.js';
  * COST column already sums.
  *
  * Reviews older than the batch feature have no `run_id`/`batch_id`; for those the
- * newest review alone is the round.
+ * newest review alone is the round. The round rule itself lives in
+ * `../_shared/latest-round.js` (also used by Smart Diff).
  */
 
-import type { FindingSeverityRow, ReviewRow, RunRow } from './ports.js';
-export type { FindingSeverityRow, ReviewRow, RunRow };
-
-/**
- * Review ids making up each PR's latest round. Both row sets MUST be newest-first;
- * `latestBatch` comes from `latestBatchByPr` in `./cost.ts`.
- */
-export function latestRoundReviewIds(
-  reviewRows: ReviewRow[],
-  runRows: RunRow[],
-  latestBatch: Map<string, string>,
-): Map<string, string[]> {
-  const batchOfRun = new Map<string, string>();
-  for (const run of runRows) if (run.batchId) batchOfRun.set(run.id, run.batchId);
-
-  const byPr = new Map<string, string[]>();
-  const newestReview = new Map<string, string>();
-  for (const review of reviewRows) {
-    if (!newestReview.has(review.prId)) newestReview.set(review.prId, review.id);
-    const batch = review.runId ? batchOfRun.get(review.runId) : undefined;
-    if (!batch || batch !== latestBatch.get(review.prId)) continue;
-    const bucket = byPr.get(review.prId);
-    if (bucket) bucket.push(review.id);
-    else byPr.set(review.prId, [review.id]);
-  }
-
-  // No batched review for this PR (unbatched/seeded data) → the newest review is the round.
-  for (const [prId, reviewId] of newestReview) {
-    if (!byPr.has(prId)) byPr.set(prId, [reviewId]);
-  }
-  return byPr;
-}
+import type { FindingSeverityRow } from './ports.js';
+export type { FindingSeverityRow };
+import { latestRoundReviewIds, type ReviewRow, type RunRow } from '../_shared/latest-round.js';
+export { latestRoundReviewIds };
+export type { ReviewRow, RunRow };
 
 /**
  * Severity tally per PR over its round. A round that found nothing maps to

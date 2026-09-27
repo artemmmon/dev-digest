@@ -60,6 +60,7 @@
     Play: mk(poly("6 4 20 12 6 20 6 4")),
     RefreshCw: mk(path("M21 12a9 9 0 1 1-3-6.7L21 8"), poly("21 3 21 8 16 8")),
     GitBranch: mk(line(6, 3, 6, 15), circle(18, 6, 3), circle(6, 18, 3), path("M18 9a9 9 0 0 1-9 9")),
+    GitCompare: mk(circle(5, 6, 3), circle(19, 18, 3), path("M8 6h7a3 3 0 0 1 3 3v6"), path("M16 18H9a3 3 0 0 1-3-3V9")),
     GitCommit: mk(circle(12, 12, 4), line(2, 12, 8, 12), line(16, 12, 22, 12)),
     GitMerge: mk(circle(18, 18, 3), circle(6, 6, 3), path("M6 9v12"), path("M21 6h-2a8 8 0 0 0-8 8")),
     MessageSquare: mk(path("M21 11.5a8.4 8.4 0 0 1-9 8 9.1 9.1 0 0 1-4-1L3 20l1.5-4.5A8.4 8.4 0 0 1 3 11.5a8.5 8.5 0 0 1 9-8 8.5 8.5 0 0 1 9 8Z")),

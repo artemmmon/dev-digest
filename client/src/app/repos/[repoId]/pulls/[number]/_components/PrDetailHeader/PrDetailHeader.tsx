@@ -20,6 +20,10 @@ interface PrDetailHeaderProps {
   onSetTab: (tab: string) => void;
   onRunStart: () => void;
   onRunsStarted: () => void;
+  /* React 19: a plain `ref` prop on a function component, no `forwardRef` needed.
+     Attached to the sticky root itself (not a wrapper) so the page can measure it
+     with `useElementHeight` without breaking its `position: sticky` containing block. */
+  ref?: React.Ref<HTMLDivElement>;
 }
 
 export function PrDetailHeader({
@@ -32,6 +36,7 @@ export function PrDetailHeader({
   onSetTab,
   onRunStart,
   onRunsStarted,
+  ref,
 }: PrDetailHeaderProps) {
   const t = useTranslations("prReview");
   const handleRunStart = useCallback(() => {
@@ -50,7 +55,7 @@ export function PrDetailHeader({
         : "var(--warn)";
 
   return (
-    <div style={s.root}>
+    <div ref={ref} style={s.root}>
       <div style={s.titleRow}>
         <div style={s.titleCol}>
           <h1 style={s.h1}>

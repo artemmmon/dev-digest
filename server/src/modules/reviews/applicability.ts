@@ -1,4 +1,4 @@
-import { matchesAny } from './diff-filter.js';
+import { matchesAny } from '../_shared/glob.js';
 import { REVIEW_EXCLUDED_PATHS } from './constants.js';
 
 /**

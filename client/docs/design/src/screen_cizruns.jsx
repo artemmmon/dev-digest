@@ -53,11 +53,13 @@ function ScreenCIRuns({ h = 760, empty }) {
 }
 
 /* ---- N3 Eval Case Editor (modal) ---- */
-function EvalCaseEditor({ onClose }) {
+function EvalCaseEditor({ onClose, seed }) {
   const [tab, setTab] = React.useState("Diff");
+  const negative = seed && seed.direction === "negative";
   const DIFF_TEXT = `--- a/src/config.ts\n+++ b/src/config.ts\n@@ -10,6 +10,7 @@\n export const config = {\n   port: Number(process.env.PORT ?? 3000),\n+  stripeKey: "sk_live_51H8xq2Ka9Vn3PqLm7Rd0bZ4Xc",\n   redisUrl: process.env.REDIS_URL,\n };`;
-  const EXPECTED = `[\n  {\n    "severity": "CRITICAL",\n    "category": "security",\n    "title": "Hardcoded Stripe secret key",\n    "file": "src/config.ts",\n    "start_line": 12\n  }\n]`;
-  return React.createElement(window.Modal, { width: 920, title: "Eval case · stripe-key-leak", subtitle: "Security Reviewer · simulate a PR and assert the expected output", onClose,
+  const EXPECTED = seed ? seed.expected : `[\n  {\n    "severity": "CRITICAL",\n    "category": "security",\n    "title": "Hardcoded Stripe secret key",\n    "file": "src/config.ts",\n    "start_line": 12\n  }\n]`;
+  const caseName = seed ? seed.name : "stripe-key-leak";
+  return React.createElement(window.Modal, { width: 920, title: "Eval case · " + caseName, subtitle: seed ? "Seeded from a " + (negative ? "dismissed" : "accepted") + " finding · assert the expected output" : "Security Reviewer · simulate a PR and assert the expected output", onClose,
     footer: React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
       React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--text-secondary)", marginRight: "auto" } }, React.createElement(window.Toggle, { on: true, onChange: () => {}, size: 15 }), "Run on save"),
       React.createElement(window.Button, { kind: "ghost", onClick: onClose }, "Cancel"),
@@ -66,8 +68,14 @@ function EvalCaseEditor({ onClose }) {
     React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, height: 480 } },
       // left: inputs
       React.createElement("div", { style: { borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minWidth: 0 } },
+        seed && React.createElement("div", { style: { margin: "12px 16px 0", padding: "9px 12px", borderRadius: 8, display: "flex", alignItems: "center", gap: 9,
+          border: "1px solid " + (negative ? "var(--border-strong)" : "var(--accent)"), background: negative ? "var(--bg-elevated)" : "var(--accent-bg)" } },
+          React.createElement(window.Icon[negative ? "XCircle" : "Target"], { size: 15, style: { color: negative ? "var(--text-muted)" : "var(--accent)", flexShrink: 0 } }),
+          React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)" } },
+            React.createElement("b", { style: { color: negative ? "var(--text-primary)" : "var(--accent-text)", textTransform: "uppercase", fontSize: 10.5, letterSpacing: "0.05em", marginRight: 7 } }, negative ? "Negative case" : "Positive case"),
+            seed.assertion)),
         React.createElement("div", { style: { padding: "14px 16px 0" } },
-          React.createElement(window.FormField, { label: "Name", required: true }, React.createElement(window.TextInput, { value: "stripe-key-leak", mono: true }))),
+          React.createElement(window.FormField, { label: "Name", required: true }, React.createElement(window.TextInput, { value: caseName, mono: true }))),
         React.createElement("div", { style: { padding: "0 16px" } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7 } }, "Input")),
         React.createElement(window.Tabs, { tabs: ["Diff", "Files", "PR meta"], value: tab, onChange: setTab, pad: "0 16px" }),
         React.createElement("div", { style: { flex: 1, overflow: "auto", padding: "12px 16px" } },
@@ -85,8 +93,8 @@ function EvalCaseEditor({ onClose }) {
       // right: expected + result
       React.createElement("div", { style: { display: "flex", flexDirection: "column", minWidth: 0 } },
         React.createElement("div", { style: { padding: "14px 16px 8px", display: "flex", alignItems: "center", gap: 8 } },
-          React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" } }, "Expected output"),
-          React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)", icon: "Check" }, "valid JSON"),
+          React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" } }, negative ? "Expected: no finding here" : "Expected output"),
+          React.createElement(window.Badge, { color: "var(--ok)", bg: "var(--ok-bg)", icon: "Check" }, negative ? "assert empty" : "valid JSON"),
           React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: 6 } },
             React.createElement(window.Button, { kind: "ghost", size: "sm", icon: "Plus" }, "Finding skeleton"))),
         React.createElement("pre", { className: "mono", style: { margin: "0 16px", padding: 12, fontSize: 11.5, lineHeight: 1.55, background: "var(--code-bg)", borderRadius: 7, color: "var(--text-primary)", overflow: "auto", flex: 1 } }, EXPECTED),
@@ -95,10 +103,10 @@ function EvalCaseEditor({ onClose }) {
           React.createElement("span", { style: { fontSize: 12.5, color: "var(--text-secondary)" } }, React.createElement("b", { style: { color: "var(--text-primary)" } }, "Last run passed"), " · expected 1 finding, got 1 · 1.8s · $0.02")))));
 }
 
-function ScreenEvalCase({ h = 720 }) {
+function ScreenEvalCase({ h = 720, seed }) {
   return React.createElement("div", { style: { position: "relative", width: "100%", height: h, overflow: "hidden", background: "var(--bg-primary)" } },
     React.createElement("div", { style: { filter: "saturate(0.7)", pointerEvents: "none", height: "100%", overflow: "hidden" } }, React.createElement(window.ScreenAgents, { tab: "Evals", h })),
-    React.createElement(EvalCaseEditor, { onClose: () => {} }));
+    React.createElement(EvalCaseEditor, { seed, onClose: () => {} }));
 }
 
 Object.assign(window, { ScreenCIRuns, ScreenEvalCase, EvalCaseEditor });
