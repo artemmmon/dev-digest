@@ -35,7 +35,7 @@ If the target is missing, ambiguous or does not exist, return the clarification 
 
 ## Step 1: Context
 
-Read the root and package `AGENTS.md`, and the nearest `INSIGHTS.md`. Read `onion-architecture/references/devdigest.md` for known debt: report known documented debt as `SUGGESTION` with `"known_debt": true`, or skip it — never report it as new. Read `frontend-architecture/references/devdigest.md` and `boundaries-and-naming.md`.
+Read the root and package `AGENTS.md`, and the nearest `INSIGHTS.md`. Read `onion-architecture/references/devdigest.md`: it lists no known debt, so every violation you or the Check find is new. Read `frontend-architecture/references/devdigest.md` and `boundaries-and-naming.md`.
 
 ## Step 2: Mechanical checks
 

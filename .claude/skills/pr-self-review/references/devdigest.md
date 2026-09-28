@@ -13,11 +13,11 @@ How the skill maps onto this repository, plus what is known to be rough and what
 | Every package has `typecheck`, `lint`, `test` | root `AGENTS.md` | the deterministic checks |
 | `server/clones/` holds a full copy of the repo | root `AGENTS.md` | `excluded`: never read, never hashed |
 | `server/src/db/migrations/` is generated; lock files are never hand-edited | root `AGENTS.md` → Do not touch | `generated`, `hand-edited-generated` |
-| `server/src/vendor/shared` is canonical, `client/src/vendor/shared` a byte-identical copy | root `AGENTS.md` → Cross-package rules | `shared-contracts` check, `contract-drift` |
+| `server/src/vendor/shared` is canonical, `client/src/vendor/shared` a content-identical copy (relative imports lose `.js`) | root `AGENTS.md` → Cross-package rules | `shared-contracts` check, `contract-drift` |
 | A server test that touches the DB must end in `.it.test.ts` | root `AGENTS.md` → Naming | `db-test-naming`, and why `test:unit` is used |
 | `reviewer-core/**` also triggers the server CI lane | `.github/workflows/server-unit.yml` | server checks run when reviewer-core changes |
 | `pnpm arch` runs the onion-architecture dependency-cruiser config | `server/package.json` | `arch` check |
-| Branches `lesson-NN`, base is `main`, push and PR go to the fork only | root `AGENTS.md`, memory | base is `origin/main` for a never-pushed branch, the upstream otherwise (gate.md → Scope) |
+| Branches `lesson-NN`, base is `main` | root `AGENTS.md` → Naming | base is `origin/main` for a never-pushed branch, the upstream otherwise (gate.md → Scope) |
 
 ## Checks per package
 

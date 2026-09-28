@@ -13,6 +13,7 @@ components; import boundaries and naming. Performance is out of scope.
 | Version | Date | Change |
 |---|---|---|
 | 1.0.0 | 2026-09-18 | Initial version: 55 sources, 6 topic references + DevDigest mapping |
+| 1.0.1 | 2026-09-28 | `devdigest.md`: contracts are a content-identical copy updated by `shared-contracts.sh sync`; env is read in `src/config/env.ts`; query keys come from `src/lib/query-keys.ts` |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule or
 reference, **major** when a rule is reversed. Add a changelog row each time.

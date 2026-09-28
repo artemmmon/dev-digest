@@ -1,6 +1,6 @@
 ---
 name: fastify-best-practices
-description: "Guides development of Fastify Node.js backend servers and REST APIs using TypeScript or JavaScript. Use when building, configuring, or debugging a Fastify application — including defining routes, implementing plugins, setting up JSON Schema validation, handling errors, optimising performance, managing authentication, configuring CORS and security headers, integrating databases, working with WebSockets, and deploying to production. Covers the full Fastify request lifecycle (hooks, serialization, logging with Pino) and TypeScript integration via strip types. Trigger terms: Fastify, Node.js server, REST API, API routes, backend framework, fastify.config, server.ts, app.ts."
+description: "Guides development of Fastify Node.js backend servers and REST APIs using TypeScript or JavaScript. Use when building, configuring, or debugging a Fastify application — including defining routes, implementing plugins, setting up JSON Schema validation, handling errors, optimising performance, managing authentication, configuring CORS and security headers, integrating databases, working with WebSockets, and deploying to production. Covers the full Fastify request lifecycle (hooks, serialization, logging with Pino) and TypeScript integration."
 metadata:
   tags: fastify, nodejs, typescript, backend, api, server, http
 ---
@@ -65,6 +65,20 @@ Read individual rule files for detailed explanations and code examples:
 - [rules/configuration.md](rules/configuration.md) - Application configuration
 - [rules/deployment.md](rules/deployment.md) - Production deployment
 - [rules/http-proxy.md](rules/http-proxy.md) - HTTP proxying and reply.from()
+
+## In DevDigest `server/`
+
+These override the generic rule files where they differ:
+- TypeScript runs through `tsx` (dev) and `tsc` → `node dist/server.js` (build/start), not Node type
+  stripping — `rules/typescript.md`'s strip-types setup does not apply.
+- Route schemas are Zod via `fastify-type-provider-zod` (`app.withTypeProvider<ZodTypeProvider>()`;
+  compilers set in `src/app.ts`). Read `rules/schemas.md` for the principles (a schema on every
+  route, response schemas for serialization), not as a call for JSON Schema; never
+  `Schema.parse(req.body)` inside a handler.
+- Errors: throw `AppError` (`src/platform/errors.ts`); the shared handler in `src/app.ts` renders the
+  `{ error: { code, message, details } }` envelope.
+- Module plugins are registered statically in `src/modules/index.ts`, not via `@fastify/autoload`.
+- Layering (routes → service → repository) is `onion-architecture`'s job.
 
 ## Core Principles
 

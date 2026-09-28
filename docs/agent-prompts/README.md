@@ -36,11 +36,12 @@ fixture / not for production / ignore this" never descope the review. You do not
 need to repeat any of this in your prompt — it is always there.
 
 **User message** = the task and all context, in this order, each untrusted block
-delimiter-wrapped (`prompt.ts:104-122`):
+delimiter-wrapped (`assemblePrompt` in `reviewer-core/src/prompt.ts`):
 
 ```
 <task line, e.g. "Review PR #7 '…'">
 ## PR description        (untrusted, author-controlled, truncated to 4000 chars)
+## PR intent (derived; a hint, not a spec)  (untrusted, truncated to 1500 chars; followed by the trusted INTENT_SCOPE_RULE)
 ## Skills / rules        (bound skills, one `### Skill: <name>` block each, in binding order)
 ## Relevant memory       (curated memory items)
 ## Repo skeleton         (untrusted, repo-derived)
@@ -111,23 +112,23 @@ that doesn't match it. Consequences for prompt authors:
   it onto the enum inconsistently and inflate severities.
 - **Field *meaning* belongs in the schema's `.describe()`, field *judgment* belongs
   in the prompt.** The prompt's job is to tell the model *what to flag and at what
-  severity*, and *when each verdict applies* — not what the JSON looks like.
+  severity* — not what the JSON looks like.
 
 ## Required conventions (every reviewer prompt)
 
-Every reviewer prompt must end with three blocks, because the engine derives
-numbers and gates from what the model returns:
+Every reviewer prompt must end with the severity and findings-discipline blocks,
+because the engine derives numbers and gates from what the model returns:
 
 1. **Severity rubric** mapped to the three enum levels, with an explicit
    anti-inflation rule. Only `CRITICAL` blocks merge, so a model that calls
    everything CRITICAL turns every PR into a blocker. State plainly that speculative
    issues ("might be", "if not already handled") are at most `WARNING`.
 
-2. **Verdict semantics.** The model owns `verdict`, so it must be told the mapping:
-   `request_changes` ⇔ at least one CRITICAL; `comment` ⇔ only non-blocking
-   findings; `approve` ⇔ empty findings list. **No findings ⇒ approve.** Without
-   this, models default `verdict` arbitrarily (we have observed `request_changes`
-   returned with zero findings and a summary saying "no issues found").
+2. **Verdict semantics — optional.** The engine recomputes `verdict` from the
+   grounded findings (see below), so the model's value is ignored. The seeded prompts
+   still carry a `# Verdict` block stating the same mapping (`request_changes` ⇔ at
+   least one CRITICAL; `comment` ⇔ only non-blocking findings; `approve` ⇔ empty
+   findings list); it is harmless but not required in a new prompt.
 
 3. **Findings discipline.** No duplicate findings; no padding toward a count. There
    is no minimum or target — zero is a good answer. Models treat "return at most N
@@ -145,9 +146,14 @@ numbers and gates from what the model returns:
 - **Findings are citation-grounded**: a finding whose line range doesn't intersect a
   real diff hunk is dropped (`grounding.ts`). Cite real `file:line` from the diff or
   the finding disappears.
-- **`verdict` is currently passed through from the model** (`run.ts:208`). That is
-  why a wrong verdict reaches the UI unchanged — and why the verdict convention
-  above is load-bearing until/unless the verdict is also derived deterministically.
+- **Findings are scope-filtered** after grounding (`scope.ts`): the engine's
+  `INTENT_SCOPE_RULE` asks the model to tag each finding `scope`, and findings tagged
+  `out_of_scope` (or lying in hunks the intent step judged unrelated) are dropped below
+  the threshold severity or folded into one out-of-scope signal finding. Don't add your
+  own "ignore code unrelated to the PR" rule — scope never lowers severity or hides a finding.
+- **`verdict` is recomputed** from the grounded, scope-filtered findings
+  (`verdictFromFindings` in `reduce.ts`) with the same rule as the GitHub review
+  event: none ⇒ approve, any CRITICAL ⇒ request_changes, otherwise comment.
 
 ## Severity / verdict / gate at a glance
 
@@ -155,7 +161,7 @@ numbers and gates from what the model returns:
 |---|---|
 | `findings[].severity` | recompute `score`; count CRITICAL as blockers |
 | `score` | **ignored** — recomputed from findings |
-| `verdict` | passed through to the review record (shown in the UI) |
+| `verdict` | **ignored** — recomputed from findings |
 | `findings[]` | citation-grounded; ungrounded ones dropped |
 
 The per-agent merge gate (`agents.ciFailOn`, default `critical`) decides when a CI
@@ -168,7 +174,6 @@ model's `verdict`. Keep your severities honest and the gate behaves.
 - [ ] "Analyze along the execution path; state the mechanism" guidance.
 - [ ] Quality bar: precision over volume; empty list is allowed.
 - [ ] Severity rubric using `CRITICAL/WARNING/SUGGESTION` + anti-inflation rule.
-- [ ] Verdict mapping incl. "no findings ⇒ approve".
 - [ ] Findings discipline: distinct only, no count target.
 - [ ] No JSON shape / markdown layout / alternate severity scale described in prose.
 - [ ] No "return at most N findings" quota.

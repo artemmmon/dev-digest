@@ -5,7 +5,7 @@ p-queue). Covers which ring a file belongs to, which way imports may point, wher
 calls, jobs, parsing and business rules live, and a runnable dependency-cruiser check. Query
 tuning, Fastify internals and client code are out of scope.
 
-- **Version:** 1.1.0 (also in `SKILL.md` frontmatter → `metadata.version`)
+- **Version:** 1.2.1 (also in `SKILL.md` frontmatter → `metadata.version`)
 - **Sources verified:** 2026-09-18
 - **Related skills:** `fastify-best-practices`, `drizzle-orm-patterns`, `postgresql-table-design`, `zod`, `frontend-architecture`
 
@@ -16,6 +16,7 @@ tuning, Fastify internals and client code are out of scope.
 | 1.0.0 | 2026-09-18 | Initial version: 25 sources, 3 references, depcruise config + known-violations baseline |
 | 1.1.0 | 2026-09-18 | Aligned with `frontend-architecture` (README format, Read next, Out of scope, open questions, contents in long references); one term set (core / application / outer ring); rule `application-no-infrastructure` split into `application-no-outer-ring` + fail-closed `application-allowed-packages`; 3 evals and the gaps they exposed (see Evaluation log) |
 | 1.2.0 | 2026-09-19 | Debt paid down to zero: baseline and `--ignore-known` removed, worked examples added (pulls, settings, repos, agents, reviews, repo-intel), `_shared/ports.ts` documented, `review-debt` eval turned into a no-false-positive check |
+| 1.2.1 | 2026-09-28 | Leftover debt guidance removed from `devdigest.md` (intro sentence, §3 "adding to a debt service", "missing ports" list, `JobQueue` open question) and sections renumbered; contract changes go through `shared-contracts.sh sync`, not by editing both copies |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule,
 reference or check, **major** when a rule is reversed. Add a changelog row each time.
@@ -25,7 +26,7 @@ reference or check, **major** when a rule is reversed. Add a changelog row each 
 | File | Answers |
 |---|---|
 | [SKILL.md](SKILL.md) | The dependency rule, rings table, principles, "where does X go?", workflow, Check command |
-| [references/devdigest.md](references/devdigest.md) | Existing ports and mocks, the Container, known debt, open questions |
+| [references/devdigest.md](references/devdigest.md) | Existing ports and mocks, the Container, worked-example modules, open questions |
 | [references/tools.md](references/tools.md) | Fastify, Drizzle, zod, SDKs, p-queue/jobs, reviewer-core, tests: each tool's ring and rules |
 | [references/patterns.md](references/patterns.md) | Code shapes: port, repository, service, wiring, route, unit of work, ACL adapter, fakes, pulls before/after |
 | [assets/dependency-cruiser.cjs](assets/dependency-cruiser.cjs) | The 9 enforceable rules, `SDK_PKGS` and the application allowlist (run it; edit the lists when adding a package) |

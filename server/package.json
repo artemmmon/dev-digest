@@ -19,7 +19,7 @@
     "experiment:api-contract": "tsx src/experiments/api-contract-experiment.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.33.1",
+    "@anthropic-ai/sdk": "^0.128.0",
     "@ast-grep/napi": "0.43.0",
     "@fastify/autoload": "^6.0.3",
     "@fastify/cors": "^10.0.2",

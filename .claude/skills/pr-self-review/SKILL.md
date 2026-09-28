@@ -4,7 +4,7 @@ description: Pre-PR self-review of the local changes on the current DevDigest br
 argument-hint: "[--base <ref>]"
 disable-model-invocation: true
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # PR Self Review

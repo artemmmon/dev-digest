@@ -1,4 +1,5 @@
 import type { Finding, Review, UnifiedDiff } from '@devdigest/shared';
+import { gateTriggered } from '../output/to-review.js';
 
 /**
  * Reduce + slice helpers for map-reduce reviews. Pure (no DB / `this`), so they
@@ -27,6 +28,17 @@ const SEVERITY_PENALTY: Record<Finding['severity'], number> = {
 export function scoreFromFindings(findings: Finding[]): number {
   const penalty = findings.reduce((sum, f) => sum + (SEVERITY_PENALTY[f.severity] ?? 0), 0);
   return Math.max(0, Math.min(100, 100 - penalty));
+}
+
+/**
+ * Deterministic verdict from the (grounded, scope-filtered) findings — NOT the
+ * model's self-reported `verdict`, which can contradict the findings that
+ * survive grounding. Same rule as the GitHub review event in `to-review.ts`
+ * (default gate): none ⇒ approve, any CRITICAL ⇒ request_changes, else comment.
+ */
+export function verdictFromFindings(findings: Finding[]): Review['verdict'] {
+  if (findings.length === 0) return 'approve';
+  return gateTriggered(findings, 'critical') ? 'request_changes' : 'comment';
 }
 
 /** Verdict severity order for the reduce step (worst verdict wins). */

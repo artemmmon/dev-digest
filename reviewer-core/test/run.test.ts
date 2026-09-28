@@ -227,6 +227,8 @@ describe('reviewPullRequest — intent slot + scope policy (L03)', () => {
     // grounded-but-pre-scope set (which would score 88).
     expect(outcome.review.findings).toHaveLength(0);
     expect(outcome.review.score).toBe(100);
+    // The model said request_changes; with nothing left the verdict is recomputed.
+    expect(outcome.review.verdict).toBe('approve');
     expect(outcome.dropped.some((d) => d.reason === 'out_of_scope')).toBe(true);
   });
 });

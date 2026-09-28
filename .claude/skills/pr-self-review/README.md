@@ -18,6 +18,7 @@ button on GitHub are out of scope.
 | 1.0.0 | 2026-09-19 | Initial version: 30 sources, 5 references, 6 scripts + 36 script tests, 2 subagents, PreToolUse + pre-push gate, 5 evals (see Evaluation log) |
 | 1.1.0 | 2026-09-19 | Review scope follows the remote: a never-pushed branch is reviewed as the whole pull request, a branch with an upstream only for what is unpushed (`scope` in `collect.json` and the verdict); 5 script tests; eval `incremental-push` |
 | 1.2.0 | 2026-09-21 | Auto-invocation off: `disable-model-invocation: true`; the review runs only when the user types `/pr-self-review`, and the gate tells Claude to ask for it instead of running it |
+| 1.2.1 | 2026-09-28 | `references/devdigest.md`: the client contracts copy is content-identical (relative imports lose `.js`), not byte-identical; the branch fact no longer cites a fork-only rule that root `AGENTS.md` does not contain |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule, reference or check,
 **major** when a rule is reversed. Add a changelog row each time. Changing `routing.json` is a minor bump.

@@ -3,8 +3,7 @@
 Inside `server/` the **existing conventions win**: file names stay as the root `AGENTS.md`
 defines them (`routes.ts` → `service.ts` → `repository/`), and the rings are expressed through
 **imports**, not new folders. New code follows the rules below. Don't refactor existing code
-toward them unless the task asks for it. The exception is a known-debt file you are already
-changing: leave it cleaner than you found it. Divergences from the sources are listed at the
+toward them unless the task asks for it. Divergences from the sources are listed at the
 end as open questions. Raise them rather than silently "fixing" them.
 
 Also read `server/AGENTS.md` (commands, conventions) and `server/INSIGHTS.md` (gotchas)
@@ -13,11 +12,10 @@ before changing code.
 ## Contents
 1. Ports that already exist
 2. The Container
-3. Adding to a module whose service is debt
-4. reviewer-core is the reference core
-5. Known debt
-6. Repo reminders
-7. Open questions
+3. reviewer-core is the reference core
+4. Worked examples
+5. Repo reminders
+6. Open questions
 
 ## 1. Ports that already exist
 
@@ -33,9 +31,8 @@ before changing code.
 | `AuthProvider` / `SecretsProvider` | `auth/local.ts` / `secrets/local.ts` | `MockAuthProvider` / `MockSecretsProvider` |
 
 Also port-shaped: `RepoIntel` (`modules/repo-intel/types.ts`), `DepGraph`, `Tokenizer`.
-Missing and worth adding when you touch the area: **repository ports** (`ReviewStore`,
-`AgentStore`, …), a **`JobQueue`** port over `platform/jobs.ts`, and parser ports for
-`adapters/astgrep` + `adapters/codeindex/extract` (repo-intel calls them directly today).
+Cross-module ports (`JobQueue`, `RunBusPort`) live in `modules/_shared/ports.ts`; each module's
+store and other ports sit in its own `ports.ts` (§4). Reuse them before adding a new one.
 
 ## 2. The Container
 
@@ -54,23 +51,13 @@ Missing and worth adding when you touch the area: **repository ports** (`ReviewS
 - A service that builds its own collaborators (`ReviewService` → `ReviewRunExecutor`) forwards a
   new port through its constructor. Don't reach into the container from the inner object.
 
-## 3. Adding to a module whose service is debt
-
-- **Small change** (new method, one new dependency): add the port as a constructor argument
-  next to the existing `Container` and use only the port in the new code. Don't widen the
-  Container usage.
-- **New feature with its own dependencies:** add a sibling port-based service in the same module
-  (`<feature>-service.ts`, kebab-case) rather than refactoring the old one.
-- **Cleanup budget:** fix only the violations that block your change or sit in the lines you
-  touch. A full migration of a debt module is its own task.
-
-## 4. reviewer-core is the reference core
+## 3. reviewer-core is the reference core
 
 `reviewer-core/` already obeys the onion: pure engine, the only side effect is an injected
 `LLMProvider`, enforced by `no-restricted-imports` in `reviewer-core/eslint.config.mjs`.
 Copy its style; never let it import `server/src` except via `@devdigest/shared`.
 
-## 5. Worked examples (no known debt)
+## 4. Worked examples (no known debt)
 
 The Check finds zero violations and there is no baseline, so any violation is new. Copy the shape of
 these modules — ports → repository → service → thin routes:
@@ -92,10 +79,11 @@ Still not covered by the Check (review these by hand): `import` of `platform/res
 `platform/run-logger.ts` from application code (pure helpers in the outer folder), and the concrete
 `RepoIntelRepository` class that `RepoIntelService` receives by constructor.
 
-## 6. Repo reminders that interact with the rings
+## 5. Repo reminders that interact with the rings
 
-- Contract change → edit **both** `server/src/vendor/shared` and `client/src/vendor/shared`,
-  including server-only ports in `adapters.ts` (the client has a copy; keep them in step).
+- Contract change → edit `server/src/vendor/shared` (server-only ports in `adapters.ts`
+  included), then run `./scripts/shared-contracts.sh sync` from the repo root; never edit the
+  client copy by hand.
 - Errors: throw `AppError` subclasses from `platform/errors.ts`; the app error handler
   renders the envelope.
 - Tests touching Postgres end in `.it.test.ts` (Testcontainers); service tests with fakes
@@ -103,7 +91,7 @@ Still not covered by the Check (review these by hand): `import` of `platform/res
   (`test/repo-intel-resync.test.ts` does).
 - `server/src/db/migrations/` is generated — never hand-edit.
 
-## 7. Open questions (divergences from the sources)
+## 6. Open questions (divergences from the sources)
 
 1. **Where the rules run.** Sources run dependency rules on every commit or in CI, next to ESLint [S23][S24][S25].
    Here the config lives in the skill and `pnpm arch` runs it in CI (`server-unit.yml`); with zero
@@ -112,7 +100,5 @@ Still not covered by the Check (review these by hand): `import` of `platform/res
 2. **Repository ports everywhere?** Palermo puts an interface in front of every repository [S1];
    pragmatic guides add ports only where I/O or test substitution needs them [S8][S9].
    Existing repositories are concrete classes. Add ports for new code, and for old code only when you touch it.
-3. **A `JobQueue` port.** Services reach `container.jobs` (`JobRunner`) directly today. A narrow
-   `enqueue` port (patterns.md §1) would decouple them. Nothing uses one yet.
-4. **Home for `repo-intel/constants.ts`.** Adapters (`astgrep`, `depgraph`) and `repos` import it.
-   It belongs in core (`vendor/shared`), but moving it changes both contract copies.
+3. **Home for `repo-intel/constants.ts`.** Adapters (`astgrep`, `depgraph`) and `repos` import it.
+   It belongs in core (`vendor/shared`), but moving it is a contract change (server copy + sync).

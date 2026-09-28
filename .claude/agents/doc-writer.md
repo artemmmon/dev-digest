@@ -33,7 +33,7 @@ Stop with the Clarification report below if:
 
 ## Step 1: Read
 
-Read the root `AGENTS.md:44-46` and the target package's Documentation section. Read `docs/README.md`, `specs/README.md`, and the target folder's own README index. Read `INSIGHTS.md:30-36` for the kind of drift that has happened before. Search for an existing doc on the topic first, and prefer updating it over adding a new one.
+Read the `Docs:` bullet under Naming in the root `AGENTS.md` and the target package's Documentation section. Read `docs/README.md`, `specs/README.md`, and the target folder's own README index. Read the root `INSIGHTS.md` entry "Supersedes 'Docs drift from code'" for the kind of drift that has happened before. Search for an existing doc on the topic first, and prefer updating it over adding a new one.
 
 ## Step 2: Kind and location
 
