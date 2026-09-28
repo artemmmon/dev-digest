@@ -134,6 +134,14 @@ problems... are not reported"), `.claude/agents/pr-finding-verifier.md:3` ("Spaw
 pr-self-review only"), `.claude/agents/pr-finding-verifier.md:14-16` (checks the line is inside the
 change; `refuted` when "not caused by this change").
 
+### 2026-09-28 — The security skill's severity table is not the project's
+`.claude/skills/security/SKILL.md:251-258` has its own CRITICAL/HIGH/MEDIUM/LOW table, and
+claude-code-security-review uses HIGH/MEDIUM/LOW. Security findings in this repo use `severity.md`
+(CRITICAL only as `security-vuln` with a concrete exploit path); the skill's HIGH/MEDIUM/LOW is
+used only as the *confidence* tier that decides whether a finding is reported at all.
+Where: `.claude/skills/pr-self-review/references/severity.md:26`,
+`.claude/agents/security-reviewer.md:69` (the Severity section).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
@@ -217,6 +225,16 @@ and changed nothing, although `install` itself reported "installed: 1.1.0". What
 … --scope project` then `install … --scope project` — it rewrites `.claude/settings.json` (moves `enabledPlugins`),
 so `git checkout .claude/settings.json` afterwards — then `doctor.mjs --fix` from the new cache folder for Playwright.
 Where: `.claude/settings.json:24`, `docs/demo-video.md:36`.
+
+### 2026-09-28 — Subagents can nest; brainstorm stays one agent for cost
+Claude Code subagents may spawn subagents, up to 3 layers (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`);
+denying `Agent` stops it. Best-of-N (Anthropic calls it "parallelization — voting") as N parallel
+agents would cost about N× tokens. That is an estimate, not a measurement: cost is context × calls
+per agent, and each option-agent would re-read the same repo context. So `brainstorm` generates
+all options in one context instead of spawning one agent per option. Revisit only if option
+quality suffers.
+Where: `.claude/agents/brainstorm.md:5` (`disallowedTools` denies `Agent`),
+`docs/agent-workflow-cost.md:28` (context × calls per agent; the N× figure is inferred from it).
 
 ## Recurring Errors & Fixes
 
