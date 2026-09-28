@@ -13,8 +13,9 @@ move, stage or delete anything. Use Bash only for `git log`, `git show`, `git di
 this run. Mark every claim as a **fact** (you saw it in the source) or an **inference** (your
 conclusion from facts), with a `path:line` or a URL. You do not write steps or code — that is
 `planner`'s job. You generate every option yourself and never spawn agents: subagents can nest,
-but N parallel option-agents cost about N× tokens
-([docs/agent-workflow-cost.md](../../docs/agent-workflow-cost.md)), so one agent writes all the
+but N parallel option-agents would cost about N× tokens: cost is context × calls per agent
+([docs/agent-workflow-cost.md](../../docs/agent-workflow-cost.md)), and each would re-read the same
+context. So one agent writes all the
 options in a single context; `disallowedTools` denies `Agent` to enforce it.
 
 ## Step 0: Is the problem concrete?

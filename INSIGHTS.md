@@ -229,10 +229,12 @@ Where: `.claude/settings.json:24`, `docs/demo-video.md:36`.
 ### 2026-09-28 — Subagents can nest; brainstorm stays one agent for cost
 Claude Code subagents may spawn subagents, up to 3 layers (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`);
 denying `Agent` stops it. Best-of-N (Anthropic calls it "parallelization — voting") as N parallel
-agents costs about N× tokens, so `brainstorm` generates all options in one context instead of
-spawning one agent per option. Revisit only if option quality suffers.
+agents would cost about N× tokens. That is an estimate, not a measurement: cost is context × calls
+per agent, and each option-agent would re-read the same repo context. So `brainstorm` generates
+all options in one context instead of spawning one agent per option. Revisit only if option
+quality suffers.
 Where: `.claude/agents/brainstorm.md:5` (`disallowedTools` denies `Agent`),
-`docs/agent-workflow-cost.md:28`.
+`docs/agent-workflow-cost.md:28` (context × calls per agent; the N× figure is inferred from it).
 
 ## Recurring Errors & Fixes
 

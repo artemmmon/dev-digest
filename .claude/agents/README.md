@@ -105,8 +105,9 @@ behind these rules are in [docs/agent-workflow-cost.md](../../docs/agent-workflo
 
 - **brainstorm runs on Opus 5.5 as one agent.** The model is pinned to `claude-opus-5-5` because
   the user asked for it. Subagents can nest (up to 3 layers,
-  `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`), but N parallel option-agents cost about N× tokens
-  ([agent-workflow-cost.md](../../docs/agent-workflow-cost.md)). So one agent writes all options
+  `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`), but N parallel option-agents would cost about N× tokens. That is an estimate: cost is context ×
+  calls per agent ([agent-workflow-cost.md](../../docs/agent-workflow-cost.md)), and each
+  option-agent would re-read the same context. So one agent writes all options
   and denies `Agent`. The main session sets the brief's `Status: chosen: option <k>` after the
   user picks, then passes the brief path to `planner`.
 - **One implementer run per step group.** Run the plan's step groups in order, each in a fresh
@@ -219,7 +220,7 @@ Checked 2026-09-28 by `researcher`:
 | [NASA SE Handbook §6.8 Decision Analysis](https://www.nasa.gov/reference/6-8-decision-analysis/) | Measurable, differentiating criteria; weights set before scoring; sensitivity analysis |
 | [Decision-matrix method](https://en.wikipedia.org/wiki/Decision-matrix_method) (community) | Corroborates weighted scoring and the sensitivity study |
 | [Claude Code best practices](https://code.claude.com/docs/en/best-practices) | Explore, then plan, then code: an options step before planning |
-| [agent-workflow-cost.md](../../docs/agent-workflow-cost.md) | N parallel agents ≈ N× tokens, hence one agent |
+| [agent-workflow-cost.md](../../docs/agent-workflow-cost.md) | Cost is context × calls per agent; N option-agents re-reading one context ≈ N× tokens (inferred), hence one agent |
 
 ### security-reviewer
 
