@@ -13,7 +13,7 @@ Zod is a TypeScript-first schema declaration and validation library. This skill 
 - **Object Schemas**: strict/strip modes, partial updates, discriminated unions
 - **Schema Composition**: Reusable schemas, intersections, recursive types
 - **Refinements & Transforms**: Custom validation, data transformation
-- **Performance**: Caching, Zod Mini, lazy loading, batch validation
+- **Performance**: Caching, lazy loading, batch validation
 
 ## Usage
 
@@ -76,4 +76,3 @@ zod/
 - [Zod Official Documentation](https://zod.dev/)
 - [Zod v4 Release Notes](https://zod.dev/v4)
 - [Zod GitHub](https://github.com/colinhacks/zod)
-- [Zod Mini](https://zod.dev/packages/mini)

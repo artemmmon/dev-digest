@@ -7,6 +7,13 @@ description: "General-purpose React Testing Library guide with Vitest. Use when 
 
 General-purpose guide for testing React components and hooks with React Testing Library (RTL) and Vitest. Project-agnostic — works with any Vite + React setup.
 
+> **In DevDigest `client/`** these override the generic parts below:
+> - Setup already exists (`client/vitest.config.ts`, `src/test/setup.ts`); skip "Setup from Scratch". Package manager is pnpm.
+> - Render with `renderWithIntl` from `@/test/render` (next-intl with the real messages, a fresh QueryClient, the toast host), not bare `render`.
+> - Next.js App Router, no react-router: `vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))` instead of `MemoryRouter`.
+> - MSW is not installed. Mock data at the hook or API seam: `vi.mock("@/lib/hooks/<domain>", …)` (most tests) or `vi.mock("@/lib/api", …)`; `vi.hoisted` holds per-test data. Example: `src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.test.tsx`.
+> - Files are `<Name>.test.tsx` next to the component.
+
 ## Philosophy: Fewer Tests, Real Scenarios
 
 > "Write tests. Not too many. Mostly integration." — Kent C. Dodds
@@ -599,5 +606,5 @@ vi.useRealTimers(); // restore in afterEach
 | Importing from `jest` | Import from `vitest` (`vi.fn()`, `vi.mock()`) |
 | Mocking what you're testing | Mock dependencies, not the subject |
 | `act()` wrapping RTL calls | RTL handles `act()` internally |
-| Mocking Axios/fetch directly | Use MSW for network-level mocking |
+| Mocking Axios/fetch directly | Use MSW for network-level mocking (not in DevDigest: mock `@/lib/hooks` or `@/lib/api` instead) |
 | Testing every prop combination | Test the meaningful user-facing differences only |

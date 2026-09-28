@@ -30,27 +30,32 @@ tokens) as surfaced by the studio's model list; verify live before relying on th
 
 | Model | in / out ($/M) | ~$/run | Notes |
 |---|---|---|---|
-| `deepseek/deepseek-v4-flash` *(current default)* | 0.09 / 0.18 | **~$0.0015** | Fast, nearly free. Severity inflation + weak instruction-following. |
-| `deepseek/deepseek-v3.2` | 0.23 / 0.34 | ~$0.003 | Cheap step up, decent reasoning. |
-| `deepseek/deepseek-chat-v3.1` | 0.21 / 0.79 | ~$0.004 | Solid budget reviewer. |
-| **`deepseek/deepseek-v4-pro`** ⭐ | 0.435 / 0.87 | **~$0.006** | **Best cheap upgrade.** Same family/provider → drop-in (no prompt or format change), 1M context, clearly stronger reasoning. Start here. |
+| `deepseek/deepseek-v4-flash` *(current default)* | 0.14 / 0.28 | **~$0.002** | Fast, nearly free. Severity inflation + weak instruction-following. |
+| `deepseek/deepseek-v3.2` | 0.28 / 0.42 | ~$0.004 | Cheap step up, decent reasoning. |
+| `deepseek/deepseek-chat-v3.1` | 0.25 / 0.95 | ~$0.004 | Solid budget reviewer. |
+| **`deepseek/deepseek-v4-pro`** ⭐ | 0.955 / 1.91 | **~$0.014** | **Best cheap upgrade.** Same family/provider → drop-in (no prompt or format change), 1M context, clearly stronger reasoning. Start here. |
 | `anthropic/claude-haiku-4.5` | 1 / 5 | ~$0.02 | Cheapest Claude; good at holding the rubric. |
 | `google/gemini-2.5-pro` | 1.25 / 10 | ~$0.03 | Strong, good value. |
-| `openai/gpt-4.1` | 2 / 8 | ~$0.035 | Reliable instruction-following. |
-| **`anthropic/claude-sonnet-4.6`** ⭐ | 3 / 15 | **~$0.05** | **Quality benchmark.** Best severity calibration, lowest false-positive rate of the practical options. Use to see what a great review looks like. |
-| `anthropic/claude-opus-4.8` | 5 / 25 | ~$0.10 | Top-tier reasoning; overkill for routine review, useful as a gold-standard reference. |
+| `openai/gpt-4.1` | 2 / 8 | ~$0.036 | Reliable instruction-following. |
+| `anthropic/claude-sonnet-5` | 2 / 10 | ~$0.04 | Newer and cheaper than Sonnet 4.6; not yet compared on this project's PRs. |
+| **`anthropic/claude-sonnet-4.6`** ⭐ | 3 / 15 | **~$0.06** | **Quality benchmark.** Best severity calibration, lowest false-positive rate of the practical options. Use to see what a great review looks like. |
+| `anthropic/claude-opus-5` | 5 / 25 | ~$0.10 | Top-tier reasoning; overkill for routine review, useful as a gold-standard reference. |
+| `anthropic/claude-opus-4.8` | 5 / 25 | ~$0.10 | Previous Opus; same price as Opus 5. |
 
-(All ~40× the default still lands at ≈5 cents/run — trivial for evaluating quality.)
+Prices checked against OpenRouter's `/api/v1/models` on 2026-09-28.
+
+(Even ~50× the default lands at ≈10 cents/run — trivial for evaluating quality.)
 
 ## Recommendation
 
 1. **Cheap, low-risk upgrade → `deepseek/deepseek-v4-pro`.** Only the `model` field
    changes; everything else (prompts, structured output, context) is identical. This
-   alone should remove most of the severity-inflation wobble. ~4× the cost, still a
-   fraction of a cent per run.
+   alone should remove most of the severity-inflation wobble. ~7× the cost, still
+   about a cent per run.
 2. **Quality benchmark → `anthropic/claude-sonnet-4.6`.** Switch one agent to it and
-   compare side by side. If the quality jump is worth ~$0.05/run for your use, make
-   it the default for the gating agents (e.g. Security).
+   compare side by side. If the quality jump is worth ~$0.06/run for your use, make
+   it the default for the gating agents (e.g. Security). `anthropic/claude-sonnet-5`
+   is newer and cheaper — worth adding to the same A/B.
 3. **Mixed strategy.** Cheap model for advisory/Performance passes, a strong model
    for the agent that actually blocks merge (Security). Cost follows importance.
 
@@ -61,8 +66,8 @@ tokens) as surfaced by the studio's model list; verify live before relying on th
    **Run Review** button).
 3. Compare the runs in the timeline + the raw model output in each run's trace
    (`run_traces.raw_output`). Look at: were the findings real, was severity honest,
-   did the verdict match the findings, any duplicates or false trifecta?
+   any duplicates or false trifecta?
 
-Because `score` and the merge gate are derived deterministically from the grounded
+Because `score`, `verdict` and the merge gate are derived deterministically from the grounded
 findings (not the model's self-report), the comparison is apples-to-apples across
 models — only the findings and their severities change.

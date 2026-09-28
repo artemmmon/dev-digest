@@ -2,7 +2,7 @@
 name: onion-architecture
 description: Onion Architecture rules for the DevDigest backend (Fastify 5 + Drizzle + zod + Octokit/LLM SDKs + p-queue) — which ring a file belongs to, which way imports may point, where a query, an SDK call, a job handler, a zod parse or a business rule lives, how services get their dependencies (ports via constructor), transactions, error mapping, and a runnable dependency-cruiser check. Use whenever creating or changing anything under server/src/modules/**, adding a route, service, repository, adapter, job or third-party SDK, wiring platform/container.ts, reviewing backend code, or answering "where does this belong?" on the server — even if the word "architecture" is never used. Not for client code (see frontend-architecture) or query tuning (see drizzle-orm-patterns).
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Onion Architecture (DevDigest server)
@@ -10,7 +10,7 @@ metadata:
 Decisions about **which ring code lives in and which way it may import**. Rules come from the sources in [README.md](README.md); `[S6]` marks source #6 there.
 
 > **Working in DevDigest `server/`?** Read [references/devdigest.md](references/devdigest.md)
-> first — the real ports, the Container, and the **known debt** you must not copy.
+> first — the real ports, the Container, and the worked-example modules to copy.
 
 ## The one rule
 
@@ -51,7 +51,7 @@ outer ring — not a type, not a function, not a package [S1][S6].
 | business rule / calculation | `domain.ts` or a pure helper beside the service |
 | new SQL query | module repository + a method on its port in `ports.ts` |
 | external service (GitHub, LLM, git, Slack…) | port in `adapters.ts` + `src/adapters/<name>/`; payload types beside the port |
-| new request field | zod contract in `vendor/shared` (**both** copies) + route schema |
+| new request field | zod contract in server `vendor/shared` + `shared-contracts.sh sync` + route schema |
 | background work | service method; register the job handler in the route plugin |
 | type mirroring a DB row | the repository file, never exported past the port |
 | constant an adapter needs | core (`vendor/shared` or `domain.ts`), not a module |
@@ -71,7 +71,7 @@ outer ring — not a type, not a function, not a package [S1][S6].
 Review checklist: no DB/Fastify/SDK/`adapters/*` import in application code · no query or
 business branch in `routes.ts` · zod on params/body/response · constructor takes ports, not `Container` · repository returns domain types ·
 SDK errors mapped to `AppError` · transaction in the service · no cross-module internals or
-cycles · both contract copies updated.
+cycles · client contract copy re-synced (`shared-contracts.sh sync`).
 
 ## Check
 

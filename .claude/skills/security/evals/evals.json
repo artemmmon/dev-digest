@@ -1,0 +1,46 @@
+[
+  {
+    "id": "ssrf-bypass",
+    "skills": ["security"],
+    "query": "Review this change to the DevDigest server: a new route POST /specs/import takes { url } in the body and the service loads it with `const res = await fetch(body.url); const text = await res.text();` before saving it as a project spec.",
+    "files": [
+      "server/src/modules/skills/service.ts",
+      "server/src/modules/skills/ports.ts",
+      "server/src/adapters/http/safe-fetch.ts"
+    ],
+    "expected_behavior": [
+      "Rates it CRITICAL `security-vuln` (SSRF) and states a triggering input, e.g. http://169.254.169.254/ or http://localhost:5432/",
+      "Tells the author to reuse the existing SafeHttpFetcher (container.httpFetcher) through a port, as skill import does via RemoteFileFetcher, instead of writing a new URL filter",
+      "Mentions that the fetched text is untrusted and must be fenced with wrapUntrusted if it ever reaches a prompt",
+      "Does not recommend JWT, bcrypt, Express middleware or MongoDB-specific fixes"
+    ]
+  },
+  {
+    "id": "llm-output-html",
+    "skills": ["security"],
+    "query": "Review this client change in DevDigest: to show tables in finding rationales, FindingCard now renders `<ReactMarkdown rehypePlugins={[rehypeRaw]}>{finding.rationale}</ReactMarkdown>` instead of the vendored Markdown component.",
+    "files": [
+      "client/src/vendor/ui/primitives/Markdown.tsx"
+    ],
+    "expected_behavior": [
+      "Identifies the finding rationale as LLM output steerable by the PR author (prompt injection), i.e. attacker-controlled",
+      "Rates enabling rehype-raw on it as CRITICAL `security-vuln` (stored XSS) with an example payload such as an <img onerror> in the PR description that the model echoes",
+      "Points out that remark-gfm in the existing Markdown component already renders tables, so the vendored Markdown component should be kept",
+      "Cites the LLM output rule (improper output handling), not a generic XSS checklist"
+    ]
+  },
+  {
+    "id": "clean-change",
+    "skills": ["security"],
+    "query": "Review this DevDigest server change: a new repository method `countByRepo(workspaceId, repoId)` using `db.select({ n: count() }).from(pulls).where(and(eq(pulls.workspaceId, workspaceId), eq(pulls.repoId, repoId)))`, exposed via GET /repos/:id/pull-count whose handler calls getContext and passes ctx.workspaceId to the service.",
+    "files": [
+      "server/src/modules/pulls/repository.ts",
+      "server/src/modules/_shared/context.ts"
+    ],
+    "expected_behavior": [
+      "Reports no CRITICAL: the query is built with Drizzle's query builder (parameterised) and scoped by workspace via getContext",
+      "Does not flag the known gaps from references/devdigest.md (e.g. no auth on the localhost API) as new findings, because the change does not widen them",
+      "At most suggests a zod params/response schema or similar non-security items as out of scope, and does not invent vulnerabilities"
+    ]
+  }
+]

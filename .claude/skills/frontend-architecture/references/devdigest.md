@@ -31,9 +31,9 @@ changing code, and the root `AGENTS.md` "Naming" section.
 | Hooks private to one chrome component | its own `hooks/` folder (see `components/app-shell/hooks/`) |
 | Shared pure helpers | flat in `src/lib/` as `kebab-case.ts` with a sibling test (`format-cost.ts`, `github-urls.ts`) |
 | Context providers | `src/lib/providers.tsx` (React Query + theme + repo + toast), rendered from `app/layout.tsx` |
-| Wire types / Zod contracts | `@devdigest/shared` (`src/vendor/shared/`) — a copy that lags `server/src/vendor/shared`; change both |
+| Wire types / Zod contracts | `@devdigest/shared` (`src/vendor/shared/`) — a content-identical copy of `server/src/vendor/shared`; edit the server copy, then run `./scripts/shared-contracts.sh sync` from the repo root |
 | UI strings | `messages/en/<camelCaseFeature>.json`, read with `useTranslations("<ns>")` — no hardcoded text |
-| Env | `NEXT_PUBLIC_API_BASE`, read in `src/lib/api.ts` |
+| Env | `NEXT_PUBLIC_API_BASE`, read and validated once in `src/config/env.ts` |
 
 Names: files `kebab-case.ts`, component files `PascalCase.tsx`, folders `kebab-case` except a
 component's own folder; wire-contract fields stay `snake_case`, props and locals `camelCase`.
@@ -46,7 +46,7 @@ component's own folder; wire-contract fields stay `snake_case`, props and locals
   the model) and test them in isolation; components call them, hooks wire data.
 - **Server state** — never copy query data into `useState`; derive during render.
 - **New query** — add it to the matching `src/lib/hooks/<domain>.ts` next to its siblings,
-  following the local style (inline `queryKey` arrays, `api.*` calls).
+  following the local style (keys from `src/lib/query-keys.ts`, `api.*` calls).
 
 ## Open questions (divergences from the sources)
 

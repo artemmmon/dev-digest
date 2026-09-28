@@ -1,268 +1,120 @@
 ---
 name: security
-description: "Web application security best practices based on OWASP Top 10:2025. Use when reviewing code for vulnerabilities, implementing auth/authorization, handling user input, working with file uploads, managing secrets, or building API endpoints. Covers React, Express, MongoDB, and JWT security."
+description: Security rules for the DevDigest stack (Fastify 5 API on localhost, Drizzle/Postgres, Next.js 15 client, LLM calls over untrusted PR text, git clones of third-party repos, GitHub Actions) — trust boundaries, where attacker-controlled data enters, how to handle it, and how to rate a finding. Use whenever writing or reviewing code that handles request input, outbound HTTP, git/filesystem/child processes, SQL, LLM prompts or LLM output, markdown/HTML rendering, secrets, logs, error responses, CI workflows or dependencies — even if the word "security" is never used. Not for general code quality (correctness reviewer) or architecture (onion-architecture, frontend-architecture).
+metadata:
+  version: "2.0.0"
 ---
 
-# Security Best Practices — OWASP Top 10:2025
+# Security (DevDigest)
 
-Security guidance for React + Express + MongoDB + JWT stacks. See `examples.md` for unsafe/safe code pairs, `checklists.md` for quick checklists, `references.md` for all sources.
+Decisions about **what an attacker can control and where it must be stopped**. Rules come from the
+sources in [README.md](README.md); `[S4]` marks source #4 there.
 
----
+> **Reviewing or writing DevDigest code?** Read [references/devdigest.md](references/devdigest.md)
+> first — the existing guards to reuse, and the known gaps that are not new findings.
 
-## Core Philosophy — Confidence-Based Review
+## The one question
 
-Before flagging any issue, **trace the data flow** and confirm the input source.
+**Can an attacker control this value, and which boundary does it cross next?** Trace it from where
+it enters to where it is used before rating anything. `fetch(config.apiBase)` is safe;
+`fetch(body.url)` is SSRF unless it goes through the guard.
 
-| Confidence | Criteria | Action |
-|------------|----------|--------|
-| **HIGH** | Vulnerable pattern + attacker-controlled input confirmed | **Report** with file, line, exploit, and fix |
-| **MEDIUM** | Vulnerable pattern, input source unclear | **Note** for manual verification |
-| **LOW** | Theoretical / best-practice deviation | **Do not report** — mention only if asked |
+## Where attacker-controlled data enters DevDigest
 
-**Do NOT flag**: test files, dead code, server-controlled values (env vars, config constants), framework-mitigated patterns (React JSX escaping, Mongoose parameterized queries), development-only code gated by `NODE_ENV`.
+| Source | Why it is untrusted | Reaches |
+|---|---|---|
+| Cloned repos: file contents, paths, symlinks, branch names, `package.json` | Any public repo can be imported; its author is the attacker | fs reads, git/rg args, parsers, LLM prompts |
+| PR title, body, comments, diff, linked issues | Written by the PR author | LLM prompts, intent, UI |
+| LLM output (findings, summaries, skills, conventions) | Steerable by the text above (prompt injection) [S3] | DB, UI markdown, links, CI comments |
+| HTTP requests to the API | No auth; any web page in the user's browser can try to reach `localhost` | every route |
+| User-supplied URLs (skill import) | Can point at internal hosts | outbound HTTP |
 
-> **Golden rule**: `fetch(process.env.API_URL)` = safe. `fetch(req.query.url)` = vulnerable. Always ask: **"Can an attacker control this value?"**
+Trusted: `AppConfig`, committed repo config (`routing.json`, workflows), seeded prompts, `SecretsProvider` values.
 
----
+## Rules
 
-## OWASP Top 10:2025
+1. **Outbound HTTP to a user-supplied URL goes through `SafeHttpFetcher`** (`adapters/http/safe-fetch.ts`,
+   `container.httpFetcher`, injected as a port like skills' `RemoteFileFetcher`) — never a bare
+   `fetch`/SDK `baseURL` built from input. *Why:* it enforces https, blocks private and metadata
+   ranges at connect time (defeats DNS rebinding) and re-checks every redirect [S4].
+2. **Paths from a clone stay inside the clone after `realpath`.** Reject `..`, absolute paths and
+   symlinks that resolve outside (`insideDir` in `adapters/git/simple-git.ts`). *Why:* a tracked
+   symlink `x.ts -> ~/.devdigest/secrets.json` turns a file read into key theft [S10].
+3. **No shell; end options before input.** Use `spawn`/`execFile` or simple-git argument arrays, never
+   `exec`/`shell: true` with input. Put `--` (or `-e` for a pattern) before any value an attacker can
+   start with `-`. *Why:* `rg --pre=<cmd>` or `git --upload-pack=<cmd>` executes commands [S8][S9][S11].
+4. **SQL only through Drizzle's query builder or the `sql` template.** `sql.raw`, `.unsafe()` or string
+   concatenation with input is a finding; identifiers come from an allowlist. *Why:* `sql` binds
+   parameters, `sql.raw` inlines them [S6][S7].
+5. **Every route resolves the caller with `getContext` and scopes by workspace.** An id-only repository
+   call is fine only when the service checks `workspaceId` first. *Why:* A01 Broken Access Control [S1].
+6. **Untrusted text enters a prompt only inside `wrapUntrusted(...)`**, and the system prompt keeps
+   `INJECTION_GUARD`. Don't add keyword/denylist filtering. *Why:* fencing plus an explicit
+   data-not-instructions rule is the documented mitigation; filters are bypassable [S3][S5].
+7. **LLM output is data, not instructions or markup.** Validate it with zod, render it through
+   `Markdown` (react-markdown, no `rehype-raw`), never `dangerouslySetInnerHTML`; links from it pass
+   `defaultUrlTransform`; it never chooses a command, path, URL or SQL. *Why:* LLM05 Improper Output
+   Handling, LLM06 Excessive Agency [S3][S20]. (`Markdown` = `client/src/vendor/ui/primitives/Markdown.tsx`.)
+8. **Mermaid stays `securityLevel: "strict"`.** *Why:* `loose`/`antiscript` allow HTML and click
+   handlers from diagram text [S21].
+9. **Secrets come only from `SecretsProvider`** — never `AppConfig`, the DB, a response, a log line or
+   `NEXT_PUBLIC_*` (inlined into the browser bundle). Errors from a provider are mapped before they
+   reach the client. *Why:* A04, secrets management [S13][S19].
+10. **Error responses don't leak internals.** Throw `AppError`; unexpected errors get a generic 5xx
+    message outside development. *Why:* A10 Mishandling of Exceptional Conditions [S1][S14].
+11. **The API stays on `localhost` with an explicit CORS origin**; don't widen `API_HOST`, CORS
+    (`origin: true`, regexp, `*` + credentials), `trustProxy`, or drop helmet/rate-limit on a route
+    that mutates state or spends money (LLM calls). *Why:* A02 Security Misconfiguration [S15][S16][S17][S18].
+12. **CI stays read-only:** no `pull_request_target` with a PR checkout, no secrets to PR jobs,
+    `permissions` minimal; new third-party actions pinned to a commit SHA. *Why:* A03 supply chain [S12].
+13. **Dependencies:** lockfiles committed and regenerated by the package manager; a new package's
+    install script stays blocked (`allowBuilds: <pkg>: false` in that package's `pnpm-workspace.yaml`)
+    unless the package cannot work without it. *Why:* A03 Software Supply Chain Failures [S1].
 
-| # | Category | Key Risk in This Stack |
-|---|----------|----------------------|
-| A01 | **Broken Access Control** | Missing auth middleware, IDOR, no ownership checks |
-| A02 | **Security Misconfiguration** | Helmet disabled, CORS wildcard, stack traces in prod |
-| A03 | **Supply Chain Failures** | Compromised npm packages, typosquatting |
-| A04 | **Cryptographic Failures** | Weak JWT secret, low bcrypt cost, hardcoded secrets |
-| A05 | **Injection** | MongoDB operator injection, XSS, command injection |
-| A06 | **Insecure Design** | Missing rate limiting, no threat model |
-| A07 | **Authentication Failures** | jwt.decode() instead of verify(), brute force |
-| A08 | **Integrity Failures** | Mass assignment via req.body spread, unvalidated uploads |
-| A09 | **Logging Failures** | Passwords in logs, missing auth event audit trail |
-| A10 | **Exceptional Conditions** | Fail-open auth, stack trace leaks, missing async error handling |
+## Rating a finding
 
----
+Report only what you traced. Map to the `pr-self-review` severity rubric:
 
-## A01 — Broken Access Control
+| Confidence | You have | Report as |
+|---|---|---|
+| **High** | Vulnerable pattern + attacker-controlled input + a reachable path you can state | CRITICAL `security-vuln: <detail>` with the input that triggers it |
+| **Medium** | Vulnerable pattern, input source unclear, or a hardening rule above broken without a proven path | WARNING, "verify manually" |
+| **Low** | Theoretical, or best practice with no path | Don't report |
 
-- **Deny by default** — every route is protected unless explicitly public
-- Apply `auth` middleware as a **barrier** (via `router.use(auth)`) rather than per-route to prevent omissions
-- **Always check ownership** on update/delete — being authenticated does not mean authorized for all resources
-- Compare `resource.author.toString() === req.user.userId` plus admin role escape hatch
-- React route guards are UX only — **server must enforce all access control**
-- Test both horizontal (user A → user B's data) and vertical (author → admin endpoints) escalation
+**Don't flag:** test files and fixtures; server-controlled values (`AppConfig`, constants, committed
+config); framework-mitigated patterns (JSX escaping, Drizzle `sql` binding, react-markdown defaults);
+the known gaps listed in `devdigest.md` unless the change widens them; lines the change didn't touch.
 
----
+## Workflow: reviewing a change (copy and tick off)
 
-## A02 — Security Misconfiguration
+```
+- [ ] 1. List what the diff touches: route, outbound call, git/fs/process, SQL, prompt, LLM output, rendering, secrets/logs, CI, deps
+- [ ] 2. For each, find where its inputs come from (table above) — trusted or attacker-controlled?
+- [ ] 3. Check the matching rule(s); reuse the existing guard named in devdigest.md
+- [ ] 4. Rate with the table; a CRITICAL states the triggering input
+- [ ] 5. Scan added lines for secrets (patterns below)
+```
 
-- **Helmet**: Enable with `crossOriginResourcePolicy: 'cross-origin'` for uploads. If CSP disabled, implement custom CSP restricting `script-src` to `'self'`
-- **CORS**: Explicit origin allowlist with `credentials: true`. Never `origin: '*'` or `origin: true` with credentials
-- **Error handler**: Generic message in production, stack traces only when `NODE_ENV === 'development'`
-- **Vite env vars**: `VITE_*` prefixed vars are **public in the client bundle** — never put secrets there
-- **MongoDB**: Require auth + TLS in production, never expose port 27017 to internet, use `serverSelectionTimeoutMS`
-- **Defaults**: Change seed credentials, disable debug middleware in production
-
----
-
-## A03 — Supply Chain Failures
-
-- Run `npm audit` before every release. Commit `package-lock.json` always.
-- Pin exact versions for security-sensitive packages
-- Before adding a dependency: check CVEs, maintenance activity (< 6 months), download count (> 10K/week), scope of access (network/fs/env)
-- Watch for typosquatting (`expres` vs `express`)
-- Vite plugins run with full Node.js access during build — use only well-known publishers
-
----
-
-## A04 — Cryptographic Failures
-
-- **Passwords**: bcrypt with salt rounds >= 10 (never MD5, SHA-1/256, or plain text). Preferred: Argon2id > bcrypt > scrypt
-- **JWT secret**: Minimum 256-bit (32 bytes) cryptographically random, from `process.env.JWT_SECRET`
-- **JWT signing**: Explicitly set `algorithm: 'HS256'` and `expiresIn`. Never allow `none` algorithm
-- **JWT verification**: Always `jwt.verify()`, never `jwt.decode()` (decode doesn't check signature)
-- **JWT payload**: Never store sensitive data (it's base64-encoded, not encrypted)
-- **Transit**: HTTPS in production, `Strict-Transport-Security` header via Helmet
-- **At rest**: Encrypt sensitive fields if storing PII. Never store raw credentials in MongoDB
-
----
-
-## A05 — Injection
-
-### MongoDB NoSQL Injection
-- **Cast input types explicitly**: `String(req.body.email)` — neutralizes operator objects like `{ "$gt": "" }`
-- Never put user input in `$where`, `$expr`, or `$function` (server-side JS execution)
-- Never construct regex from user input without escaping (`str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')`)
-- Use Mongoose strict schemas with type definitions. Consider `mongo-sanitize` to strip `$` keys
-
-### Cross-Site Scripting (XSS)
-- React auto-escapes JSX — that's your default safety net
-- **Never** use `dangerouslySetInnerHTML` without DOMPurify sanitization (allowlist tags/attributes)
-- Validate URLs before `href`/`src` — reject `javascript:` protocol, allow only `http:`/`https:`
-- Blog content and AI-generated content are high-risk for stored XSS — sanitize on input AND output
-- Set CSP headers to mitigate any XSS that slips through
-
-### Command Injection
-- Never use `exec()` or `spawn({ shell: true })` with user input
-- Use `execFile()` which passes arguments directly without shell interpretation
-
----
-
-## A06 — Insecure Design
-
-**Rate limiting strategy:**
-
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| Login | 5 req | 15 min |
-| Comments | 5 req | 1 min |
-| AI generation | 3 req | 1 min |
-| File upload | 10 req | 1 min |
-| General API | 100 req | 1 min |
-
-- **AI content generation**: Sanitize AI output before storing (XSS risk), validate prompt length, set request timeouts, never expose API keys to client, log prompts for audit
-- **Comments**: Rate limit + sanitize + moderation (`isApproved` flag)
-
----
-
-## A07 — Authentication Failures
-
-- **Login**: Find user by email with `isActive: true`, compare with bcrypt, return generic "Invalid credentials" for both wrong email and wrong password (prevents enumeration)
-- **JWT claims**: `{ userId, email, name, role }` — minimum viable
-- **Token extraction**: Support `Bearer <token>` from Authorization header
-- **Auth middleware must be fail-closed**: `next()` only called on successful `jwt.verify()`. Missing `return` before error response = fail-open vulnerability
-- **Rate limit login**: `loginLimiter` on login endpoint (5 attempts / 15 min)
-- **Password model**: Hash in `pre('save')` hook only if modified, `comparePassword` instance method, `toJSON` strips password from all responses
-- Consider account lockout, progressive delays, CAPTCHA after N failures
-
----
-
-## A08 — Software and Data Integrity
-
-- **Mass assignment prevention**: Destructure only expected fields from `req.body` — never `Model.create(req.body)` (attacker can set `role: 'admin'`)
-- **Mongoose schemas**: Use `enum` for fixed values, `required` on mandatory fields, `minlength`/`maxlength`, `strict: true` (default)
-- **File upload integrity**: MIME type allowlist, check magic bytes for high-security. MIME types can be spoofed
-- **CSP**: Restrict `script-src`, `frame-ancestors 'none'`, `object-src 'none'`
-
----
-
-## A09 — Logging and Alerting
-
-**Log these**: Login success/failure, token rejection, admin actions, file uploads, rate limit hits, 5xx errors, 403 denials
-**Never log**: Passwords, JWT tokens, API keys, credit cards, SSNs
-
-- Redact sensitive fields (`password`, `token`, `secret`, `authorization`) before logging — replace with `***`
-- Use structured JSON logging for production (searchable, integrates with aggregation)
-- Log auth events with userId, IP, timestamp, and action
-
----
-
-## A10 — Exceptional Conditions
-
-- **Fail-closed**: Errors must deny access, not grant it. `catch` blocks must `return` error response before any `next()` call
-- **Global error handler**: Must have 4 params `(err, req, res, next)`. Return generic message in production.
-- **Async wrapper**: Use `asyncHandler` to catch Promise rejections — eliminates need for try-catch in every controller
-- **DB connection**: `serverSelectionTimeoutMS: 5000`, `process.exit(1)` on connection failure
-- **404 handler**: Catch-all for unmatched routes (`app.use('*', ...)`)
-
----
-
-## File Upload Security
-
-- **MIME allowlist**: `['image/jpeg', 'image/png', 'image/gif', 'image/webp']` — whitelist, not blacklist
-- **Size limit**: `5 * 1024 * 1024` (5MB) via `multer.limits`
-- **Filename**: Server-generated (`blog-{timestamp}-{random9digits}.{ext}`) — never user-provided
-- **Path traversal**: Use `path.basename()` to strip directory components. Validate `path.resolve()` starts with upload directory before deletion
-- **Cleanup**: Delete uploaded file when resource is deleted, validate path is within uploads dir
-- **Serving**: `crossOriginResourcePolicy: 'cross-origin'` for static files, no directory listing
-
----
-
-## Secret Detection
-
-Scan for these patterns in all code and config:
+## Secret patterns (added lines)
 
 | Type | Pattern |
-|------|---------|
-| AWS Key | `AKIA[0-9A-Z]{16}` |
-| Google API | `AIza[0-9A-Za-z_-]{35}` |
-| JWT/Generic | `(secret\|key\|token\|password)\s*[:=]\s*['"][^'"]{8,}` |
-| MongoDB URI | `mongodb(\+srv)?://[^:]+:[^@]+@` |
-| Private Key | `-----BEGIN .* PRIVATE KEY-----` |
-| GitHub Token | `gh[ps]_[A-Za-z0-9]{36,}` |
-| npm Token | `npm_[A-Za-z0-9]{36}` |
-| Slack Token | `xox[bpsa]-[0-9a-zA-Z-]+` |
+|---|---|
+| OpenAI / OpenRouter / Anthropic key | `sk-[A-Za-z0-9_-]{20,}` · `sk-or-[A-Za-z0-9_-]{20,}` · `sk-ant-[A-Za-z0-9_-]{20,}` |
+| GitHub token | `gh[pousr]_[A-Za-z0-9]{36,}` · `github_pat_[A-Za-z0-9_]{50,}` |
+| AWS key | `AKIA[0-9A-Z]{16}` |
+| Private key | `-----BEGIN [A-Z ]*PRIVATE KEY-----` |
+| Generic assignment | `(secret\|token\|password\|api_?key)\s*[:=]\s*['"][^'"]{8,}` |
+| Postgres URL with password | `postgres(ql)?://[^:]+:[^@]+@` (other than the documented local default) |
 
-**Never commit**: `.env`, `.env.local`, `.env.production`, `logs/`, `uploads/`
+## Read next
 
----
+| When you are… | Read |
+|---|---|
+| Working in DevDigest (guards to reuse, known gaps, file map) | [devdigest.md](references/devdigest.md) |
+| Checking why a rule exists or where sources disagree | [README.md](README.md) |
 
-## Agentic AI Security (OWASP 2026)
+## Out of scope
 
-Relevant to AI content generation features (Gemini API):
-
-- **ASI01 Goal Hijacking**: Sanitize prompt input, set max length, strip control characters
-- **ASI02 Tool Misuse**: AI should not have access to system tools without explicit scoping
-- **ASI03 Identity Abuse**: API keys server-side only, short-lived if possible
-- **ASI05 Code Execution**: Never execute AI-generated code without review
-- **ASI09 Trust Exploitation**: Label AI-generated content, validate before storing
-- Sanitize AI output before storing — it could contain XSS, malicious links, or script tags
-
----
-
-## Framework Security Quirks
-
-### JavaScript/Node.js
-- Prototype pollution via `__proto__`/`constructor.prototype` — validate object keys
-- `JSON.parse()` throws on malformed input — always wrap in try-catch
-- `RegExp(userInput)` enables ReDoS — escape special characters
-- `path.join()` with user input allows traversal — use `path.basename()` first
-- `setTimeout(string)` is implicit eval — always pass a function
-
-### MongoDB/Mongoose
-- Query operator injection via JSON body `{ password: { "$gt": "" } }` — cast to `String()`
-- `$where` clause = server-side JS execution — never use with user input
-- Unbounded queries exhaust memory — always `.limit()` and `.skip()`
-- `strict: false` accepts arbitrary fields — keep default `strict: true`
-
-### React
-- `dangerouslySetInnerHTML` bypasses escaping — require DOMPurify
-- `href={userUrl}` allows `javascript:` XSS — validate protocol
-- `VITE_*` env vars are public — never prefix secrets
-
-### Express
-- Middleware ordering matters — auth bypass if `router.use(auth)` placed after unprotected routes
-- `req.query` values are always strings — validate and cast types
-- Error handler must have exactly 4 params — missing `next` breaks error handling
-- Set `trust proxy` behind reverse proxy — otherwise rate limiter gets wrong IP
-
----
-
-## Security Review Process
-
-1. **Detect context** — API endpoint, auth logic, DB query, file handling, frontend, config, or dependency change
-2. **Load relevant rules** — Only the OWASP categories that apply to this context
-3. **Trace data flow** — Where does the input come from? Is it attacker-controlled?
-4. **Check upstream controls** — Middleware, framework defaults, validation already applied?
-5. **Verify exploitability** — Can an attacker actually reach and control this?
-6. **Report HIGH confidence only** — Include file, line, exploit scenario, specific fix
-
----
-
-## Severity Classification
-
-| Severity | Criteria | Stack Examples |
-|----------|----------|----------------|
-| **CRITICAL** | Direct exploit, no auth required | NoSQL injection auth bypass, hardcoded prod secrets, missing auth on admin endpoint, RCE |
-| **HIGH** | Exploitable with conditions | Stored XSS in blog content, IDOR on delete, JWT with weak secret, passwords in logs |
-| **MEDIUM** | Specific conditions, limited impact | Missing rate limiter, CORS misconfiguration, verbose prod errors, missing input validation |
-| **LOW** | Defense-in-depth | Low bcrypt cost, missing security event logging, sequential ObjectId exposure |
-
----
-
-## ASVS 5.0 Quick Reference
-
-**Level 1 (All Apps)**: 12+ char passwords, breached list check, login rate limiting, 128+ bit session entropy, HTTPS, server-side validation, generic error messages
-
-**Level 2 (Sensitive)**: + MFA for sensitive ops, crypto key management, comprehensive security logging, schema-based input validation, CSRF protection
-
-**Level 3 (Critical)**: + HSM key storage, documented threat model, anomaly detection, penetration testing, supply chain verification
+- Where code lives and which way imports point → `onion-architecture`, `frontend-architecture`.
+- Fastify plugin mechanics → `fastify-best-practices`; query design → `drizzle-orm-patterns`.
+- Logic bugs with no attacker → the correctness reviewer.

@@ -108,22 +108,24 @@ New arrays, objects, and functions created inline in JSX props break `React.memo
 ## Data Fetching (HIGH)
 
 - ALL data fetching in custom hooks, never in component bodies
-- Use the project's `useApiQuery`/`useApiMutation` core hooks
+- Use the TanStack Query hooks in `src/lib/hooks/<domain>.ts` (built on `apiFetch`, keys from `src/lib/query-keys.ts`)
 - Handle loading, error, and empty states in the container component
 - Use try-catch in async functions within hooks
 
-## Tailwind CSS (MEDIUM)
+## Styling (MEDIUM)
 
-- Use utility classes for all styling — no inline `style={}` objects
-- Use responsive prefixes (`sm:`, `md:`, `lg:`) for responsive design
-- Extract repeated class combinations into reusable components (Button, Card, Badge)
-- Prefer the project's `components/ui/` over recreating common elements
+- Follow the local convention: `CSSProperties` objects (using the design CSS variables) in the
+  component's or route's `styles.ts`, applied as `style={s.x}`, plus the global design classes
+  (`className="mono"` etc.). Don't flag `style={s.x}`; do flag large inline `style={{…}}` literals
+  that belong in `styles.ts`
+- Extract repeated visual patterns into reusable components (Button, Card, Badge)
+- Prefer the vendored UI kit `src/vendor/ui/` (`@devdigest/ui`) over recreating common elements
 
 ## Error Boundaries (HIGH)
 
-- Use `react-error-boundary` package for function component-friendly API
-- Include `resetKeys={[location.pathname]}` so boundaries reset on navigation
-- Provide a "Try again" button that calls `resetErrorBoundary` in fallback UI
+- In the Next App Router a route's error boundary is its `error.tsx` (see `next-best-practices`);
+  add a component-level boundary only around a sub-tree that can fail on its own
+- Give the fallback a "Try again" action that calls `reset`
 - Error boundaries do NOT catch errors in event handlers, async code, or SSR — use try/catch there
 
 ## Key Prop Patterns (CRITICAL)
@@ -149,15 +151,8 @@ New arrays, objects, and functions created inline in JSX props break `React.memo
 
 ## Performance Beyond Memoization (MEDIUM)
 
-- Use `React.lazy()` + `<Suspense>` for route-level code splitting
-- Use Vite `manualChunks` to split vendor bundles for better caching
-- Use top-level static paths in `lazy(() => import('./X'))` — dynamic paths break build analysis
-
-## Axios + React Patterns (HIGH)
-
-- Cancel in-flight requests in `useEffect` cleanup using `AbortController`
-- Use centralized Axios instance with `baseURL`, default headers, and interceptors
-- Use request interceptors for auth tokens, response interceptors for 401/403 handling
+- Next splits code per route automatically; for a heavy client-only component use `next/dynamic`
+  with a static import path
 
 ## React 19 Patterns (MEDIUM)
 
@@ -170,7 +165,7 @@ New arrays, objects, and functions created inline in JSX props break `React.memo
 
 ### Feature-Based Structure
 - Colocate component + hook + helpers + tests per feature
-- Shared utilities go in `utils/` or `components/ui/`
+- Shared helpers go in `src/lib/`, shared chrome in `src/components/` (see `frontend-architecture`)
 
 ### File Quality
 - Order: imports, constants, helpers, component, exports

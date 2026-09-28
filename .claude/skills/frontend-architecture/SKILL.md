@@ -2,7 +2,7 @@
 name: frontend-architecture
 description: Architecture rules for React + Next.js App Router frontends — where components, hooks, constants, utils/helpers, types, business logic, data fetching, providers and i18n strings live; how to split a component; import boundaries, public APIs and naming. Use whenever creating a new component, feature, page or route; deciding where a file, constant, helper or hook should go; extracting logic out of a component; reviewing or restructuring folder layout; or answering "where does this belong?" in client code — even if the word "architecture" is never used. Not for performance tuning (see react-best-practices / next-best-practices).
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Frontend Architecture (React + Next.js)

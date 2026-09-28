@@ -1,11 +1,13 @@
 ---
 name: zod
-description: Zod schema validation best practices for type safety, parsing, and error handling. This skill should be used when defining z.object schemas, using z.string validations, safeParse, or z.infer. This skill does NOT cover React Hook Form integration patterns (use react-hook-form skill) or OpenAPI client generation (use orval skill).
+description: Zod schema validation best practices for type safety, parsing, and error handling. This skill should be used when defining z.object schemas, using z.string validations, safeParse, or z.infer. This skill does NOT cover React Hook Form integration or OpenAPI client generation.
 ---
 
 # Zod Best Practices
 
-Comprehensive schema validation guide for Zod in TypeScript applications. Contains 43 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
+Comprehensive schema validation guide for Zod in TypeScript applications. Contains 42 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
+
+DevDigest pins `zod ^3.24` in server/, client/ and reviewer-core; examples use the Zod 3 API. Zod 4-only features (Zod Mini, `z.email()`, the `error` param) don't apply here.
 
 ## When to Apply
 
@@ -96,7 +98,6 @@ Reference these guidelines when:
 ### 8. Performance & Bundle (LOW-MEDIUM)
 
 - `perf-cache-schemas` - Cache schema instances
-- `perf-zod-mini` - Use Zod Mini for bundle-sensitive applications
 - `perf-avoid-dynamic-creation` - Avoid dynamic schema creation in hot paths
 - `perf-lazy-loading` - Lazy load large schemas
 - `perf-arrays` - Optimize large array validation
@@ -113,15 +114,9 @@ Read individual reference files for detailed explanations and code examples:
 
 For the complete guide with all rules expanded: `AGENTS.md`
 
-## Related Skills
-
-- For React Hook Form integration, see `react-hook-form` skill
-- For API client generation, see `orval` skill
-
 ## Sources
 
 - [Zod Official Documentation](https://zod.dev/)
 - [Zod v4 Release Notes](https://zod.dev/v4)
 - [Zod GitHub Repository](https://github.com/colinhacks/zod)
-- [Zod Mini](https://zod.dev/packages/mini)
 - [Total TypeScript Zod Tutorial](https://www.totaltypescript.com/tutorials/zod)

@@ -31,6 +31,14 @@ in-scope, `scope.ts`) so an older/foreign model that ignores the new field still
 Finding field must default the same way, or budget for it showing up as new request tokens for zero behavioural gain.
 Where: `../server/src/vendor/shared/contracts/findings.ts:47` (`Finding`), `src/scope.ts:1` (`applyScopePolicy`).
 
+### 2026-09-28 — Per-PR text comes before skills in the prompt on purpose, at the cost of cross-PR prefix caching
+`assemblePrompt` puts the task line, PR description and intent before `## Skills / rules`, so provider prefix caches
+(DeepSeek/OpenRouter automatic, Anthropic `cache_control`) can't reuse skill text across PRs; map-reduce chunks of one
+run still share the prefix up to the diff. Kept: the saving is fractions of a cent per review at the default model's
+$0.14/M input, and moving skills above the PR context changes what the model reads first with no review eval to
+measure it. Revisit only with an eval and measured cache-read tokens; the order is pinned by a test.
+Where: `src/prompt.ts:128` (section order), `test/prompt.test.ts:108`.
+
 ## Tool & Library Notes
 
 ### 2026-09-15 — Two zod copies in the server process

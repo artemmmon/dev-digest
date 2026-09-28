@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { UnifiedDiff } from '@devdigest/shared';
-import { sliceDiff } from '../src/review/reduce.js';
+import type { Finding, UnifiedDiff } from '@devdigest/shared';
+import { sliceDiff, verdictFromFindings } from '../src/review/reduce.js';
 
 /** Each map-reduce chunk gets exactly its own file's slice of the diff. */
 
@@ -46,5 +46,23 @@ describe('sliceDiff', () => {
       files: [{ path: 'src/foo.ts', additions: 1, deletions: 0, hunks: [] }],
     };
     expect(sliceDiff(noPrefix, 'src/foo.ts')).toContain('+x');
+  });
+});
+
+describe('verdictFromFindings', () => {
+  const finding = (severity: Finding['severity']) => ({ severity }) as Finding;
+
+  it('approves when nothing survived the filters', () => {
+    expect(verdictFromFindings([])).toBe('approve');
+  });
+
+  it('requests changes when any finding is CRITICAL', () => {
+    expect(verdictFromFindings([finding('SUGGESTION'), finding('CRITICAL')])).toBe(
+      'request_changes',
+    );
+  });
+
+  it('comments when only non-blocking findings remain', () => {
+    expect(verdictFromFindings([finding('WARNING'), finding('SUGGESTION')])).toBe('comment');
   });
 });

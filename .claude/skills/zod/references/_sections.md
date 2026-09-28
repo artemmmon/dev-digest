@@ -43,4 +43,4 @@ The section ID (in parentheses) is the filename prefix used to group rules.
 ## 8. Performance & Bundle (perf)
 
 **Impact:** LOW-MEDIUM
-**Description:** Zod's performance and bundle size affect application startup and validation throughput; understanding when to use Zod Mini or cache schemas prevents unnecessary overhead in performance-critical paths.
+**Description:** Zod's performance and bundle size affect application startup and validation throughput; understanding when to cache schemas prevents unnecessary overhead in performance-critical paths.

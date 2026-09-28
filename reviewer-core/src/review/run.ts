@@ -10,7 +10,7 @@ import { Review as ReviewSchema } from '@devdigest/shared';
 import { assemblePrompt } from '../prompt.js';
 import { groundFindings, groundingSummary } from '../grounding.js';
 import { applyScopePolicy, type ScopeFilter } from '../scope.js';
-import { reduceReviews, scoreFromFindings, sliceDiff } from './reduce.js';
+import { reduceReviews, scoreFromFindings, sliceDiff, verdictFromFindings } from './reduce.js';
 
 /**
  * reviewPullRequest — the review engine entry point.
@@ -230,11 +230,16 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
   }
   const allDropped = [...ground.dropped, ...scoped.dropped];
 
-  // Score is derived from the findings that SURVIVED grounding AND the scope
-  // policy (not the model's self-reported number, and not the pre-filter set)
-  // so the score, the findings list, and the deterministic event always agree.
+  // Score and verdict are derived from the findings that SURVIVED grounding AND
+  // the scope policy (not the model's self-report, and not the pre-filter set)
+  // so the score, verdict, findings list, and deterministic event always agree.
   return {
-    review: { ...merged, findings: scoped.kept, score: scoreFromFindings(scoped.kept) },
+    review: {
+      ...merged,
+      findings: scoped.kept,
+      score: scoreFromFindings(scoped.kept),
+      verdict: verdictFromFindings(scoped.kept),
+    },
     grounding,
     dropped: allDropped,
     mode,

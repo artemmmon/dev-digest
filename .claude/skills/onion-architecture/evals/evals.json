@@ -33,7 +33,7 @@
       "server/src/platform/container.ts"
     ],
     "expected_behavior": [
-      "Defines a Notifier-style port in vendor/shared/adapters.ts (core), and notes that the client copy of vendor/shared must be updated too",
+      "Defines a Notifier-style port in vendor/shared/adapters.ts (core), and notes that the client copy is regenerated with ./scripts/shared-contracts.sh sync, not edited by hand",
       "Imports @slack/web-api only in src/adapters/slack/, translating to/from DevDigest contracts; Slack types never leave the adapter",
       "Maps Slack SDK failures to ExternalServiceError/AppError inside the adapter",
       "The token comes from SecretsProvider, and the client is constructed in platform/container.ts, not in the service",

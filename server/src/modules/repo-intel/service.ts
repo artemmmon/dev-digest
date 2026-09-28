@@ -14,8 +14,8 @@
  * `getUnresolvedReferences` and (via T1.3) `getCallerSignatures`. T2 fills in
  * the rank-driven methods. T3 unlocks `getCriticalPaths` etc.
  *
- * The constructor takes ONLY a Container. No astgrep / depgraph / tokenizer
- * deps are imported here — those land later and plug into this same shell.
+ * The constructor takes the repository and `RepoIntelDeps` (git, parser, files,
+ * depgraph, tokenizer, jobs, code index ports); no adapter is imported here.
  */
 import type { CodeSymbol, RepoRef } from '@devdigest/shared';
 import { extname } from 'node:path';

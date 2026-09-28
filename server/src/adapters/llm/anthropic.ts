@@ -13,8 +13,11 @@ import { toJsonSchema, parseWithRepair } from '@devdigest/reviewer-core';
 import { estimateCost } from './pricing.js';
 import { ExternalServiceError } from '../../platform/errors.js';
 
-const DEFAULT_TIMEOUT = 60_000;
-const DEFAULT_MAX_TOKENS = 4096;
+// Current Claude models think by default and thinking counts toward max_tokens,
+// so a full review JSON needs headroom on top of the answer — and a
+// non-streaming reply that long can take minutes to generate.
+const DEFAULT_TIMEOUT = 180_000;
+const DEFAULT_MAX_TOKENS = 16_000;
 
 /** Anthropic has no embeddings API; embeddings come from the OpenAI Embedder. */
 function splitSystem(messages: ChatMessage[]): {
@@ -34,9 +37,11 @@ function splitSystem(messages: ChatMessage[]): {
 /**
  * Anthropic LLMProvider.
  * - listModels: dynamic via GET /models.
- * - completeStructured: FORCED tool-use (single tool, input_schema = our JSON
- *   schema, tool_choice forces it), parse tool_use.input, Zod validate + reprompt.
+ * - completeStructured: structured outputs (`output_config.format` = our JSON
+ *   schema), parse the text reply, Zod validate + reprompt.
  * - embed: NOT supported (throws) — use the OpenAI Embedder for vectors.
+ * - `req.temperature` is ignored: current Claude models reject sampling params
+ *   (400), and older ones fall back to their default.
  */
 export class AnthropicProvider implements LLMProvider {
   readonly id = 'anthropic' as const;
@@ -69,7 +74,6 @@ export class AnthropicProvider implements LLMProvider {
       system: system || undefined,
       messages: rest,
       max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
-      temperature: req.temperature ?? 0.2,
     });
     const text = res.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
@@ -88,7 +92,6 @@ export class AnthropicProvider implements LLMProvider {
 
   async completeStructured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>> {
     const jsonSchema = toJsonSchema(req.schema, req.schemaName);
-    const toolName = req.schemaName.replace(/[^a-zA-Z0-9_-]/g, '_');
     const maxRetries = req.maxRetries ?? 2;
     const { system, rest } = splitSystem(req.messages);
     const messages: Anthropic.MessageParam[] = [...rest];
@@ -104,15 +107,9 @@ export class AnthropicProvider implements LLMProvider {
             system: system || undefined,
             messages,
             max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
-            temperature: req.temperature ?? 0,
-            tools: [
-              {
-                name: toolName,
-                description: `Return the result as ${req.schemaName}.`,
-                input_schema: jsonSchema.schema as Anthropic.Tool.InputSchema,
-              },
-            ],
-            tool_choice: { type: 'tool', name: toolName },
+            output_config: {
+              format: { type: 'json_schema', schema: jsonSchema.schema as Record<string, unknown> },
+            },
           }),
           req.timeoutMs ?? DEFAULT_TIMEOUT,
         ),
@@ -120,10 +117,10 @@ export class AnthropicProvider implements LLMProvider {
       tokensIn += res.usage.input_tokens;
       tokensOut += res.usage.output_tokens;
 
-      const toolUse = res.content.find(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-      );
-      lastRaw = toolUse ? JSON.stringify(toolUse.input) : '';
+      lastRaw = res.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('');
 
       const parsed = parseWithRepair(req.schema, lastRaw);
       if (parsed.ok) {

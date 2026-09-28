@@ -16,6 +16,12 @@ The rewrite shifts the philosophy toward **fewer, longer integration-style tests
 | Reference-heavy, strategy-light | **Philosophy section + complete spec templates** |
 | Flat "What to Test" checklist | **User-flow-oriented** testing (render → interact → verify) |
 
+## Changelog
+
+| Date | Change |
+|---|---|
+| 2026-09-28 | `SKILL.md`: an "In DevDigest `client/`" block overrides the generic Vite/react-router/MSW guidance (existing setup, `renderWithIntl`, `next/navigation` mock, hook/API-seam mocks, `.test.tsx`, pnpm) |
+
 ## Sources
 
 These sources informed the rewrite:
