@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "devdigest": {
+      "type": "stdio",
+      "command": "bash",
+      "args": ["scripts/mcp.sh"],
+      "env": {
+        "DEVDIGEST_API_URL": "${DEVDIGEST_API_URL:-http://localhost:3001}"
+      }
+    }
+  }
+}

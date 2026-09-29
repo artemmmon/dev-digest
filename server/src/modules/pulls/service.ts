@@ -45,6 +45,15 @@ export class PullsService {
     return this.withRollups(pulls);
   }
 
+  /** One persisted PR by its GitHub number. DB only: no GitHub call, no upsert. */
+  async byNumber(workspaceId: string, repoId: string, number: number): Promise<PrMeta> {
+    const repo = await this.requireRepo(workspaceId, repoId);
+    const pull = await this.deps.pulls.findByNumber(repo.id, number);
+    if (!pull) throw new NotFoundError('Pull request not found');
+    const [meta] = await this.withRollups([pull]);
+    return meta!;
+  }
+
   /** Manual poll: sync the PR list and stamp the repo. Never triggers a review. */
   async poll(workspaceId: string, repoId: string): Promise<{ synced: number }> {
     const repo = await this.requireRepo(workspaceId, repoId);

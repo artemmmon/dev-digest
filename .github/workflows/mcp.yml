@@ -1,0 +1,57 @@
+# devdigest-mcp suite — the local stdio MCP server (@devdigest/mcp).
+# It talks to the DevDigest API over REST; every test runs against a fake API or a
+# stubbed fetch, so there is no DB, no Docker and no network. Uses pnpm (pnpm-lock.yaml).
+#
+# server/src/vendor/shared/** is in the path filter because mcp aliases
+# @devdigest/shared to it at type-check time (types only).
+name: mcp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/**'
+      - 'server/src/vendor/shared/**'
+      - '.github/workflows/mcp.yml'
+  pull_request:
+    paths:
+      - 'mcp/**'
+      - 'server/src/vendor/shared/**'
+      - '.github/workflows/mcp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: typecheck · lint · tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: mcp/pnpm-lock.yaml
+
+      # Install scripts stay blocked (mcp/pnpm-workspace.yaml allowBuilds).
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      # Includes the tools/list contract + token-budget test and the stdio smoke test.
+      - run: pnpm test

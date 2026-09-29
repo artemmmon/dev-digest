@@ -80,6 +80,8 @@ export interface PullStore {
     prId: string,
   ): Promise<{ pull: PullRecord; repo: PullRepoRef } | undefined>;
   listForRepo(repoId: string): Promise<PullRecord[]>;
+  /** One PR of a repo by its GitHub number (unique per repo), or undefined. */
+  findByNumber(repoId: string, number: number): Promise<PullRecord | undefined>;
   upsertFromGitHub(workspaceId: string, repoId: string, pulls: PrMeta[]): Promise<number>;
   setDiffStats(prId: string, stats: DiffStats): Promise<void>;
   /** Replace files + commits and backfill body/stats in one transaction. */

@@ -23,7 +23,8 @@
         "client/pnpm-lock.yaml",
         "server/pnpm-lock.yaml",
         "reviewer-core/package-lock.json",
-        "e2e/package-lock.json"
+        "e2e/package-lock.json",
+        "mcp/pnpm-lock.yaml"
       ],
       "note": "regenerate with the package's own manager"
     }
@@ -52,6 +53,14 @@
         { "id": "typecheck", "cmd": "npm run typecheck" },
         { "id": "lint", "cmd": "npm run lint" },
         { "id": "test", "cmd": "npm test" }
+      ]
+    },
+    "mcp": {
+      "dir": "mcp",
+      "checks": [
+        { "id": "typecheck", "cmd": "pnpm typecheck" },
+        { "id": "lint", "cmd": "pnpm lint" },
+        { "id": "test", "cmd": "pnpm test" }
       ]
     },
     "e2e": {
@@ -135,10 +144,17 @@
       "skills": ["typescript-expert", "zod"]
     },
     {
+      "id": "mcp-src",
+      "globs": ["mcp/src/**/*.ts"],
+      "ignore": ["**/*.test.ts"],
+      "skills": ["typescript-expert", "zod"]
+    },
+    {
       "id": "security-surface",
       "globs": [
-        "{client,server,reviewer-core,e2e}/**/*.{ts,tsx,mjs,js,cjs}",
-        "{client,server,reviewer-core,e2e}/package.json",
+        "{client,server,reviewer-core,mcp,e2e}/**/*.{ts,tsx,mjs,js,cjs}",
+        "{client,server,reviewer-core,mcp,e2e}/package.json",
+        ".mcp.json",
         "server/.env.example",
         ".github/workflows/**",
         "docker-compose.yml",

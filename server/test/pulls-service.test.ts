@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { GitHubClient, PrDetail, PrMeta } from '@devdigest/shared';
 import { MockGitHubClient } from '../src/adapters/mocks.js';
+import { NotFoundError } from '../src/platform/errors.js';
 import { PullsService } from '../src/modules/pulls/service.js';
 import type {
   DiffStats,
@@ -16,6 +17,8 @@ import type {
  */
 
 const REPO: PullRepoRef = { id: 'repo-1', owner: 'acme', name: 'widgets' };
+/** Resolves to REPO in the fake store: lets a test tell the id the caller passed from REPO.id. */
+const REPO_ALIAS = 'acme/widgets';
 
 function pull(o: Partial<PullRecord>): PullRecord {
   return {
@@ -45,9 +48,10 @@ class InMemoryPullStore implements PullStore {
   polled: string[] = [];
   round: RoundInputs = { runs: [], reviews: [] };
   severities: { reviewId: string; severity: string }[] = [];
+  findByNumberCalls: { repoId: string; number: number }[] = [];
 
   async repoInWorkspace(workspaceId: string, repoId: string) {
-    return workspaceId === 'ws' && repoId === REPO.id ? REPO : undefined;
+    return workspaceId === 'ws' && (repoId === REPO.id || repoId === REPO_ALIAS) ? REPO : undefined;
   }
   async pullInWorkspace(workspaceId: string, prId: string) {
     const p = this.pulls.get(prId);
@@ -55,6 +59,10 @@ class InMemoryPullStore implements PullStore {
   }
   async listForRepo() {
     return [...this.pulls.values()];
+  }
+  async findByNumber(repoId: string, number: number) {
+    this.findByNumberCalls.push({ repoId, number });
+    return [...this.pulls.values()].find((p) => p.repoId === repoId && p.number === number);
   }
   async upsertFromGitHub(_ws: string, _repo: string, list: PrMeta[]) {
     for (const pr of list) {
@@ -127,6 +135,61 @@ describe('PullsService', () => {
     });
     await expect(service.listForRepo('other-ws', REPO.id)).rejects.toThrow('Repo not found');
     await expect(service.detail('ws', 'missing')).rejects.toThrow('Pull request not found');
+  });
+
+  describe('byNumber', () => {
+    it('returns the PR with its latest-round rollups, without touching GitHub', async () => {
+      const store = new InMemoryPullStore();
+      store.pulls.set('pr-7', pull({ id: 'pr-7', number: 7, title: 'Seven', additions: 3, filesCount: 1 }));
+      store.round = {
+        runs: [{ prId: 'pr-7', id: 'run-7', batchId: 'b7', costUsd: 0.05 }],
+        reviews: [{ prId: 'pr-7', id: 'rv-7', runId: 'run-7', score: 80 }],
+      };
+      store.severities = [{ reviewId: 'rv-7', severity: 'CRITICAL' }];
+      const service = new PullsService({ pulls: store, github: noGitHub, log: silentLog });
+
+      const meta = await service.byNumber('ws', REPO.id, 7);
+
+      expect(meta).toMatchObject({ id: 'pr-7', number: 7, title: 'Seven', cost_usd: 0.05, score: 80 });
+      expect(meta.findings_by_severity).toMatchObject({ CRITICAL: 1 });
+      expect(store.polled).toEqual([]);
+      expect(store.replaced).toEqual([]);
+    });
+
+    it('404s an unknown PR number', async () => {
+      const store = new InMemoryPullStore();
+      store.pulls.set('pr-1', pull({ id: 'pr-1', number: 1 }));
+      const service = new PullsService({ pulls: store, github: noGitHub, log: silentLog });
+
+      const err = await service.byNumber('ws', REPO.id, 99).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(NotFoundError);
+      expect((err as Error).message).toBe('Pull request not found');
+    });
+
+    it('404s a repo outside the workspace before reading any PR', async () => {
+      const store = new InMemoryPullStore();
+      store.pulls.set('pr-1', pull({ id: 'pr-1', number: 1 }));
+      const service = new PullsService({ pulls: store, github: noGitHub, log: silentLog });
+
+      await expect(service.byNumber('other-ws', REPO.id, 1)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.byNumber('ws', 'repo-unknown', 1)).rejects.toBeInstanceOf(NotFoundError);
+      expect(store.findByNumberCalls).toEqual([]);
+    });
+
+    it("asks the store for the resolved repo's id, and never returns another repo's PR", async () => {
+      const store = new InMemoryPullStore();
+      store.pulls.set('pr-other', pull({ id: 'pr-other', repoId: 'repo-2', number: 5, title: 'Other repo' }));
+      const service = new PullsService({ pulls: store, github: noGitHub, log: silentLog });
+
+      // The caller addressed the repo by an alias; the store must still get REPO.id.
+      await expect(service.byNumber('ws', REPO_ALIAS, 5)).rejects.toBeInstanceOf(NotFoundError);
+      expect(store.findByNumberCalls).toEqual([{ repoId: REPO.id, number: 5 }]);
+
+      store.pulls.set('pr-mine', pull({ id: 'pr-mine', number: 5, title: 'My repo' }));
+      const meta = await service.byNumber('ws', REPO_ALIAS, 5);
+      expect(meta).toMatchObject({ id: 'pr-mine', title: 'My repo' });
+    });
   });
 
   it('falls back to the persisted detail when GitHub is unavailable', async () => {

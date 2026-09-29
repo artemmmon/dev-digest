@@ -1,0 +1,530 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tools/list contract > matches the snapshot of names, order, titles, annotations and schemas 1`] = `
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "include_disabled": {
+          "default": false,
+          "description": "Also list disabled agents",
+          "type": "boolean",
+        },
+      },
+      "type": "object",
+    },
+    "name": "list_agents",
+    "outputSchema": null,
+    "title": "List DevDigest reviewer agents",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false,
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "description": "Agent id or exact name",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string",
+        },
+        "pr": {
+          "description": "PR number",
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "repo": {
+          "description": "owner/name",
+          "pattern": "^[A-Za-z0-9-]{1,39}\\/[A-Za-z0-9._-]{1,100}$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "repo",
+        "pr",
+        "agent",
+      ],
+      "type": "object",
+    },
+    "name": "run_agent_on_pr",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "type": "string",
+        },
+        "agent_name": {
+          "type": "string",
+        },
+        "counts": {
+          "additionalProperties": false,
+          "properties": {
+            "critical": {
+              "type": "integer",
+            },
+            "suggestion": {
+              "type": "integer",
+            },
+            "warning": {
+              "type": "integer",
+            },
+          },
+          "required": [
+            "critical",
+            "warning",
+            "suggestion",
+          ],
+          "type": "object",
+        },
+        "findings": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "type": "string",
+              },
+              "file": {
+                "type": "string",
+              },
+              "id": {
+                "type": "string",
+              },
+              "lines": {
+                "type": "string",
+              },
+              "rationale": {
+                "type": "string",
+              },
+              "scope": {
+                "enum": [
+                  "in_scope",
+                  "out_of_scope",
+                ],
+                "type": "string",
+              },
+              "severity": {
+                "enum": [
+                  "CRITICAL",
+                  "WARNING",
+                  "SUGGESTION",
+                ],
+                "type": "string",
+              },
+              "suggestion": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "severity",
+              "file",
+              "lines",
+              "title",
+              "category",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "next_step": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "pr": {
+          "type": "integer",
+        },
+        "repo": {
+          "type": "string",
+        },
+        "run_id": {
+          "type": "string",
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "status": {
+          "enum": [
+            "done",
+            "running",
+            "failed",
+            "cancelled",
+          ],
+          "type": "string",
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "total": {
+          "type": "integer",
+        },
+        "truncated": {
+          "type": "boolean",
+        },
+        "verdict": {
+          "anyOf": [
+            {
+              "enum": [
+                "approve",
+                "comment",
+                "request_changes",
+              ],
+              "type": "string",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "status",
+        "run_id",
+        "repo",
+        "pr",
+        "agent_id",
+        "agent_name",
+        "verdict",
+        "score",
+        "summary",
+        "counts",
+        "findings",
+        "total",
+        "truncated",
+        "next_step",
+      ],
+      "type": "object",
+    },
+    "title": "Run a DevDigest review on a PR",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "description": "Agent id or exact name",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string",
+        },
+        "detail": {
+          "default": "concise",
+          "description": "detailed adds rationale, suggestion",
+          "enum": [
+            "concise",
+            "detailed",
+          ],
+          "type": "string",
+        },
+        "limit": {
+          "default": 15,
+          "description": "Max findings returned",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "pr": {
+          "description": "PR number",
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "repo": {
+          "description": "owner/name",
+          "pattern": "^[A-Za-z0-9-]{1,39}\\/[A-Za-z0-9._-]{1,100}$",
+          "type": "string",
+        },
+        "run_id": {
+          "description": "Specific run; default latest",
+          "format": "uuid",
+          "type": "string",
+        },
+      },
+      "required": [
+        "repo",
+        "pr",
+        "agent",
+      ],
+      "type": "object",
+    },
+    "name": "get_findings",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "type": "string",
+        },
+        "agent_name": {
+          "type": "string",
+        },
+        "counts": {
+          "additionalProperties": false,
+          "properties": {
+            "critical": {
+              "type": "integer",
+            },
+            "suggestion": {
+              "type": "integer",
+            },
+            "warning": {
+              "type": "integer",
+            },
+          },
+          "required": [
+            "critical",
+            "warning",
+            "suggestion",
+          ],
+          "type": "object",
+        },
+        "findings": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "type": "string",
+              },
+              "file": {
+                "type": "string",
+              },
+              "id": {
+                "type": "string",
+              },
+              "lines": {
+                "type": "string",
+              },
+              "rationale": {
+                "type": "string",
+              },
+              "scope": {
+                "enum": [
+                  "in_scope",
+                  "out_of_scope",
+                ],
+                "type": "string",
+              },
+              "severity": {
+                "enum": [
+                  "CRITICAL",
+                  "WARNING",
+                  "SUGGESTION",
+                ],
+                "type": "string",
+              },
+              "suggestion": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "severity",
+              "file",
+              "lines",
+              "title",
+              "category",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "next_step": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "pr": {
+          "type": "integer",
+        },
+        "repo": {
+          "type": "string",
+        },
+        "run_id": {
+          "type": "string",
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "status": {
+          "enum": [
+            "done",
+            "running",
+            "failed",
+            "cancelled",
+          ],
+          "type": "string",
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "total": {
+          "type": "integer",
+        },
+        "truncated": {
+          "type": "boolean",
+        },
+        "verdict": {
+          "anyOf": [
+            {
+              "enum": [
+                "approve",
+                "comment",
+                "request_changes",
+              ],
+              "type": "string",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "status",
+        "run_id",
+        "repo",
+        "pr",
+        "agent_id",
+        "agent_name",
+        "verdict",
+        "score",
+        "summary",
+        "counts",
+        "findings",
+        "total",
+        "truncated",
+        "next_step",
+      ],
+      "type": "object",
+    },
+    "title": "Get DevDigest review findings",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 30,
+          "description": "Max rules returned",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "repo": {
+          "description": "owner/name",
+          "pattern": "^[A-Za-z0-9-]{1,39}\\/[A-Za-z0-9._-]{1,100}$",
+          "type": "string",
+        },
+        "status": {
+          "default": "accepted",
+          "description": "Which rules to return",
+          "enum": [
+            "accepted",
+            "pending",
+            "all",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "repo",
+      ],
+      "type": "object",
+    },
+    "name": "get_conventions",
+    "outputSchema": null,
+    "title": "Get repository coding conventions",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "pr": {
+          "description": "PR number",
+          "maximum": 2147483647,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "repo": {
+          "description": "owner/name",
+          "pattern": "^[A-Za-z0-9-]{1,39}\\/[A-Za-z0-9._-]{1,100}$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "repo",
+        "pr",
+      ],
+      "type": "object",
+    },
+    "name": "get_blast_radius",
+    "outputSchema": null,
+    "title": "Get PR blast radius (not implemented yet)",
+  },
+]
+`;
