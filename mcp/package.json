@@ -1,0 +1,30 @@
+{
+  "name": "@devdigest/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "devdigest-mcp: local stdio MCP server that drives the DevDigest API",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "measure:tools": "tsx scripts/measure-tools.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "tsx": "^4.23.15",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.20.4",
+    "eslint": "^9.39.5",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^2.1.9"
+  }
+}

@@ -373,6 +373,13 @@ between the PR list, the PR page and Smart Diff. The service takes only a narrow
 `pulls/repository.ts`'s `roundInputs` does.
 Where: src/modules/smart-diff/service.ts:3, src/modules/_shared/latest-round.ts:1.
 
+### 2026-09-29 — `GET /repos/:id/pulls` syncs from GitHub; use `/pulls/by-number/:number` for DB-only lookups
+The PR list route upserts from GitHub on every call, so resolving "PR #N of a repo" through it makes a
+read slow, networked and side-effecting. `GET /repos/:id/pulls/by-number/:number` (`PullsService.byNumber`)
+reads only the DB, is workspace-scoped through `requireRepo`, and 404s `not_found` for an unknown number.
+It reuses `withRollups`, so the shape is the same `PrMeta` as the list. First consumer: `mcp/`.
+Where: `src/modules/pulls/service.ts:49`, `src/modules/pulls/routes.ts:36`, `test/pulls-by-number.it.test.ts`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

@@ -142,6 +142,14 @@ used only as the *confidence* tier that decides whether a finding is reported at
 Where: `.claude/skills/pr-self-review/references/severity.md:26`,
 `.claude/agents/security-reviewer.md:69` (the Severity section).
 
+### 2026-09-29 — A second process must start reviews through the API, never its own Container
+`RunBus` and `JobRunner` exist once per process (`Container`). A review started from another process
+(e.g. a stdio MCP server that built its own `Container`) would be invisible in the UI Live Log, could
+not be cancelled from the UI, and the API's boot reaper would mark it failed. `mcp/` therefore calls
+the running API over REST (`POST /pulls/:id/review`) and holds no secrets or DB pool. Do the same for
+any future out-of-process entry point (CLI, bot, other MCP host).
+Where: `server/src/platform/container.ts:127` (`runBus`) and `:128` (`new JobRunner`), `mcp/src/api/http.ts:134` (`startReview`).
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source

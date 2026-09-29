@@ -72,6 +72,15 @@ export class PullsRepository implements PullStore {
     return rows.map(toPullRecord);
   }
 
+  async findByNumber(repoId: string, number: number): Promise<PullRecord | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(t.pullRequests)
+      .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, number)))
+      .limit(1);
+    return row && toPullRecord(row);
+  }
+
   /**
    * Upsert the PR list from GitHub (idempotent on repo_id + number). New PRs are
    * inserted in full; existing ones get title, head sha, status and updated_at —

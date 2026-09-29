@@ -117,6 +117,24 @@ test('checks: only touched packages; reviewer-core pulls in the server; vendor/s
   assert.ok(r.checks.some((c) => c.id === 'shared-contracts'));
 });
 
+test('checks: a server/src/vendor/shared change also runs the mcp checks; the client copy does not', () => {
+  let root = makeRepo();
+  write(root, 'client/src/vendor/shared/x.ts');
+  let r = run(root);
+  assert.ok(!r.packages.includes('mcp'));
+  assert.ok(!r.checks.some((c) => c.package === 'mcp'));
+
+  root = makeRepo();
+  write(root, 'server/src/vendor/shared/contracts/x.ts');
+  r = run(root);
+  assert.ok(r.packages.includes('mcp'));
+  assert.deepEqual(
+    r.checks.filter((c) => c.package === 'mcp').map((c) => c.id),
+    ['typecheck', 'lint', 'test'],
+  );
+  assert.ok(r.checks.some((c) => c.id === 'shared-contracts'));
+});
+
 test('skill drift: an installed skill that routing does not know is reported', () => {
   const root = makeRepo();
   write(root, '.claude/skills/brand-new/SKILL.md');

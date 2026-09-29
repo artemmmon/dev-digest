@@ -1,0 +1,4 @@
+# Dependency install scripts stay blocked: esbuild (pulled in by tsx and vite) ships a
+# prebuilt @esbuild/* binary and needs no postinstall.
+allowBuilds:
+  esbuild: false

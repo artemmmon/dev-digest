@@ -10,6 +10,7 @@ import { PullsService } from './service.js';
  * F1 — pulls module (HTTP only; logic in ./service.ts, SQL in ./repository.ts).
  *   GET  /repos/:id/pulls    → PRs of a repo, synced from GitHub when a token is
  *                              set, with latest-round cost/score/findings
+ *   GET  /repos/:id/pulls/by-number/:number → one persisted PR (DB only, no GitHub call)
  *   GET  /pulls/:id          → full PR detail (files, commits, body, linked issue)
  *   GET  /pulls/:id/comments → inline review comments (live from GitHub)
  *   POST /pulls/:id/comments → post an inline comment
@@ -29,6 +30,20 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
     async (req) => {
       const { workspaceId } = await getContext(container, req);
       return service.listForRepo(workspaceId, req.params.id);
+    },
+  );
+
+  app.get(
+    '/repos/:id/pulls/by-number/:number',
+    {
+      schema: {
+        params: IdParams.extend({ number: z.coerce.number().int().min(1).max(2147483647) }),
+        response: { 200: PrMeta },
+      },
+    },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return service.byNumber(workspaceId, req.params.id, req.params.number);
     },
   );
 

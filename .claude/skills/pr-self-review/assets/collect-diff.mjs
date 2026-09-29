@@ -90,6 +90,15 @@ export function analyse({ routing, root, change, installed }) {
     .map(([name]) => name);
   // server type-checks against reviewer-core source, so a reviewer-core change also runs the server checks.
   if (packages.includes('reviewer-core') && !packages.includes('server')) packages.push('server');
+  // mcp type-checks its drift checks against the server's contracts (`@devdigest/shared`),
+  // so a change to server/src/vendor/shared also runs the mcp checks.
+  if (
+    routing.packages.mcp &&
+    !packages.includes('mcp') &&
+    included.some((f) => f.path.startsWith('server/src/vendor/shared/'))
+  ) {
+    packages.push('mcp');
+  }
   const checks = [];
   for (const name of packages) {
     for (const c of routing.packages[name].checks) {
