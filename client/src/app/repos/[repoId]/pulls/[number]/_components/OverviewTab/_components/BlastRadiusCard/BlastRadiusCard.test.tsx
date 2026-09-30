@@ -85,7 +85,12 @@ describe("BlastRadiusCard", () => {
     renderCard();
 
     expect(await screen.findByText("authMiddleware")).toBeInTheDocument();
-    expect(screen.getByText("cron/jobs")).toBeInTheDocument();
+    // counts are 2 symbols, 3 callers, 1 endpoint, 1 cron: plural vs singular labels
+    expect(screen.getByText("symbols")).toBeInTheDocument();
+    expect(screen.getByText("callers")).toBeInTheDocument();
+    expect(screen.getByText("endpoint")).toBeInTheDocument();
+    expect(screen.getByText("cron/job")).toBeInTheDocument();
+    expect(screen.queryByText("1 symbols")).not.toBeInTheDocument();
     expect(screen.getByText("GET /users")).toBeInTheDocument();
     expect(screen.getByText("nightly-sync")).toBeInTheDocument();
     // the server's summary sentence is not printed

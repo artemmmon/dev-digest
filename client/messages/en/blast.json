@@ -7,10 +7,10 @@
     "noSymbols": "No indexed symbols in the changed files."
   },
   "stat": {
-    "symbols": "symbols",
-    "callers": "callers",
-    "endpoints": "endpoints",
-    "crons": "cron/jobs"
+    "symbols": "{count, plural, one {symbol} other {symbols}}",
+    "callers": "{count, plural, one {caller} other {callers}}",
+    "endpoints": "{count, plural, one {endpoint} other {endpoints}}",
+    "crons": "{count, plural, one {cron/job} other {cron/jobs}}"
   },
   "view": {
     "ariaLabel": "Blast radius view",

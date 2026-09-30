@@ -332,6 +332,13 @@ upstream), `updatedAt` never moves and the notice shows `resyncTimeout` after `R
 refetch. Also `useResyncRepoIntel` has no `meta.silent`, so a failed POST toasts globally AND shows `resyncFailed`.
 Where: `src/lib/hooks/blast.ts:35` (`useBlastResync`).
 
+### 2026-09-30 — Data-driven SVG: size by viewBox, not fixed width/height
+BlastGraph first used fixed `width`/`height` px, so a ~620px card clipped the right column ("DE"/"GE" only). Compute the
+`viewBox` from the layout (rightmost node edge + margin), set the style to `width: 100%; height: auto; maxWidth: <viewBox
+width>` and `preserveAspectRatio="xMinYMin meet"`: it scales down with the card and never upscales text. Also put
+`minWidth: 0` on the grid-item `<section>`; the card's own `minWidth: 0` is not enough.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastGraph/helpers.ts:112`
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception

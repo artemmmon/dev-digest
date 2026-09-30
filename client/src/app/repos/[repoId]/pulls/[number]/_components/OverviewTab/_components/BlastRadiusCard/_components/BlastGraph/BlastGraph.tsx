@@ -6,7 +6,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import type { BlastDownstream } from "../../helpers";
-import { GRAPH, graphLayout, type GraphNode } from "./helpers";
+import { graphLayout, type GraphNode } from "./helpers";
 import { s } from "./styles";
 
 const STROKE: Record<GraphNode["kind"], string> = {
@@ -22,7 +22,7 @@ export function BlastGraph({ downstream }: { downstream: BlastDownstream[] }) {
 
   const item = downstream.find((d) => d.symbol === selected) ?? downstream[0];
   if (!item) return <p style={s.empty}>{t("graph.empty")}</p>;
-  const { width, height, nodes, edges } = graphLayout(item);
+  const { width, height, nodeH, nodes, edges } = graphLayout(item);
 
   return (
     <div>
@@ -46,9 +46,9 @@ export function BlastGraph({ downstream }: { downstream: BlastDownstream[] }) {
         <svg
           role="img"
           aria-label={`${t("graph.ariaLabel")}: ${item.symbol}`}
-          width={width}
-          height={height}
-          style={s.svg}
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="xMinYMin meet"
+          style={s.svg(width)}
         >
           {edges.map(({ key, from, to, faint }) => {
             const mid = (from.x + to.x) / 2;
@@ -63,11 +63,11 @@ export function BlastGraph({ downstream }: { downstream: BlastDownstream[] }) {
             );
           })}
           {nodes.map((n) => (
-            <g key={n.key} transform={`translate(${n.x - n.width / 2},${n.y - GRAPH.nodeH / 2})`}>
+            <g key={n.key} transform={`translate(${n.x - n.width / 2},${n.y - nodeH / 2})`}>
               <title>{n.title}</title>
               <rect
                 width={n.width}
-                height={GRAPH.nodeH}
+                height={nodeH}
                 rx={6}
                 fill="var(--bg-elevated)"
                 stroke={STROKE[n.kind]}
@@ -75,7 +75,7 @@ export function BlastGraph({ downstream }: { downstream: BlastDownstream[] }) {
               />
               <text
                 x={n.width / 2}
-                y={17}
+                y={nodeH / 2 + 4}
                 textAnchor="middle"
                 fontSize={11}
                 fontFamily="JetBrains Mono, monospace"

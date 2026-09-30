@@ -26,7 +26,7 @@ export function BlastSummary({ counts }: { counts: BlastRadiusResponse["counts"]
             <b className="tnum" style={s.num}>
               {counts[key]}
             </b>
-            {t(`stat.${key}`)}
+            {t(`stat.${key}`, { count: counts[key] })}
           </span>
         );
       })}

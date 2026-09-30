@@ -33,7 +33,7 @@ export function BlastRadiusCard({ prId, repoId, repoFullName, headSha }: BlastRa
 
   if (isPending) {
     return (
-      <section>
+      <section style={s.root}>
         {label}
         <Skeleton height={160} />
       </section>
@@ -42,7 +42,7 @@ export function BlastRadiusCard({ prId, repoId, repoFullName, headSha }: BlastRa
 
   if (isError) {
     return (
-      <section>
+      <section style={s.root}>
         {label}
         <div style={s.card}>
           <ErrorState
@@ -61,7 +61,7 @@ export function BlastRadiusCard({ prId, repoId, repoFullName, headSha }: BlastRa
 
   if (counts.changed_files === 0) {
     return (
-      <section>
+      <section style={s.root}>
         {label}
         <div style={s.card}>
           <EmptyState icon="Workflow" title={t("card.noFiles")} />
@@ -71,7 +71,7 @@ export function BlastRadiusCard({ prId, repoId, repoFullName, headSha }: BlastRa
   }
 
   return (
-    <section>
+    <section style={s.root}>
       {label}
       <div style={s.card}>
         {index.reason && <BlastDegradedNotice prId={prId} repoId={repoId} reason={index.reason} />}

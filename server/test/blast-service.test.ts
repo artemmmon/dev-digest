@@ -6,6 +6,7 @@ import type {
   BlastFacadeResult,
   BlastIndexSnapshot,
   BlastIntel,
+  BlastLog,
   BlastPullRef,
   BlastStore,
 } from '../src/modules/blast/ports.js';
@@ -42,17 +43,25 @@ class FakeIntel implements BlastIntel {
   }
 }
 
+class FakeLog implements BlastLog {
+  infos: { obj: Record<string, unknown>; msg: string }[] = [];
+  info(obj: object, msg: string) {
+    this.infos.push({ obj: obj as Record<string, unknown>, msg });
+  }
+}
+
 function setup() {
   const store = new InMemoryBlastStore();
   store.pulls.set(PR_ID, { id: PR_ID, repoId: 'repo-1', headSha: 'head-sha' });
   store.paths.set(PR_ID, ['src/lib.ts']);
   const intel = new FakeIntel();
+  const log = new FakeLog();
   intel.result = {
     changedSymbols: [{ file: 'src/lib.ts', name: 'a', kind: 'function' }],
     callers: [{ file: 'src/x.ts', symbol: 'useA', viaSymbol: 'a', line: 3, rank: 2 }],
     factsByFile: { 'src/x.ts': { endpoints: ['GET /a'], crons: [] } },
   };
-  return { store, intel, service: new BlastService({ store, intel }) };
+  return { store, intel, log, service: new BlastService({ store, intel, log }) };
 }
 
 describe('BlastService.forPull', () => {
@@ -63,13 +72,23 @@ describe('BlastService.forPull', () => {
   });
 
   it('flag off -> flag_off, facade not called', async () => {
-    const { service, intel } = setup();
+    const { service, intel, log } = setup();
     intel.enabled = false;
     const res = await service.forPull('ws', PR_ID);
     expect(res.index).toMatchObject({ degraded: true, reason: 'flag_off' });
     expect(intel.blastCalls).toBe(0);
     expect(res.blast.downstream).toEqual([]);
     expect(res.counts.changed_files).toBe(1);
+    expect(log.infos).toHaveLength(1);
+    expect(log.infos[0]!.msg).toBe('blast radius served from the precomputed index');
+    expect(log.infos[0]!.obj).toMatchObject({
+      prId: PR_ID,
+      repoId: 'repo-1',
+      facade: 'skipped',
+      reason: 'flag_off',
+      changedFiles: 1,
+      symbols: 0,
+    });
   });
 
   it('degraded index with no row -> no_data, facade not called', async () => {
@@ -103,10 +122,26 @@ describe('BlastService.forPull', () => {
   });
 
   it('full -> not degraded, grouped map, envelope satisfies the contract', async () => {
-    const { service, intel } = setup();
+    const { service, intel, log } = setup();
     const res = await service.forPull('ws', PR_ID);
     expect(BlastRadiusResponse.safeParse(res).success).toBe(true);
     expect(intel.blastCalls).toBe(1);
+    expect(log.infos).toHaveLength(1);
+    expect(log.infos[0]!.obj).toEqual({
+      prId: PR_ID,
+      repoId: 'repo-1',
+      facade: 'persistent-index',
+      indexStatus: 'full',
+      indexedSha: 'idx-sha',
+      reason: null,
+      changedFiles: 1,
+      symbols: 1,
+      callers: 1,
+      endpoints: 1,
+      crons: 0,
+      truncated: false,
+      source: 'repo-intel index (read-only, no re-parse, no LLM)',
+    });
     expect(res.head_sha).toBe('head-sha');
     expect(res.index).toEqual({
       status: 'full',

@@ -198,8 +198,8 @@ export class Container {
     return (this._blastRepo ??= new BlastRepository(this.db));
   }
 
-  /** Collaborators of the blast service. The repo-intel facade is adapted through `this.repoIntel`, so test overrides apply. */
-  get blastDeps(): BlastDeps {
+  /** Collaborators of the blast service (the route adds `log: app.log`). The repo-intel facade is adapted through `this.repoIntel`, so test overrides apply. */
+  get blastDeps(): Omit<BlastDeps, 'log'> {
     return {
       store: this.blastRepo,
       intel: {

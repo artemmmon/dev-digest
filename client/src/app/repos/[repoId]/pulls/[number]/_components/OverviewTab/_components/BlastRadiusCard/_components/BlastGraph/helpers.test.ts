@@ -14,7 +14,7 @@ function item(callers: number, endpoints: string[] = [], crons: string[] = []): 
 }
 
 describe("graphLayout", () => {
-  it("lays out one node per caller/endpoint/cron plus the root, on a 28px pitch", () => {
+  it("lays out one node per caller/endpoint/cron plus the root, on the 28px pitch", () => {
     const g = graphLayout(item(3, ["GET /a", "POST /b"], ["nightly"]));
     expect(g.nodes.filter((n) => n.kind === "root")).toHaveLength(1);
     expect(g.nodes.filter((n) => n.kind === "caller")).toHaveLength(3);
@@ -26,7 +26,30 @@ describe("graphLayout", () => {
     const ys = g.nodes.filter((n) => n.kind === "caller").map((n) => n.y);
     expect(ys[1]! - ys[0]!).toBe(GRAPH.pitch);
     expect(ys[2]! - ys[1]!).toBe(GRAPH.pitch);
-    expect(g.nodes[0]!.x).toBe(70);
+    expect(g.nodeH).toBe(GRAPH.nodeH);
+  });
+
+  it("sizes the viewBox to the rightmost node edge plus the margin, per column set", () => {
+    const withLeaves = graphLayout(item(2, ["GET /a"]));
+    const rightmost = Math.max(...withLeaves.nodes.map((n) => n.x + n.width / 2));
+    expect(withLeaves.width).toBe(rightmost + GRAPH.margin);
+    // no endpoints/crons: the leaf column is absent, so the drawing is narrower
+    const callersOnly = graphLayout(item(2));
+    expect(callersOnly.width).toBeLessThan(withLeaves.width);
+    // nothing sticks out on the left either
+    const leftmost = Math.min(...withLeaves.nodes.map((n) => n.x - n.width / 2));
+    expect(leftmost).toBe(GRAPH.margin);
+  });
+
+  it("switches to the compact pitch and node height past the row threshold", () => {
+    const rows = GRAPH.compactAfter + 1;
+    const g = graphLayout(item(2, Array.from({ length: rows }, (_, i) => `GET /e${i}`)));
+    expect(g.nodeH).toBe(GRAPH.compactNodeH);
+    const ys = g.nodes.filter((n) => n.kind === "endpoint").map((n) => n.y);
+    expect(ys[1]! - ys[0]!).toBe(GRAPH.compactPitch);
+    expect(g.height).toBe(rows * GRAPH.compactPitch + GRAPH.pad * 2);
+    // rows never overlap: node height fits inside the pitch
+    expect(GRAPH.compactNodeH).toBeLessThan(GRAPH.compactPitch);
   });
 
   it("grows the height with the tallest column and centres the root", () => {

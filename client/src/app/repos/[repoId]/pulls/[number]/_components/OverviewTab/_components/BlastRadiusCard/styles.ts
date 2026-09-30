@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 
 export const s = {
+  /* The section is the grid item in OverviewTab: `minWidth: 0` lets it shrink with its track. */
+  root: { minWidth: 0 } satisfies CSSProperties,
   card: {
     border: "1px solid var(--border)",
     borderRadius: 8,

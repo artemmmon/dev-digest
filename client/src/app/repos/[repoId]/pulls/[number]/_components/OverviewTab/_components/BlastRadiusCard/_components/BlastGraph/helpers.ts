@@ -1,19 +1,27 @@
 import type { BlastDownstream } from "../../helpers";
 
-/** Graph geometry (px). Columns: changed symbol → callers → endpoints/crons. */
+/** Graph geometry (px, in viewBox units — the SVG scales to its container). Columns: changed
+    symbol → callers → endpoints/crons. Column x are centres, derived from widths and `gap` so the
+    drawing is as narrow as its content; the viewBox width is the rightmost node edge + `margin`. */
 export const GRAPH = {
-  rootX: 70,
-  callerX: 290,
-  leafX: 500,
+  margin: 8,
+  gap: 56,
   pitch: 28,
-  pad: 12,
   nodeH: 26,
+  /** Above this many rows the layout switches to the compact pitch/node height. */
+  compactAfter: 8,
+  compactPitch: 22,
+  compactNodeH: 18,
+  pad: 12,
   rootW: 100,
-  callerW: 130,
-  leafW: 150,
+  callerW: 124,
+  leafW: 124,
   maxLabel: 16,
-  width: 590,
 } as const;
+
+const ROOT_X = GRAPH.margin + GRAPH.rootW / 2;
+const CALLER_X = ROOT_X + GRAPH.rootW / 2 + GRAPH.gap + GRAPH.callerW / 2;
+const LEAF_X = CALLER_X + GRAPH.callerW / 2 + GRAPH.gap + GRAPH.leafW / 2;
 
 export type GraphNodeKind = "root" | "caller" | "endpoint" | "cron";
 
@@ -38,8 +46,11 @@ export interface GraphEdge {
 }
 
 export interface GraphLayout {
+  /** viewBox width / height. */
   width: number;
   height: number;
+  /** Node rectangle height (smaller in the compact layout). */
+  nodeH: number;
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
@@ -49,8 +60,8 @@ export function truncateLabel(text: string, max: number = GRAPH.maxLabel): strin
 }
 
 /** Centre `count` rows of `pitch` inside `height`; returns the y of row `i`. */
-function rowY(i: number, count: number, height: number): number {
-  return (height - count * GRAPH.pitch) / 2 + GRAPH.pitch * i + GRAPH.pitch / 2;
+function rowY(i: number, count: number, height: number, pitch: number): number {
+  return (height - count * pitch) / 2 + pitch * i + pitch / 2;
 }
 
 /** Node-link layout for one changed symbol; height grows with the tallest column. */
@@ -60,12 +71,15 @@ export function graphLayout(item: BlastDownstream): GraphLayout {
     ...item.crons_affected.map((label) => ({ kind: "cron" as const, label })),
   ];
   const rows = Math.max(item.callers.length, leaves.length, 1);
-  const height = rows * GRAPH.pitch + GRAPH.pad * 2;
+  const compact = rows > GRAPH.compactAfter;
+  const pitch = compact ? GRAPH.compactPitch : GRAPH.pitch;
+  const nodeH = compact ? GRAPH.compactNodeH : GRAPH.nodeH;
+  const height = rows * pitch + GRAPH.pad * 2;
 
   const root: GraphNode = {
     key: `root:${item.symbol}`,
     kind: "root",
-    x: GRAPH.rootX,
+    x: ROOT_X,
     y: height / 2,
     width: GRAPH.rootW,
     label: truncateLabel(item.symbol),
@@ -74,8 +88,8 @@ export function graphLayout(item: BlastDownstream): GraphLayout {
   const callers: GraphNode[] = item.callers.map((c, i) => ({
     key: `caller:${c.file}:${c.line}:${c.name}`,
     kind: "caller",
-    x: GRAPH.callerX,
-    y: rowY(i, item.callers.length, height),
+    x: CALLER_X,
+    y: rowY(i, item.callers.length, height, pitch),
     width: GRAPH.callerW,
     label: truncateLabel(c.name),
     title: `${c.name} — ${c.file}:${c.line}`,
@@ -83,8 +97,8 @@ export function graphLayout(item: BlastDownstream): GraphLayout {
   const leafNodes: GraphNode[] = leaves.map((l, i) => ({
     key: `${l.kind}:${l.label}`,
     kind: l.kind,
-    x: GRAPH.leafX,
-    y: rowY(i, leaves.length, height),
+    x: LEAF_X,
+    y: rowY(i, leaves.length, height, pitch),
     width: GRAPH.leafW,
     label: truncateLabel(l.label),
     title: l.label,
@@ -94,5 +108,7 @@ export function graphLayout(item: BlastDownstream): GraphLayout {
     ...leafNodes.map((to) => ({ key: `${root.key}>${to.key}`, from: root, to, faint: true })),
     ...callers.map((to) => ({ key: `${root.key}>${to.key}`, from: root, to, faint: false })),
   ];
-  return { width: GRAPH.width, height, nodes: [root, ...callers, ...leafNodes], edges };
+  const all = [root, ...callers, ...leafNodes];
+  const width = Math.max(...all.map((n) => n.x + n.width / 2)) + GRAPH.margin;
+  return { width, height, nodeH, nodes: all, edges };
 }

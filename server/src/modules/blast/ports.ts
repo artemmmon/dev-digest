@@ -45,7 +45,13 @@ export interface BlastIntel {
   blastRadius(repoId: string, files: string[]): Promise<BlastFacadeResult>;
 }
 
+/** The one logging call the service makes (Fastify's logger satisfies it). */
+export interface BlastLog {
+  info(obj: object, msg: string): void;
+}
+
 export interface BlastDeps {
   store: BlastStore;
   intel: BlastIntel;
+  log: BlastLog;
 }

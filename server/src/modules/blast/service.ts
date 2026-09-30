@@ -12,7 +12,7 @@ export class BlastService {
   constructor(private deps: BlastDeps) {}
 
   async forPull(workspaceId: string, prId: string): Promise<BlastRadiusResponse> {
-    const { store, intel } = this.deps;
+    const { store, intel, log } = this.deps;
     const pull = await store.pullInWorkspace(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
 
@@ -23,14 +23,36 @@ export class BlastService {
     let reason = blastReason(intel.enabled, state);
 
     let mapped = emptyBlast();
+    let facade: 'skipped' | 'persistent-index' = 'skipped';
     // The facade's fallback parses the clone from disk and always says `no_data`:
     // only ask it when the persistent index can answer.
     if (shouldQueryFacade(reason, paths.length)) {
+      facade = 'persistent-index';
       const result = await intel.blastRadius(pull.repoId, paths);
       // Index changed between the two reads: the facade fell back and produced nothing usable.
       if (result.degraded === true) reason = toDegradedReason(result.reason);
       mapped = toBlastRadius(result, BLAST_LIMITS.maxCallersPerSymbol);
     }
+
+    // One line per request: proves the ready index was read, not rebuilt (no parse, no LLM).
+    log.info(
+      {
+        prId: pull.id,
+        repoId: pull.repoId,
+        facade,
+        indexStatus: state.status,
+        indexedSha: state.lastIndexedSha || null,
+        reason,
+        changedFiles: paths.length,
+        symbols: mapped.counts.symbols,
+        callers: mapped.counts.callers,
+        endpoints: mapped.counts.endpoints,
+        crons: mapped.counts.crons,
+        truncated: mapped.truncated,
+        source: 'repo-intel index (read-only, no re-parse, no LLM)',
+      },
+      'blast radius served from the precomputed index',
+    );
 
     return {
       blast: mapped.blast,

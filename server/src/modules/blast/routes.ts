@@ -14,7 +14,7 @@ import { BlastService } from './service.js';
 export default async function blastRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
-  const service = new BlastService(container.blastDeps);
+  const service = new BlastService({ ...container.blastDeps, log: app.log });
 
   app.get(
     '/pulls/:id/blast',

@@ -16,8 +16,15 @@ export const s = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   }),
-  scroll: { overflowX: "auto" } satisfies CSSProperties,
-  svg: { display: "block" } satisfies CSSProperties,
+  /* The SVG scales to the card: full width up to its natural size (`maxWidth` = viewBox width so
+     text never grows past 11px), height follows the viewBox aspect ratio. Nothing is clipped. */
+  scroll: { minWidth: 0 } satisfies CSSProperties,
+  svg: (naturalWidth: number): CSSProperties => ({
+    display: "block",
+    width: "100%",
+    maxWidth: naturalWidth,
+    height: "auto",
+  }),
   legend: {
     display: "flex",
     gap: 14,
