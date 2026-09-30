@@ -13,8 +13,9 @@ import { listTools } from './test-support/list-tools.js';
 /**
  * Budgets in serialized characters (tokens are about chars / 4).
  * `perTool` covers a tool without an output schema; a tool that advertises one carries the
- * ~1.5k-char `RunResultOut` schema on top, so it gets `perToolWithOutput` (measured: 2391 for
- * run_agent_on_pr, 2666 for get_findings, see docs/devdigest-mcp.md).
+ * ~1.5k-char output schema on top (`RunResultOut`, `BlastRadiusResultOut`), so it gets
+ * `perToolWithOutput` (measured: 2391 for run_agent_on_pr, 2666 for get_findings, 2367 for
+ * get_blast_radius, see docs/devdigest-mcp.md).
  */
 const BUDGET = {
   allTools: 10_000,
@@ -46,9 +47,9 @@ describe('tools/list contract', () => {
     expect(tools.map((t) => t.name)).toEqual(NAMES);
   });
 
-  it('only run_agent_on_pr and get_findings advertise an output schema', async () => {
+  it('only run_agent_on_pr, get_findings and get_blast_radius advertise an output schema', async () => {
     const { tools } = await listTools();
-    expect(tools.filter((t) => t.outputSchema).map((t) => t.name)).toEqual(['run_agent_on_pr', 'get_findings']);
+    expect(tools.filter((t) => t.outputSchema).map((t) => t.name)).toEqual(['run_agent_on_pr', 'get_findings', 'get_blast_radius']);
   });
 
   it('every tool has a title, four boolean hints, a valid name and a 1-900 char description', async () => {

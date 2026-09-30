@@ -25,7 +25,7 @@ that tool to 2,952 chars against a 2,400 budget. The other tools still return ty
 (`domain.ts` types, compile-time-checked against the zod schemas in `tools/outputs.ts`), they just do not
 advertise or validate it. If you add a tool or grow a description, run `pnpm measure:tools` first; the
 `run_agent_on_pr` definition has about 10 chars of headroom.
-Where: `src/tools/run-agent-on-pr.ts:38`, `src/contract.test.ts:14` (`BUDGET`).
+Where: `src/tools/run-agent-on-pr.ts:38`, `src/contract.test.ts:20` (`BUDGET`).
 
 ### 2026-09-29 — Supersedes "Only `run_agent_on_pr` and `get_blast_radius` advertise an `outputSchema`"
 Confirmed by the user: `RunResultOut` is advertised on `run_agent_on_pr` and `get_findings` (the two tools that
@@ -33,14 +33,23 @@ return findings); `list_agents` and `get_conventions` stay typed-but-unadvertise
 advertises nothing (it never returns structured content; when implemented, add `outputSchema: BlastRadiusOut.shape`).
 `get_findings` is 2,666 chars with the schema, which does not fit the 2,400 per-tool cap even with a minimal
 description, so `contract.test.ts` has `perToolWithOutput: 2_800` for tools that advertise one.
-Where: `src/tools/get-findings.ts:29`, `src/contract.test.ts:19` (`BUDGET`).
+Where: `src/tools/get-findings.ts:29`, `src/contract.test.ts:20` (`BUDGET`).
 
 ### 2026-09-29 — Drift checks use exact type equality, not two-way assignability
 `[A] extends [B]` both ways passes when only optional properties differ (`{ a?: string }` vs `{ b?: string }`
 assign both ways), so renaming `suggestion?` on one side went unnoticed. `outputs.ts` uses
 `(<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)`. Verified by renaming `suggestion?` in
 `domain.ts` and `rationale` in `outputs.ts`: `pnpm typecheck` fails in both cases.
-Where: `src/tools/outputs.ts:109` (`Equal`).
+Where: `src/tools/outputs.ts:126` (`Equal`).
+
+### 2026-09-30 — Supersedes "Only `run_agent_on_pr` and `get_blast_radius` advertise an `outputSchema`"
+Also supersedes the 2026-09-29 entry that limited it to two tools. `get_blast_radius` is implemented and now advertises `BlastRadiusResultOut.shape` (1,524 chars of output schema), so three
+tools advertise one; `list_agents` and `get_conventions` still do not. `BlastRadiusResultOut` = `BlastRadiusOut.extend({...})`
+with the envelope fields (`repo`, `pr`, `counts`, `degraded`, `reason`, `truncated`, `next_step`); both schemas are
+exact-`Equal` drift-checked (against `BlastRadius` and `BlastRadiusResult`). Measured with `pnpm measure:tools`:
+`get_blast_radius` 2,367 chars (cap 2,800), all tools 9,161 of 10,000, instructions 460. Only about 840 chars of total
+headroom are left, so the next schema or description growth must trim something first.
+Where: `src/tools/get-blast-radius.ts:20`, `src/contract.test.ts:20` (`BUDGET`), `src/tools/outputs.ts:105`.
 
 ## Tool & Library Notes
 

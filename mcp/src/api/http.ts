@@ -5,6 +5,7 @@ import type { DevDigestApi, PullRef } from './port.js';
 import {
   ActiveRunListLite,
   AgentListLite,
+  BlastResponseLite,
   ConventionListResponseLite,
   PrListLite,
   PrLite,
@@ -151,5 +152,9 @@ export class HttpDevDigestApi implements DevDigestApi {
 
   conventions(repoId: string, signal?: AbortSignal) {
     return this.get(`/repos/${seg(repoId)}/conventions`, ConventionListResponseLite, signal);
+  }
+
+  blast(prId: string, signal?: AbortSignal) {
+    return this.get(`/pulls/${seg(prId)}/blast`, BlastResponseLite, signal);
   }
 }

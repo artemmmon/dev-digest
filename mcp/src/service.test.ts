@@ -9,6 +9,7 @@ import {
   FakeApi,
   RUN_ID,
   agent,
+  blastInfo,
   finding,
   review,
   run,
@@ -387,5 +388,70 @@ describe('getConventions', () => {
     expect(await failureOf(make(api).getConventions({ ...input, repo: 'acme/nope' }))).toBe(
       'Repo acme/nope is not in DevDigest; add it on the Repos page.',
     );
+  });
+});
+
+describe('getBlastRadius', () => {
+  const input = { repo: 'acme/api', pr: 7 };
+
+  it('returns the same map with repo text clipped and the server counts', async () => {
+    const api = new FakeApi();
+    const base = blastInfo();
+    const d = base.blast.downstream[0]!;
+    api.blastResponse = blastInfo({
+      blast: {
+        ...base.blast,
+        changed_symbols: [{ name: 'n'.repeat(300), file: 'src/a\u0000b.ts', kind: 'function' }],
+        downstream: [{ ...d, endpoints_affected: ['GET /x'.padEnd(400, 'y')] }],
+      },
+    });
+    const r = await make(api).getBlastRadius(input);
+    expect(r).toMatchObject({ repo: 'acme/api', pr: 7, degraded: false, reason: null, truncated: false, next_step: null });
+    expect(r.changed_symbols[0]!.name).toHaveLength(120);
+    expect(r.changed_symbols[0]!.file).toBe('src/ab.ts');
+    expect(r.downstream[0]!.callers).toEqual(d.callers);
+    expect(r.downstream[0]!.endpoints_affected[0]).toHaveLength(160);
+    expect(r.counts).toEqual({ symbols: 1, callers: 2, endpoints: 1, crons: 0 });
+    expect(api.count('blast')).toBe(1);
+    expect(api.count('syncPulls')).toBe(0);
+  });
+
+  it('a PR without changed files is a next-step error that asks to open the PR', async () => {
+    const api = new FakeApi();
+    api.blastResponse = blastInfo({ counts: { changed_files: 0, symbols: 0, callers: 0, endpoints: 0, crons: 0 } });
+    const msg = await failureOf(make(api).getBlastRadius(input));
+    expect(msg).toContain('open the PR in DevDigest');
+    expect(msg).toContain('get_blast_radius');
+    expect(api.count('refreshPull')).toBe(0);
+  });
+
+  it('a missing index is a degraded result with a next step, not an error', async () => {
+    const api = new FakeApi();
+    api.blastResponse = blastInfo({
+      blast: { changed_symbols: [], downstream: [], summary: '' },
+      index: { degraded: true, reason: 'no_data' },
+      counts: { changed_files: 2, symbols: 0, callers: 0, endpoints: 0, crons: 0 },
+    });
+    const r = await make(api).getBlastRadius(input);
+    expect(r).toMatchObject({ degraded: true, reason: 'no_data' });
+    expect(r.next_step).toContain('Resync');
+  });
+
+  it('partial index keeps the map and the server truncation is explained', async () => {
+    const api = new FakeApi();
+    api.blastResponse = blastInfo({ index: { degraded: true, reason: 'index_partial' }, truncated: true });
+    const r = await make(api).getBlastRadius(input);
+    expect(r.downstream).toHaveLength(1);
+    expect(r.truncated).toBe(true);
+    expect(r.next_step).toContain('partial');
+    expect(r.next_step).toContain('top callers');
+  });
+
+  it('an unknown PR is the resolvePull error and never reaches the blast route', async () => {
+    const api = new FakeApi();
+    expect(await failureOf(make(api).getBlastRadius({ ...input, pr: 99 }))).toBe(
+      "PR #99 of acme/api is not in DevDigest yet; open the repo's PR list in DevDigest to sync it.",
+    );
+    expect(api.count('blast')).toBe(0);
   });
 });

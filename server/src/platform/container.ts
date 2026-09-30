@@ -35,6 +35,8 @@ import { SafeHttpFetcher } from '../adapters/http/safe-fetch.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
 import { SmartDiffRepository } from '../modules/smart-diff/repository.js';
+import { BlastRepository } from '../modules/blast/repository.js';
+import type { BlastDeps } from '../modules/blast/ports.js';
 import type { ReviewDeps } from '../modules/reviews/deps.js';
 import { IntentRepository } from '../modules/intent/repository.js';
 import type { IntentDeps } from '../modules/intent/ports.js';
@@ -109,6 +111,7 @@ export class Container {
   private _intentService?: IntentService;
   private _pullsRepo?: PullsRepository;
   private _smartDiffRepo?: SmartDiffRepository;
+  private _blastRepo?: BlastRepository;
   private _settingsRepo?: SettingsRepository;
   private _reposRepo?: RepoRepository;
   private _repoIntel?: RepoIntel;
@@ -189,6 +192,24 @@ export class Container {
 
   get smartDiffRepo(): SmartDiffRepository {
     return (this._smartDiffRepo ??= new SmartDiffRepository(this.db));
+  }
+
+  get blastRepo(): BlastRepository {
+    return (this._blastRepo ??= new BlastRepository(this.db));
+  }
+
+  /** Collaborators of the blast service (the route adds `log: app.log`). The repo-intel facade is adapted through `this.repoIntel`, so test overrides apply. */
+  get blastDeps(): Omit<BlastDeps, 'log'> {
+    return {
+      store: this.blastRepo,
+      intel: {
+        enabled: this.config.repoIntelEnabled,
+        indexState: (repoId) => this.repoIntel.getIndexState(repoId),
+        blastRadius: (repoId, files) => 
+          // persistentOnly: the blast route never parses the clone, even if the index row flips after its state read.
+          this.repoIntel.getBlastRadius(repoId, files, { persistentOnly: true }),
+      },
+    };
   }
 
   /** Collaborators of the review service and run executor, wired from the container. */

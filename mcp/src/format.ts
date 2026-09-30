@@ -4,8 +4,8 @@
  * length is bounded. The text is returned as data in named fields, never as prose
  * the model is expected to follow.
  */
-import type { FindingInfo, ReviewInfo, ConventionInfo } from './api/schemas.js';
-import type { ConventionOut, FindingOut, RunResult } from './domain.js';
+import type { BlastInfo, FindingInfo, ReviewInfo, ConventionInfo } from './api/schemas.js';
+import type { BlastRadiusResult, ConventionOut, FindingOut, RunResult } from './domain.js';
 
 export const DEFAULT_RESPONSE_CAP = 24_000;
 const SEVERITY_RANK = { CRITICAL: 0, WARNING: 1, SUGGESTION: 2 } as const;
@@ -130,5 +130,79 @@ export function capResponse<T extends { findings: unknown[]; truncated: boolean;
   const note = `Response capped at ${maxChars} characters; ask for a smaller limit or detail 'concise'.`;
   capped.truncated = true;
   capped.next_step = capped.next_step ? `${capped.next_step} ${note}` : note;
+  return capped;
+}
+
+/**
+ * The route's blast radius as the tool result. Every repo-derived string is clipped (repo
+ * text is data, never instructions); the counts are the server's, so they still describe the
+ * whole map after `capBlastResponse` drops entries. `next_step` is filled in by the caller.
+ */
+export function toBlastResult(info: BlastInfo, repo: string, pr: number): BlastRadiusResult {
+  return {
+    repo: clip(repo, 200),
+    pr,
+    changed_symbols: info.blast.changed_symbols.map((s) => ({
+      name: clip(s.name, 120),
+      file: clip(s.file, 200),
+      kind: clip(s.kind, 40),
+    })),
+    downstream: info.blast.downstream.map((d) => ({
+      symbol: clip(d.symbol, 120),
+      callers: d.callers.map((c) => ({ name: clip(c.name, 120), file: clip(c.file, 200), line: c.line })),
+      endpoints_affected: d.endpoints_affected.map((e) => clip(e, 160)),
+      crons_affected: d.crons_affected.map((c) => clip(c, 160)),
+    })),
+    summary: clip(info.blast.summary, 300),
+    counts: {
+      symbols: info.counts.symbols,
+      callers: info.counts.callers,
+      endpoints: info.counts.endpoints,
+      crons: info.counts.crons,
+    },
+    degraded: info.index.degraded,
+    reason: info.index.reason,
+    truncated: info.truncated,
+    next_step: null,
+  };
+}
+
+/**
+ * Keeps the serialized blast result under `maxChars`: first drops trailing `downstream` entries
+ * (the server ranks them, lowest last), then, if still too big, trailing `changed_symbols`. `counts`
+ * always describes the whole map. Says so in `truncated` / `next_step`.
+ */
+export function capBlastResponse(
+  result: BlastRadiusResult,
+  maxChars: number = DEFAULT_RESPONSE_CAP,
+): BlastRadiusResult {
+  if (JSON.stringify(result).length <= maxChars) return result;
+  const note =
+    `Response capped at ${maxChars} characters; the lowest-ranked symbols were dropped from downstream ` +
+    'and, if still too large, the tail of changed_symbols (counts describe the whole map).';
+  // Flag and note first, so the size checks below already count them.
+  const capped = {
+    ...result,
+    changed_symbols: [...result.changed_symbols],
+    downstream: [...result.downstream],
+    truncated: true,
+    next_step: result.next_step ? `${result.next_step} ${note}` : note,
+  };
+  while (capped.downstream.length > 0 && JSON.stringify(capped).length > maxChars) {
+    capped.downstream.pop();
+  }
+  if (JSON.stringify(capped).length <= maxChars) return capped;
+
+  // Downstream is empty and it still does not fit: binary-search the longest fitting `changed_symbols` prefix
+  // (a PR can change thousands of symbols, so popping one by one would re-serialize the result each time).
+  const all = capped.changed_symbols;
+  let lo = 0;
+  let hi = all.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (JSON.stringify({ ...capped, changed_symbols: all.slice(0, mid) }).length <= maxChars) lo = mid;
+    else hi = mid - 1;
+  }
+  capped.changed_symbols = all.slice(0, lo);
   return capped;
 }

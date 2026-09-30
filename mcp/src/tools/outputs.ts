@@ -3,24 +3,25 @@
  * validates against. The result types themselves live in `../domain.ts`; the checks at
  * the bottom fail `pnpm typecheck` when a schema and its domain type drift apart.
  *
- * Only `run_agent_on_pr` and `get_findings` advertise an output schema (`RunResultOut`,
- * the two tools that return findings; token budget, see docs/devdigest-mcp.md).
- * `ListAgentsOut` and `ConventionsOut` are not advertised, and `get_blast_radius` is a
- * stub that always answers `isError`, so `BlastRadiusOut` is not advertised either; all
- * three are kept as the documented shape, for the drift checks and for tests that parse
- * a tool's `structuredContent`.
+ * Only `run_agent_on_pr`, `get_findings` (`RunResultOut`) and `get_blast_radius`
+ * (`BlastRadiusResultOut`) advertise an output schema (token budget, see
+ * docs/devdigest-mcp.md). `ListAgentsOut` and `ConventionsOut` are not advertised; they
+ * are kept as the documented shape, for the drift checks and for tests that parse a
+ * tool's `structuredContent`. `BlastRadiusOut` mirrors the server's `BlastRadius` map and
+ * `BlastRadiusResultOut` extends it with the envelope fields; both are drift-checked.
  */
 import { z } from 'zod';
 import type { BlastRadius } from '@devdigest/shared';
 import type {
   AgentOut as AgentType,
+  BlastRadiusResult,
   ConventionOut as ConventionType,
   ConventionsResult,
   FindingOut as FindingType,
   ListAgentsResult,
   RunResult,
 } from '../domain.js';
-import { SEVERITIES, VERDICTS } from '../api/schemas.js';
+import { BLAST_REASONS, SEVERITIES, VERDICTS } from '../api/schemas.js';
 
 export const RUN_STATUSES = ['done', 'running', 'failed', 'cancelled'] as const;
 
@@ -100,6 +101,22 @@ export const BlastRadiusOut = z.object({
   summary: z.string(),
 });
 
+/** `get_blast_radius` result: the map plus repo/PR, counts and index state. */
+export const BlastRadiusResultOut = BlastRadiusOut.extend({
+  repo: z.string(),
+  pr: z.number().int(),
+  counts: z.object({
+    symbols: z.number().int(),
+    callers: z.number().int(),
+    endpoints: z.number().int(),
+    crons: z.number().int(),
+  }),
+  degraded: z.boolean(),
+  reason: z.enum(BLAST_REASONS).nullable(),
+  truncated: z.boolean(),
+  next_step: z.string().nullable(),
+});
+
 // ---- drift checks (compile time only) ---------------------------------------
 // Each schema output and its type must be exactly equal, optional properties included:
 // `{ a?: string }` and `{ b?: string }` assign both ways (every property is optional), so
@@ -115,8 +132,9 @@ export const outputsInSync: [
   Check<Equal<z.output<typeof ListAgentsOut>, ListAgentsResult>>,
   Check<Equal<z.output<typeof ConventionsOut>, ConventionsResult>>,
   Check<Equal<z.output<typeof BlastRadiusOut>, BlastRadius>>,
+  Check<Equal<z.output<typeof BlastRadiusResultOut>, BlastRadiusResult>>,
   // Nested items are checked on their own too, so a drift inside `agents[]`, `conventions[]`
   // or `findings[]` names the item type it happened in.
   Check<Equal<z.output<typeof ConventionOut>, ConventionType>>,
   Check<Equal<z.output<typeof AgentOut>, AgentType>>,
-] = [true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true];

@@ -8,9 +8,9 @@ import { ApiError } from './api/errors.js';
 import type { DevDigestApi } from './api/port.js';
 import type { RunInfo } from './api/schemas.js';
 import type { McpConfig } from './config.js';
-import type { ConventionsResult, ListAgentsResult, RunResult } from './domain.js';
+import type { BlastReason, BlastRadiusResult, ConventionsResult, ListAgentsResult, RunResult } from './domain.js';
 import { NextStepError } from './errors.js';
-import { buildRunResult, clip, toConvention } from './format.js';
+import { buildRunResult, capBlastResponse, clip, toBlastResult, toConvention } from './format.js';
 import { log } from './log.js';
 import { resolveAgent, resolvePull, resolveRepo } from './resolve.js';
 import { POLL_MS, toRunStatus, waitForRun } from './wait.js';
@@ -52,6 +52,24 @@ export interface GetConventionsInput {
   status: 'accepted' | 'pending' | 'all';
   limit: number;
 }
+
+export interface GetBlastRadiusInput {
+  repo: string;
+  pr: number;
+}
+
+const BLAST_REASON_STEPS: Record<BlastReason, string> = {
+  flag_off:
+    'Repo intelligence is disabled on this DevDigest server (REPO_INTEL_ENABLED=false); enable it and resync the repo.',
+  no_data:
+    "The repo index is missing; press Resync in the PR's Blast radius block in DevDigest, then call get_blast_radius again.",
+  index_failed:
+    "The repo index failed; press Resync in the PR's Blast radius block in DevDigest, then call get_blast_radius again.",
+  index_partial:
+    'The repo index is partial and some callers may be missing; resync the repo in DevDigest for a full map.',
+  repo_too_large:
+    "The repo is too large to index; press Resync in the PR's Blast radius block in DevDigest, then call get_blast_radius again.",
+};
 
 /** Runs of one agent on the PR, newest first (the API returns them that way). */
 function pickRun(
@@ -255,5 +273,25 @@ export class DevDigestService {
       truncated: wanted.length > input.limit,
       next_step: nextStep,
     };
+  }
+
+  /** Read-only: the PR's precomputed blast radius (DB only on the API side; no GitHub call, no LLM). */
+  async getBlastRadius(input: GetBlastRadiusInput, signal?: AbortSignal): Promise<BlastRadiusResult> {
+    const found = await resolveRepo(this.api, input.repo, signal);
+    const pull = await resolvePull(this.api, found, input.pr, { syncOnMiss: false, signal });
+    const info = await this.api.blast(pull.id, signal);
+
+    if (info.counts.changed_files === 0) {
+      throw new NextStepError(
+        `PR #${pull.number} of ${found.full_name} has no changed files in DevDigest yet; open the PR in DevDigest, ` +
+          'then call get_blast_radius again.',
+      );
+    }
+
+    const notes: string[] = [];
+    if (info.index.reason) notes.push(BLAST_REASON_STEPS[info.index.reason]);
+    if (info.truncated) notes.push('Only the top callers of each symbol are listed.');
+    const shaped = { ...toBlastResult(info, found.full_name, pull.number), next_step: notes.join(' ') || null };
+    return capBlastResponse(shaped);
   }
 }

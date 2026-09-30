@@ -380,6 +380,18 @@ reads only the DB, is workspace-scoped through `requireRepo`, and 404s `not_foun
 It reuses `withRollups`, so the shape is the same `PrMeta` as the list. First consumer: `mcp/`.
 Where: `src/modules/pulls/service.ts:49`, `src/modules/pulls/routes.ts:36`, `test/pulls-by-number.it.test.ts`.
 
+### 2026-09-30 — `modules/blast` asks the repo-intel facade only for an index in `full`/`partial` with the flag on
+The facade's fallback in `getBlastRadius` parses the clone at request time (`readClone`, security gap G2) and always answers `no_data`. `BlastService.forPull` reads `getIndexState` first and calls the facade only when `shouldQueryFacade` holds. If the index changes between the two reads the facade may still fall back; the service then honours `result.degraded`.
+Where: `src/modules/blast/service.ts:28`.
+
+### 2026-09-30 — `MAX_CALLERS_PER_SYMBOL` now lives in `@devdigest/shared` as `BLAST_LIMITS`
+`modules/blast` and `repo-intel` may not import each other, so the cap moved to the core; `repo-intel/constants.ts` re-exports it as `MAX_CALLERS_PER_SYMBOL`, and the blast envelope sends it as `limits.max_callers_per_symbol`. Change the number in one place only.
+Where: `src/vendor/shared/contracts/brief.ts:163`, `src/modules/repo-intel/constants.ts:21`.
+
+### 2026-09-30 — Supersedes "`modules/blast` asks the repo-intel facade only for an index in `full`/`partial` with the flag on"
+The "index flips between the two reads and the facade may still fall back" caveat is closed: `blastDeps.blastRadius` in `container.ts` passes `{ persistentOnly: true }`, so `RepoIntelService.getBlastRadius` returns the empty degraded `no_data` instead of touching `codeIndex` / `readClone`. `shouldQueryFacade` still saves the call when the state read already says unusable.
+Where: `src/platform/container.ts:208`, `src/modules/repo-intel/service.ts:271`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -539,6 +551,10 @@ PR repo → spurious `not_found` that lowered confidence), and a raw-diff parser
 `+++ …` body line as a file header, leaking body text into the classifier prompt. Strip URLs and
 markdown targets before scanning for bare paths; count `@@ -a,b +c,d @@` line totals to skip bodies.
 Where: src/modules/intent/links.ts:88, src/modules/intent/hunks.ts:49
+
+### 2026-09-30 — `pnpm test:integration -- blast` runs the whole integration suite
+The script is `vitest run .it.test`, so the extra `-- blast` does not narrow it (all 16 files ran, ~25 s). To run one file use `pnpm vitest run test/<name>.it.test.ts`. A fresh git worktree also has no `node_modules`: run `pnpm install --frozen-lockfile` in `server/` (and `npm ci` in `reviewer-core/`) before any check.
+Where: `package.json:14`.
 
 ## Open Questions
 
