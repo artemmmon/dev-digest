@@ -1,6 +1,7 @@
 import type {
   ActiveRunInfo,
   AgentInfo,
+  BlastInfo,
   ConventionListInfo,
   PrInfo,
   RepoInfo,
@@ -30,4 +31,6 @@ export interface DevDigestApi {
   listRuns(prId: string, signal?: AbortSignal): Promise<RunInfo[]>;
   reviews(prId: string, signal?: AbortSignal): Promise<ReviewInfo[]>;
   conventions(repoId: string, signal?: AbortSignal): Promise<ConventionListInfo>;
+  /** `GET /pulls/:id/blast` — DB-only: the precomputed blast radius, no GitHub call, no LLM. */
+  blast(prId: string, signal?: AbortSignal): Promise<BlastInfo>;
 }

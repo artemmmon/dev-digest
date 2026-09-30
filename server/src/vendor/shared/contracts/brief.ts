@@ -159,6 +159,43 @@ export const BlastRadius = z.object({
 });
 export type BlastRadius = z.infer<typeof BlastRadius>;
 
+/** Read-time limits shared by the repo-intel facade and the blast module. */
+export const BLAST_LIMITS = { maxCallersPerSymbol: 20 } as const;
+
+export const BlastDegradedReason = z.enum([
+  'flag_off',
+  'no_data',
+  'index_failed',
+  'index_partial',
+  'repo_too_large',
+]);
+export type BlastDegradedReason = z.infer<typeof BlastDegradedReason>;
+
+export const BlastIndexStatus = z.enum(['full', 'partial', 'degraded', 'failed']);
+export type BlastIndexStatus = z.infer<typeof BlastIndexStatus>;
+
+/** GET /pulls/:id/blast response. */
+export const BlastRadiusResponse = z.object({
+  blast: BlastRadius,
+  head_sha: z.string(),
+  index: z.object({
+    status: BlastIndexStatus,
+    degraded: z.boolean(),
+    reason: BlastDegradedReason.nullable(),
+    indexed_sha: z.string().nullable(),
+  }),
+  limits: z.object({ max_callers_per_symbol: z.number().int() }),
+  counts: z.object({
+    changed_files: z.number().int(),
+    symbols: z.number().int(),
+    callers: z.number().int(),
+    endpoints: z.number().int(),
+    crons: z.number().int(),
+  }),
+  truncated: z.boolean(),
+});
+export type BlastRadiusResponse = z.infer<typeof BlastRadiusResponse>;
+
 // ---- Risks ----
 export const RiskSeverity = z.enum(['high', 'medium', 'low']);
 export type RiskSeverity = z.infer<typeof RiskSeverity>;

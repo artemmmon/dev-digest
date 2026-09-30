@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, type ApiErrorKind } from './errors.js';
 import { HttpDevDigestApi } from './http.js';
+import { blastInfo } from '../test-support/fake-api.js';
 
 const RID = '11111111-1111-4111-8111-111111111111';
 
@@ -117,5 +118,22 @@ describe('HttpDevDigestApi', () => {
   it('refreshPull ignores the body of a 200', async () => {
     const { api: a } = api(async () => json({ huge: 'detail' }));
     await expect(a.refreshPull('pr-1')).resolves.toBeUndefined();
+  });
+
+  it('blast reads /pulls/<encoded id>/blast and keeps only the fields the tool reads', async () => {
+    const full = { ...blastInfo(), limits: { max_callers_per_symbol: 20 }, extra: 1 };
+    const { api: a, fetchImpl } = api(async () => json(full));
+    const got = await a.blast('pr/1 x');
+    expect(fetchImpl.mock.calls[0]![0]).toBe('http://localhost:3001/pulls/pr%2F1%20x/blast');
+    expect(got).toEqual(blastInfo());
+  });
+
+  it('blast maps a malformed body to server and a 404 to not_found', async () => {
+    const bad = api(async () => json({ blast: {}, head_sha: 1 }));
+    expect(await kindOf(bad.api.blast('pr-1'))).toBe('server');
+    const badReason = api(async () => json(blastInfo({ index: { degraded: true, reason: 'nope' as never } })));
+    expect(await kindOf(badReason.api.blast('pr-1'))).toBe('server');
+    const miss = api(async () => json({ error: { code: 'not_found', message: 'x' } }, 404));
+    expect(await kindOf(miss.api.blast('pr-1'))).toBe('not_found');
   });
 });

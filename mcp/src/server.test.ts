@@ -7,9 +7,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ApiError } from './api/errors.js';
 import { createServer } from './server.js';
-import { AGENT_ID, FakeApi, RUN_ID, run } from './test-support/fake-api.js';
-import { BLAST_RADIUS_NOT_IMPLEMENTED } from './tools/get-blast-radius.js';
-import { ConventionsOut, ListAgentsOut, RunResultOut } from './tools/outputs.js';
+import { AGENT_ID, FakeApi, RUN_ID, blastInfo, run } from './test-support/fake-api.js';
+import { BlastRadiusResultOut, ConventionsOut, ListAgentsOut, RunResultOut } from './tools/outputs.js';
 
 const CONFIG = { apiUrl: 'http://localhost:3001', maxWaitS: 90 };
 
@@ -40,7 +39,7 @@ async function connect(api: FakeApi, config = CONFIG) {
 const target = { repo: 'acme/api', pr: 7, agent: 'Security Reviewer' };
 
 describe('tools/list', () => {
-  it('registers exactly the five tools in order; only the two tools that return findings advertise an output schema', async () => {
+  it('registers exactly the five tools in order; only the tools that return findings or a blast radius advertise an output schema', async () => {
     const { client } = await connect(new FakeApi());
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual([
@@ -51,7 +50,7 @@ describe('tools/list', () => {
       'get_blast_radius',
     ]);
     for (const t of tools) {
-      const advertised = ['run_agent_on_pr', 'get_findings'].includes(t.name);
+      const advertised = ['run_agent_on_pr', 'get_findings', 'get_blast_radius'].includes(t.name);
       expect(t.outputSchema !== undefined, `${t.name} outputSchema`).toBe(advertised);
     }
   });
@@ -184,15 +183,32 @@ describe('progress', () => {
   });
 });
 
-describe('get_blast_radius (stub)', () => {
-  it('always answers isError, makes no API call, validates its input', async () => {
+describe('get_blast_radius', () => {
+  it('returns structuredContent that parses with the advertised output schema', async () => {
     const api = new FakeApi();
     const { call } = await connect(api);
     const res = await call('get_blast_radius', { repo: 'acme/api', pr: 7 });
+    expect(res.isError).toBeFalsy();
+    const out = BlastRadiusResultOut.parse(res.structuredContent);
+    expect(out).toMatchObject({ repo: 'acme/api', pr: 7, degraded: false, reason: null });
+    expect(out.downstream[0]!.callers).toHaveLength(2);
+    expect(JSON.parse(res.content[0]!.text)).toEqual(res.structuredContent);
+    expect(api.count('blast')).toBe(1);
+  });
+
+  it('a PR without changed files is an isError that says to open the PR', async () => {
+    const api = new FakeApi();
+    api.blastResponse = blastInfo({ counts: { changed_files: 0, symbols: 0, callers: 0, endpoints: 0, crons: 0 } });
+    const res = await (await connect(api)).call('get_blast_radius', { repo: 'acme/api', pr: 7 });
     expect(res.isError).toBe(true);
-    expect(res.content[0]!.text).toBe(BLAST_RADIUS_NOT_IMPLEMENTED);
-    const bad = await call('get_blast_radius', { repo: 'nope', pr: 7 });
-    expect(bad.isError).toBe(true);
+    expect(res.content[0]!.text).toContain('open the PR');
+  });
+
+  it('a bad repo is an isError before any API call', async () => {
+    const api = new FakeApi();
+    const res = await (await connect(api)).call('get_blast_radius', { repo: 'nope', pr: 7 });
+    expect(res.isError).toBe(true);
+    expect(res.content[0]!.text).toContain('repo must be owner/name');
     expect(api.calls).toEqual([]);
   });
 });

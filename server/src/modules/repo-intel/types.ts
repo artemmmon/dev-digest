@@ -71,6 +71,11 @@ export interface BlastCallerRow {
   rank: number;
 }
 
+export interface BlastRadiusOptions {
+  /** Never fall back to parsing the clone; without a usable persistent index return the empty degraded `no_data`. */
+  persistentOnly?: boolean;
+}
+
 export interface BlastResult {
   changedSymbols: BlastChangedSymbol[];
   callers: BlastCallerRow[];
@@ -82,6 +87,11 @@ export interface BlastResult {
    * Present on the persistent (non-degraded) path; absent otherwise.
    */
   factsByFile?: Record<string, { endpoints: string[]; crons: string[] }>;
+  /**
+   * True when at least one changed symbol had more callers than the per-symbol
+   * cap and the facade cut the rest. Persistent path only; absent otherwise.
+   */
+  truncated?: boolean;
   degraded?: boolean;
   reason?: DegradedReason;
 }
@@ -144,7 +154,12 @@ export interface RepoIntel {
   getIndexState(repoId: string): Promise<IndexState>;
 
   // --- Reads --------------------------------------------------------------
-  getBlastRadius(repoId: string, changedFiles: string[]): Promise<BlastResult>;
+  /** `opts.persistentOnly` forbids the clone-parsing fallback: no usable index → empty `no_data`. */
+  getBlastRadius(
+    repoId: string,
+    changedFiles: string[],
+    opts?: BlastRadiusOptions,
+  ): Promise<BlastResult>;
   getRepoMap(repoId: string, tokenBudget?: number): Promise<RepoMapResult>;
   getFileRank(repoId: string, paths: string[]): Promise<FileRankRow[]>;
   getSymbolsInFiles(repoId: string, paths: string[]): Promise<SymbolRow[]>;

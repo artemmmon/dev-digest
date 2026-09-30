@@ -523,8 +523,164 @@ exports[`tools/list contract > matches the snapshot of names, order, titles, ann
       "type": "object",
     },
     "name": "get_blast_radius",
-    "outputSchema": null,
-    "title": "Get PR blast radius (not implemented yet)",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "changed_symbols": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+              },
+              "kind": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "file",
+              "kind",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "counts": {
+          "additionalProperties": false,
+          "properties": {
+            "callers": {
+              "type": "integer",
+            },
+            "crons": {
+              "type": "integer",
+            },
+            "endpoints": {
+              "type": "integer",
+            },
+            "symbols": {
+              "type": "integer",
+            },
+          },
+          "required": [
+            "symbols",
+            "callers",
+            "endpoints",
+            "crons",
+          ],
+          "type": "object",
+        },
+        "degraded": {
+          "type": "boolean",
+        },
+        "downstream": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "callers": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string",
+                    },
+                    "line": {
+                      "type": "integer",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "name",
+                    "file",
+                    "line",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "crons_affected": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "endpoints_affected": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "symbol": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "symbol",
+              "callers",
+              "endpoints_affected",
+              "crons_affected",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "next_step": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "pr": {
+          "type": "integer",
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "flag_off",
+                "no_data",
+                "index_failed",
+                "index_partial",
+                "repo_too_large",
+              ],
+              "type": "string",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "repo": {
+          "type": "string",
+        },
+        "summary": {
+          "type": "string",
+        },
+        "truncated": {
+          "type": "boolean",
+        },
+      },
+      "required": [
+        "changed_symbols",
+        "downstream",
+        "summary",
+        "repo",
+        "pr",
+        "counts",
+        "degraded",
+        "reason",
+        "truncated",
+        "next_step",
+      ],
+      "type": "object",
+    },
+    "title": "Get PR blast radius",
   },
 ]
 `;

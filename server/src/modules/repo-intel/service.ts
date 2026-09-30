@@ -29,6 +29,7 @@ import type {
 import type {
   BlastCallerRow,
   BlastChangedSymbol,
+  BlastRadiusOptions,
   BlastResult,
   FileRankRow,
   IndexResult,
@@ -241,8 +242,17 @@ export class RepoIntelService implements RepoIntel {
    * Why "always degraded" in T1: there's no persistent rank/decl_file yet, so
    * every caller gets `rank: 0` and HTTP impact is detected by re-reading the
    * clone (not the index). T2 promotes this path to the persistent layer.
+   *
+   * `opts.persistentOnly`: never take the clone/ripgrep fallback — when the
+   * persistent index cannot answer (flag off, no `full`/`partial` row, even if
+   * the row flipped since the caller checked) return the empty degraded
+   * `no_data` result. Used by the blast route ("never parses the clone").
    */
-  async getBlastRadius(repoId: string, changedFiles: string[]): Promise<BlastResult> {
+  async getBlastRadius(
+    repoId: string,
+    changedFiles: string[],
+    opts?: BlastRadiusOptions,
+  ): Promise<BlastResult> {
     // T3: serve from the persistent index when it's built. Falls through to the
     // ripgrep best-effort below when the flag is off / index is absent.
     if (this.deps.enabled && changedFiles.length > 0) {
@@ -257,6 +267,8 @@ export class RepoIntelService implements RepoIntel {
       degraded: true,
       reason: 'no_data',
     };
+
+    if (opts?.persistentOnly) return empty;
 
     const repo = await this.repo.getRepoBasics(repoId);
     if (!repo || !repo.clonePath || changedFiles.length === 0) return empty;
@@ -395,6 +407,18 @@ export class RepoIntelService implements RepoIntel {
       });
     }
     callers.sort((a, b) => b.rank - a.rank);
+    // Cap per changed symbol (not globally): a low-rank symbol must keep its callers.
+    const perSymbol = new Map<string, number>();
+    let truncated = false;
+    const cappedCallers = callers.filter((c) => {
+      const n = perSymbol.get(c.viaSymbol) ?? 0;
+      if (n >= MAX_CALLERS_PER_SYMBOL) {
+        truncated = true;
+        return false;
+      }
+      perSymbol.set(c.viaSymbol, n + 1);
+      return true;
+    });
 
     // Precomputed facts per caller file (endpoints + crons), so consumers can
     // attribute them to the changed symbol whose callers live in that file.
@@ -408,10 +432,11 @@ export class RepoIntelService implements RepoIntel {
 
     return {
       changedSymbols,
-      callers: callers.slice(0, MAX_CALLERS_PER_SYMBOL),
+      callers: cappedCallers,
       impactedEndpoints: [...endpoints],
       factsByFile,
       degraded: false,
+      truncated,
     };
   }
 

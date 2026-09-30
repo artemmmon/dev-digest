@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildRunResult, capResponse, clip, sortFindings, toConvention, toFinding } from './format.js';
-import { AGENT_ID, RUN_ID, finding, review } from './test-support/fake-api.js';
+import { buildRunResult, capBlastResponse, capResponse, clip, toBlastResult, sortFindings, toConvention, toFinding } from './format.js';
+import { AGENT_ID, RUN_ID, blastInfo, finding, review } from './test-support/fake-api.js';
 
 describe('clip', () => {
   it('strips control characters but keeps newlines', () => {
@@ -163,5 +163,63 @@ describe('toConvention', () => {
     expect(c.evidence).toBe('src/x.ts:12');
     expect(c.rule).toHaveLength(300);
     expect(c.confidence).toBe(0.88);
+  });
+});
+
+describe('capBlastResponse', () => {
+  const many = () => {
+    const d = blastInfo().blast.downstream[0]!;
+    return toBlastResult(
+      blastInfo({
+        blast: {
+          changed_symbols: [],
+          summary: 's',
+          downstream: Array.from({ length: 20 }, (_, i) => ({ ...d, symbol: `sym${i}` })),
+        },
+      }),
+      'acme/api',
+      7,
+    );
+  };
+
+  it('drops the lowest-ranked tail, sets truncated and appends a note', () => {
+    const capped = capBlastResponse(many(), 2_000);
+    expect(JSON.stringify(capped).length).toBeLessThanOrEqual(2_000);
+    expect(capped.downstream.length).toBeGreaterThan(0);
+    expect(capped.downstream.length).toBeLessThan(20);
+    expect(capped.downstream[0]!.symbol).toBe('sym0');
+    expect(capped.truncated).toBe(true);
+    expect(capped.next_step).toContain('capped at 2000');
+  });
+
+  it('returns the same object when it fits', () => {
+    const r = many();
+    expect(capBlastResponse(r)).toBe(r);
+  });
+
+  it('also trims changed_symbols from the tail when thousands of symbols do not fit', () => {
+    const symbols = Array.from({ length: 2_000 }, (_, i) => ({
+      name: `symbol${i}`,
+      file: `src/very/deep/path/to/module${i}.ts`,
+      kind: 'function',
+    }));
+    const big = toBlastResult(
+      blastInfo({
+        blast: { changed_symbols: symbols, summary: 's', downstream: blastInfo().blast.downstream },
+        counts: { changed_files: 40, symbols: 2_000, callers: 3, endpoints: 1, crons: 0 },
+      }),
+      'acme/api',
+      7,
+    );
+    expect(JSON.stringify(big).length).toBeGreaterThan(24_000);
+    const capped = capBlastResponse(big);
+    expect(JSON.stringify(capped).length).toBeLessThanOrEqual(24_000);
+    expect(capped.truncated).toBe(true);
+    expect(capped.downstream).toHaveLength(0);
+    expect(capped.changed_symbols.length).toBeGreaterThan(0);
+    expect(capped.changed_symbols.length).toBeLessThan(2_000);
+    expect(capped.changed_symbols[0]!.name).toBe('symbol0');
+    expect(capped.counts.symbols).toBe(2_000);
+    expect(capped.next_step).toContain('changed_symbols');
   });
 });

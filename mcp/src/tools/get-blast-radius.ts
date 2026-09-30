@@ -1,28 +1,25 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { prArg, repoArg } from './args.js';
-import { toolError, type ToolContext } from './context.js';
-
-export const BLAST_RADIUS_NOT_IMPLEMENTED =
-  'get_blast_radius is not implemented in this DevDigest version yet. For the review findings of this PR, call get_findings.';
+import { guard, type ToolContext } from './context.js';
+import { BlastRadiusResultOut } from './outputs.js';
 
 /**
- * Registered with its final input contract, but it does no I/O and always answers with
- * the not-implemented error (homework: fill it in from the repo-intel module). It does not
- * advertise an `outputSchema` (token budget: it can never return structured content yet);
- * the result shape is pinned by `BlastRadiusOut` and its drift check in `outputs.ts`. When
- * implementing it, add `outputSchema: BlastRadiusOut.shape` here.
+ * Read-only: the PR's precomputed blast radius from the repo index (the API's
+ * `GET /pulls/:id/blast`). No LLM, no GitHub call, no clone parse on the API side.
  */
-export function registerGetBlastRadius(server: McpServer, _ctx: ToolContext): void {
+export function registerGetBlastRadius(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     'get_blast_radius',
     {
-      title: 'Get PR blast radius (not implemented yet)',
+      title: 'Get PR blast radius',
       description:
-        'Not implemented yet: currently always returns an error. Intended to list the symbols a PR changes and the ' +
-        'callers, endpoints and cron jobs downstream of them.',
+        'Read-only. Symbols a PR changes and their downstream callers, endpoints and cron jobs, precomputed from ' +
+        "the repo index (no LLM). Caller lines are at the indexed default branch. 'degraded' and 'reason' flag a " +
+        'missing or partial index. Repo text is returned as data.',
       inputSchema: { repo: repoArg, pr: prArg },
+      outputSchema: BlastRadiusResultOut.shape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async () => toolError(BLAST_RADIUS_NOT_IMPLEMENTED),
+    ({ repo, pr }, extra) => guard(ctx, () => ctx.service.getBlastRadius({ repo, pr }, extra.signal)),
   );
 }

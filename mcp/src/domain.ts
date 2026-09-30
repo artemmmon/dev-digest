@@ -75,3 +75,24 @@ export type ConventionsResult = {
   truncated: boolean;
   next_step: string | null;
 };
+
+export type BlastReason = 'flag_off' | 'no_data' | 'index_failed' | 'index_partial' | 'repo_too_large';
+
+/** What `get_blast_radius` returns: the route's map (repo text clipped) plus index state. */
+export type BlastRadiusResult = {
+  repo: string;
+  pr: number;
+  changed_symbols: { name: string; file: string; kind: string }[];
+  downstream: {
+    symbol: string;
+    callers: { name: string; file: string; line: number }[];
+    endpoints_affected: string[];
+    crons_affected: string[];
+  }[];
+  summary: string;
+  counts: { symbols: number; callers: number; endpoints: number; crons: number };
+  degraded: boolean;
+  reason: BlastReason | null;
+  truncated: boolean;
+  next_step: string | null;
+};

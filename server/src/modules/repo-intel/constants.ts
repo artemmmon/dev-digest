@@ -3,6 +3,9 @@
  * exported early so the pipeline lands against a single source of truth.
  */
 
+// The blast cap lives in the core so `modules/blast` and repo-intel share it without importing each other.
+import { BLAST_LIMITS } from '@devdigest/shared';
+
 // --- Job kinds (registered on JobRunner; enqueued from repos/service.ts) ----
 export { INDEX_JOB_KIND, REFRESH_JOB_KIND, RESYNC_JOB_KIND } from '../_shared/ports.js';
 
@@ -15,7 +18,7 @@ export { EXCLUDED_DIRS, MAX_INDEXED_FILES, MAX_FILE_SIZE } from '@devdigest/shar
 
 // --- Read-time limits -------------------------------------------------------
 /** [T1] Caller fan-out cap per changed symbol (ORDER BY rank DESC LIMIT N). */
-export const MAX_CALLERS_PER_SYMBOL = 20;
+export const MAX_CALLERS_PER_SYMBOL = BLAST_LIMITS.maxCallersPerSymbol;
 
 /**
  * [T1] Bumped whenever the AST extractor or symbol schema changes. A mismatch

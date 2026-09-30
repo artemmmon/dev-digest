@@ -3,6 +3,7 @@ import type { DevDigestApi, PullRef } from '../api/port.js';
 import type {
   ActiveRunInfo,
   AgentInfo,
+  BlastInfo,
   ConventionListInfo,
   FindingInfo,
   ReviewInfo,
@@ -73,6 +74,31 @@ export function run(over: Partial<RunInfo> = {}): RunInfo {
   };
 }
 
+export function blastInfo(over: Partial<BlastInfo> = {}): BlastInfo {
+  return {
+    blast: {
+      changed_symbols: [{ name: 'getContext', file: 'src/context.ts', kind: 'function' }],
+      downstream: [
+        {
+          symbol: 'getContext',
+          callers: [
+            { name: 'listRepos', file: 'src/routes.ts', line: 12 },
+            { name: 'runReview', file: 'src/service.ts', line: 40 },
+          ],
+          endpoints_affected: ['GET /repos'],
+          crons_affected: [],
+        },
+      ],
+      summary: 'Changes 1 symbol used by 2 callers.',
+    },
+    head_sha: 'abc1234',
+    index: { degraded: false, reason: null },
+    counts: { changed_files: 1, symbols: 1, callers: 2, endpoints: 1, crons: 0 },
+    truncated: false,
+    ...over,
+  };
+}
+
 export type ApiMethod = keyof DevDigestApi;
 
 export class FakeApi implements DevDigestApi {
@@ -87,6 +113,7 @@ export class FakeApi implements DevDigestApi {
   runsSequence: RunInfo[][] = [[run()]];
   reviewsList: ReviewInfo[] = [review()];
   conventionList: ConventionListInfo = { candidates: [], last_scan: null };
+  blastResponse: BlastInfo = blastInfo();
   startedRunId = RUN_ID;
 
   readonly calls: string[] = [];
@@ -146,5 +173,9 @@ export class FakeApi implements DevDigestApi {
   async conventions() {
     this.hit('conventions');
     return this.conventionList;
+  }
+  async blast() {
+    this.hit('blast');
+    return this.blastResponse;
   }
 }

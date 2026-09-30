@@ -38,7 +38,7 @@ touch the pipeline internals:
 - `getRepoMap(repoId)` → the cached repo skeleton (fed into the **review prompt**).
 - `getFileRank(repoId, files)` → importance percentile per changed file.
 - `getCallerSignatures(repoId, files, limit)` → callers of changed symbols.
-- `getBlastRadius(repoId, files)` → impacted symbols / callers (used by L04).
+- `getBlastRadius(repoId, files)` → impacted symbols / callers (used by `modules/blast`, see `docs/blast-radius.md`).
 - `getUnresolvedReferences(repoId, …)` → phantom-symbol detection (used by L06).
 - `getConventionSamples(repoId)` → top-ranked files for convention extraction (L02).
 

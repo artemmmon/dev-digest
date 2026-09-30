@@ -30,6 +30,7 @@ export const keys = {
     comments: (prId: Id) => ["pr", prId, "comments"] as const,
     intent: (prId: Id) => ["pr", prId, "intent"] as const,
     smartDiff: (prId: Id) => ["pr", prId, "smart-diff"] as const,
+    blast: (prId: Id) => ["pr", prId, "blast"] as const,
   },
   runTrace: (runId: Id) => ["run-trace", runId] as const,
 
