@@ -63,6 +63,52 @@ architecture-reviewer stay on opus, every group still runs its "Done when" and t
 the verifier still grades every plan item, and the manual test in the app stays. It found three
 bugs the tests had missed. The savings overlap, so they are not simply added up.
 
+## How to measure a run
+
+Report the **accumulated** tokens from the transcripts, the same number the status line shows. The
+`subagent_tokens` figure in a subagent's completion notice is not that: it is close to the agent's
+final context size, so it understates an agent by 10–60× and leaves out the main session.
+
+1. Find the session transcript: `~/.claude/projects/<cwd with / → ->/<session-id>.jsonl`. The
+   session id is the scratchpad folder name, not necessarily the id the host app shows. Its
+   subagents are `<session-id>/subagents/agent-*.jsonl`, each with a `.meta.json` whose `agentType`
+   names the agent.
+2. Count every API response once, keyed by `requestId` (fallback `message.id`). A streamed response
+   is written several times with growing `usage`, so keep the **maximum** of each field per key, not
+   the first or the sum.
+3. Add `input_tokens`, `output_tokens`, `cache_read_input_tokens` and `cache_creation_input_tokens`
+   per transcript; group the subagents by `agentType`; report the main session as its own row.
+4. Price per model from `message.model`, with the list prices above. Cache writes cost 2× input in
+   the main session (1-hour TTL) and 1.25× input in subagents (5-minute TTL). Say that the result is
+   list price, not a bill.
+
+Output tokens can still come out low for subagents whose transcript stops before the final usage
+record. Treat output as a lower bound and say so.
+
+### HW4 Blast Radius (2026-09-30), measured this way
+
+Plan `docs/plans/06-blast-radius.md`. One main session (Opus 5.5) and 51 subagents. Total
+**82.0M tokens, about $35** at list price; cache reads were 96%.
+
+| Row | Runs | Tokens | ≈ $ |
+|---|---|---|---|
+| Main session (coordination, live checks, filming) | 1 (180 calls) | 58.0M | 23.51 |
+| implementer (3 step groups + 5 fix runs) | 8 | 9.8M | 3.29 |
+| planner | 1 | 4.2M | 1.69 |
+| pr-skill-reviewer (3 `/pr-self-review` rounds) | 36 | 3.6M | 3.44 |
+| brainstorm | 1 | 2.3M | 0.96 |
+| doc-writer | 1 | 1.4M | 0.56 |
+| implementation-verifier | 1 | 1.2M | 0.50 |
+| architecture-reviewer | 1 | 0.7M | 0.48 |
+| security-reviewer | 1 | 0.6M | 0.40 |
+| frame-checker (demo video) | 1 | 0.2M | 0.15 |
+
+What drove it: the main session was 71% of the tokens. It held the whole day, including a filming
+phase with screenshots, and every call re-read that context. Two of the three `/pr-self-review`
+rounds reviewed the whole 72-file PR because the branch had not been pushed yet; the third, after the
+push, reviewed only the 20 unpushed files. Three UI defects (caller-row overflow, clipped graph,
+"1 symbols") were found only in the browser and each cost a fix run plus a review round.
+
 ## Not adopted
 
 - **Merging `implementation-verifier` and `architecture-reviewer`.** They ran in parallel for $4.5
