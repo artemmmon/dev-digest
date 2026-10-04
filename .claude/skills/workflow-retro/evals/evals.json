@@ -1,0 +1,56 @@
+[
+  {
+    "id": "retro-after-sdd",
+    "skills": [
+      "workflow-retro"
+    ],
+    "query": "/workflow-retro --plan docs/plans/06-rerun-agent.md --label rerun-agent — the feature was planned in one session and built in another.",
+    "files": [
+      ".claude/skills/workflow-retro/SKILL.md",
+      ".claude/skills/workflow-retro/references/reading.md",
+      ".claude/skills/workflow-retro/references/devdigest.md"
+    ],
+    "expected_behavior": [
+      "Runs retro.mjs with --plan (deep, no --shallow) and states which sessions were measured",
+      "Reports totals, the by-role split and the peak parallelism from the script's output, with no number that is not in it",
+      "Writes 3–5 actions, each naming an agent or file, the change and the number behind it; drops or rewords an action the agent file already contains",
+      "Runs retro.mjs again with --write and --action, then fills the Actions block of docs/retros/<date>-rerun-agent.md",
+      "Compares the new ledger row with the previous one in one sentence"
+    ]
+  },
+  {
+    "id": "shallow-vs-deep",
+    "skills": [
+      "workflow-retro"
+    ],
+    "query": "The subagent completion notices of this run add up to about 1.2M tokens. Is that what the run cost? Use /workflow-retro.",
+    "files": [
+      ".claude/skills/workflow-retro/SKILL.md",
+      ".claude/skills/workflow-retro/references/reading.md"
+    ],
+    "expected_behavior": [
+      "Does not accept the sum of completion notices as the cost: says they are close to final context size, not spend",
+      "Measures with the script in deep mode, reading the subagent transcripts from disk",
+      "Reports the main-session vs subagents split and explains that a parent's usage does not include its children",
+      "Mentions that part of the output count is estimated and that dollars are list prices"
+    ]
+  },
+  {
+    "id": "concurrency-without-errors",
+    "skills": [
+      "workflow-retro"
+    ],
+    "query": "The retro shows 14 pr-skill-reviewer agents running at once, 0 API errors, and severity.md read by all 38 of them. What actions do you propose?",
+    "files": [
+      ".claude/skills/workflow-retro/SKILL.md",
+      ".claude/skills/workflow-retro/references/reading.md",
+      ".claude/agents/pr-skill-reviewer.md"
+    ],
+    "expected_behavior": [
+      "Does not propose reducing concurrency: with no API errors the parallel run costs the same tokens and less time; says to keep it",
+      "Proposes preloading severity.md and reviewer-contract.md for pr-skill-reviewer (or inlining what it needs), naming the agent file and the 38-read count",
+      "Each action names a file or agent, the change and the number",
+      "Does not edit the agent file itself as part of the retro"
+    ]
+  }
+]

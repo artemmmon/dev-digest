@@ -1,6 +1,6 @@
 ---
 name: pr-skill-reviewer
-description: Read-only reviewer for the pr-self-review skill. Reviews the changed lines of a given file set against ONE project skill's rules (or, when no skill is given, for plain correctness bugs) and returns findings as JSON. Spawned by pr-self-review only; not for general use.
+description: Read-only reviewer for the pr-self-review skill. Reviews the changed lines of a given file set against ONE project skill's rules (or, when no skill is given, for plain correctness bugs) and returns findings as JSON. Spawned by pr-self-review, and by the feature flow in `correctness` mode right after implementation (feature-flow skill); not for general use.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit, NotebookEdit
 model: sonnet

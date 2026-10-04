@@ -1,0 +1,53 @@
+[
+  {
+    "id": "vague-brief-to-ears",
+    "skills": ["spec-authoring"],
+    "query": "Write the User stories, Acceptance criteria and Edge cases sections of a DevDigest spec from this brief only: \"On the pull-request page the developer should be able to re-run a failed agent run with one click. It should be quick and handle errors properly. While it is re-running the old result should stay visible. If GitHub is down, tell the user.\"",
+    "files": [
+      ".claude/skills/spec-authoring/SKILL.md",
+      ".claude/skills/spec-authoring/references/ears.md"
+    ],
+    "expected_behavior": [
+      "Every acceptance criterion carries an id and the stories it serves (AC-n (US-n)), uses exactly one EARS pattern with the keyword in capitals, has exactly one `shall` and one observable response",
+      "Uses IF … THEN for the GitHub failure and WHILE for 'while it is re-running'; uses WHEN for the click",
+      "Does not copy 'quick' or 'properly' into a criterion; either states a concrete value that the brief gives or raises an open question (OQ-n with a default) because the brief gives no number — it does not invent a number silently",
+      "Every edge case is `EC-n: <situation> → <behaviour> (AC-n)` and points to a criterion that exists",
+      "Names no files, functions, components, libraries or endpoints"
+    ]
+  },
+  {
+    "id": "review-flawed-spec",
+    "skills": ["spec-authoring"],
+    "query": "Review this draft DevDigest spec fragment and list every rule it breaks, with a corrected version of each criterion:\n\n## User stories\n- US-1: As a user, I want better summaries.\n- US-2: As a developer, I want to filter findings by severity, so that I can read the critical ones first.\n\n## Acceptance criteria (EARS)\n- AC-1 (US-2): When the user picks a severity, `FindingsList` shall filter with `useMemo` and update the URL.\n- AC-2: The system shall be fast.\n- AC-3 (US-2): The filter should remember the last choice.\n\n## Edge cases\n- EC-1: no findings match → show an empty state\n\n## Inputs and provenance\n| Input | Provenance | Notes |\n|---|---|---|\n| Finding severity | from the database | |\n| Summary text | [new: 1 LLM call] | |",
+    "files": [
+      ".claude/skills/spec-authoring/SKILL.md",
+      ".claude/skills/spec-authoring/references/ears.md"
+    ],
+    "expected_behavior": [
+      "Flags US-1: no benefit clause, vague role and capability, and no acceptance criterion serves it",
+      "Flags AC-1: keyword not in capitals, two responses (filter and update the URL), and implementation details (a component name and a React hook)",
+      "Flags AC-2: names no story and 'fast' is not checkable; flags AC-3: 'should' instead of `shall`",
+      "Flags EC-1: names no covering criterion, and says a criterion for the empty state must be added or an open question raised",
+      "Flags the inputs: 'from the database' is not a provenance tag (should be [reused: …]), and the [new: 1 LLM call] row gives no reason why nothing existing can serve",
+      "Rewrites the criteria in EARS without inventing product behaviour the fragment does not contain; values it had to assume are marked as open questions"
+    ]
+  },
+  {
+    "id": "what-not-how-and-placement",
+    "skills": ["spec-authoring"],
+    "query": "I'm about to write a DevDigest spec for a feature that adds a 'Copy as Markdown' button to a finding card (client only; it copies the finding's title, severity and rationale, which is model output). The highest existing root spec is specs/09-smart-diff.md and no spec has a Spec ID yet. Tell me: the file path, the Spec ID, the header, what goes into Inputs and provenance and Untrusted inputs, and whether I may write that the button uses navigator.clipboard and lives in FindingCard.tsx.",
+    "files": [
+      ".claude/skills/spec-authoring/SKILL.md",
+      ".claude/skills/spec-authoring/references/devdigest.md",
+      "specs/README.md"
+    ],
+    "expected_behavior": [
+      "Places the spec in client/specs/ (one package) as 10-<feature-name>.md with Spec ID: SPEC-10 — one sequence across all folders — and Status: draft",
+      "Gives the header with all fields: Spec ID, Status, Supersedes, Packages, Sources",
+      "Tags title, severity and rationale as [reused: …] (stored findings), with no new model call",
+      "Lists the rationale (and title) under Untrusted inputs as model output steerable by pull-request text, with a required handling stated as a requirement (for example copied as plain text, never interpreted), not as code",
+      "Says no to navigator.clipboard and FindingCard.tsx in the spec: that is how, it belongs to the plan; the spec may say 'the client shall place … on the system clipboard'",
+      "Does not set Status: approved and says only the user approves"
+    ]
+  }
+]

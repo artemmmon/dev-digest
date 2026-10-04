@@ -1,0 +1,66 @@
+[
+  {
+    "id": "text-and-design-no-spec",
+    "skills": ["sdd", "feature-flow"],
+    "query": "/sdd \"Let the user re-run a failed agent run from the PR page with one click\" client/docs/design/pr-detail.jsx --mode multi",
+    "files": [
+      ".claude/skills/sdd/SKILL.md",
+      ".claude/skills/feature-flow/SKILL.md",
+      ".claude/skills/feature-flow/references/handoffs.md"
+    ],
+    "expected_behavior": [
+      "Loads feature-flow and states what it understood: no spec, one design source, the requirements text, mode multi-agent, entry stage spec",
+      "Starts spec-creator pass 1 with the text and the design path as sources; writes no spec itself",
+      "Relays the discovery questions with numbered options and answers the same agent with SendMessage",
+      "Asks for an explicit approval of the draft spec before brainstorm, and of the plan before any implementer; passes the mode to the planner so it does not ask again",
+      "After the plan is approved, offers to continue in a fresh session with /sdd <plan path>"
+    ]
+  },
+  {
+    "id": "approved-spec-plus-extra-text",
+    "skills": ["sdd", "feature-flow"],
+    "query": "/sdd specs/10-rerun-agent.md \"also keep the old result visible while it re-runs\"  — the spec file says Status: approved and has no criterion about the old result.",
+    "files": [
+      ".claude/skills/sdd/SKILL.md",
+      ".claude/skills/feature-flow/SKILL.md"
+    ],
+    "expected_behavior": [
+      "Does not pass the extra text straight to brainstorm or the planner as a requirement",
+      "Asks the user with numbered options: amend the spec (recommended, since it adds behaviour), a note for the planner, or ignore",
+      "On 'amend': starts spec-creator with amend: and the spec path, then asks for approval again before brainstorm",
+      "Never edits the spec itself"
+    ]
+  },
+  {
+    "id": "review-loop-three-rounds",
+    "skills": ["sdd", "feature-flow"],
+    "query": "/sdd docs/plans/06-rerun-agent.md --from review. architecture-reviewer returns A1 CRITICAL onion-layer-violation (in_change true), A2 WARNING (in_change true), A3 SUGGESTION, A4 WARNING (in_change false). The correctness reviewer returns one CRITICAL. test-writer reports one bug. Describe the loop; assume A2 is still open after round 1 and after round 2, and after round 3.",
+    "files": [
+      ".claude/skills/sdd/SKILL.md",
+      ".claude/skills/feature-flow/references/handoffs.md",
+      ".claude/agents/architecture-reviewer.md"
+    ],
+    "expected_behavior": [
+      "Round 1 fix list for ONE fix-mode implementer: A1, A2 and the correctness CRITICAL (and the test-writer bug, since a test report was given); A3 and A4 are kept for the closing report, not fixed",
+      "After each fix, starts architecture-reviewer with recheck: carrying the earlier findings (id, file:line, rule) and the fix's changed files, not a full diff review",
+      "Rounds 2 and 3 fix only what the recheck reports open (A2) plus any new CRITICAL or WARNING",
+      "After round 3 with A2 still open, stops and asks: change the plan, accept and go on to verify, or one more round; does not start the verifier on its own",
+      "Does not edit code itself and does not run /pr-self-review"
+    ]
+  },
+  {
+    "id": "only-plan",
+    "skills": ["sdd", "feature-flow"],
+    "query": "/sdd --only plan specs/10-rerun-agent.md  — the spec is approved; there is no brainstorm brief in docs/plans.",
+    "files": [
+      ".claude/skills/sdd/SKILL.md",
+      ".claude/skills/feature-flow/references/handoffs.md"
+    ],
+    "expected_behavior": [
+      "Starts implementation-planner directly with the spec path; does not run brainstorm first",
+      "Relays the Requirements review (questions, execution mode) and answers the same agent with SendMessage",
+      "After the plan file is written, runs check-plan.mjs and reports the Plan summary",
+      "Stops there: no approval is written without an explicit yes, and no implementer is started"
+    ]
+  }
+]

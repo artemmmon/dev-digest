@@ -1,0 +1,49 @@
+[
+  {
+    "id": "resume-approved-plan",
+    "skills": ["feature-flow"],
+    "query": "New session. The plan docs/plans/06-rerun-agent.md is approved (multi-agent, groups G1 server, then G2 client and G3 e2e in parallel) and implements specs/10-rerun-agent.md. Continue the feature: describe exactly which agents you start, in which order, and what you put in each prompt.",
+    "files": [
+      ".claude/skills/feature-flow/SKILL.md",
+      ".claude/skills/feature-flow/references/handoffs.md",
+      ".claude/skills/feature-flow/references/devdigest.md"
+    ],
+    "expected_behavior": [
+      "Runs the pre-flight first: plan Status approved, check-plan.mjs, dependencies installed, Postgres only if the plan needs it, notes the merge-base as base",
+      "Starts one fresh implementer per group with the plan path, the group id and the previous handoff; G2 and G3 go out in one message; never pastes the plan or a diff into a prompt",
+      "After the last group starts architecture-reviewer and pr-skill-reviewer in correctness mode in ONE message, with the fields from handoffs.md; does NOT start test-writer (tests are off by default) and says so in the closing report; the correctness file list excludes tests and generated files",
+      "Merges architecture CRITICAL and WARNING findings with in_change true and correctness findings into one fix-mode implementer, then rechecks architecture (up to 3 rounds); does not edit code itself",
+      "Runs implementation-verifier only after the fix pass, then security-reviewer on PASS, then doc-writer, and tells the user to run /pr-self-review instead of starting it"
+    ]
+  },
+  {
+    "id": "draft-spec-gate",
+    "skills": ["feature-flow"],
+    "query": "The user says: \"the spec specs/10-rerun-agent.md looks mostly fine, let's plan it\". The spec file says Status: draft and has OQ-2 with no answer. What do you do?",
+    "files": [
+      ".claude/skills/feature-flow/SKILL.md",
+      ".claude/skills/feature-flow/references/handoffs.md"
+    ],
+    "expected_behavior": [
+      "Does not start brainstorm or implementation-planner on a draft spec",
+      "Does not write Status: approved from 'looks mostly fine': asks for an explicit approval of that file",
+      "Raises OQ-2 with the user (numbered options) and routes the answer to spec-creator before approval",
+      "Names the next stage after approval: brainstorm with the spec path"
+    ]
+  },
+  {
+    "id": "verifier-fail-loop",
+    "skills": ["feature-flow"],
+    "query": "implementation-verifier returned FAIL with three 'To reach PASS' lines (AC-4, EC-2, S5.done). A fix-mode implementer fixed them; the verifier was re-run and still reports AC-4 not met. A second fix round also leaves AC-4 not met: the implementer reports that AC-4 contradicts AC-1. What now?",
+    "files": [
+      ".claude/skills/feature-flow/SKILL.md",
+      ".claude/skills/feature-flow/references/handoffs.md"
+    ],
+    "expected_behavior": [
+      "Re-runs the verifier with recheck: and the item ids, not a full verification",
+      "Stops after the second failed round instead of starting a third",
+      "Recognises a contradiction between criteria as a spec gap: the user decides, then spec-creator amends the approved spec (reopened as draft, new or reworded id, Amended line), the user approves again, the planner updates the plan",
+      "Does not reword the spec, the plan or the code itself"
+    ]
+  }
+]

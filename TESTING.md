@@ -106,6 +106,11 @@ Every package runs two static gates before its tests, both wired into its workfl
   suffix.
 - **Contract copies stay identical.** `./scripts/shared-contracts.sh check` runs in
   CI (`shared-contracts.yml`); after editing `server/src/vendor/shared`, run `sync`.
+- **A test of a spec criterion carries its id.** For a spec with a `Spec ID:` line, the test
+  name starts with the id it proves: `it('AC-3: shows — when the run has no cost', …)`.
+  `test-writer` writes them that way (it is off in the default feature flow for now; `/sdd --tests`
+  turns it on) and `implementation-verifier` finds a criterion's evidence
+  by searching for the id (`check-plan.mjs --implemented` lists the hits).
 - **Hermetic by default.** Reach for `src/adapters/mocks.ts` (MockLLMProvider,
   MockGitClient) rather than real network/keys.
 - **Client component tests** render through `renderWithIntl` (`client/src/test/render.tsx`:
