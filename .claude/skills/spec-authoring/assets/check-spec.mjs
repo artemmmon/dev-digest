@@ -298,7 +298,9 @@ function main(argv) {
   const rootFlag = argv.indexOf('--root');
   const defaultRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
   let root = rootFlag >= 0 ? resolve(argv[rootFlag + 1]) : defaultRoot;
-  let files = argv.filter((a, i) => !a.startsWith('--') && i !== rootFlag + 1).map((f) => resolve(f));
+  // The value after `--root` is not a spec path; without the flag every positional argument is one.
+  const rootValue = rootFlag >= 0 ? rootFlag + 1 : -1;
+  let files = argv.filter((a, i) => !a.startsWith('--') && i !== rootValue).map((f) => resolve(f));
 
   if (hook) {
     let payload;

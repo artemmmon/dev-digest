@@ -7,7 +7,7 @@ inputs, and the `draft → approved → implemented` lifecycle. The `spec-creato
 process (two passes, reports); this skill holds the rules, so the planner, the verifier and a
 human reviewer read the same ones. Choosing a solution and planning the work are out of scope.
 
-- **Version:** 1.1.0 (also in `SKILL.md` frontmatter → `metadata.version`)
+- **Version:** 1.1.1 (also in `SKILL.md` frontmatter → `metadata.version`)
 - **Sources verified:** 2026-10-04
 - **Related skills:** `security` (trust boundaries behind Untrusted inputs), `mermaid-diagram`
   (workflow diagrams), `engineering-insights`, `pr-self-review`
@@ -19,6 +19,7 @@ human reviewer read the same ones. Choosing a solution and planning the work are
 | 1.0.0 | 2026-10-04 | First version. Template and section rules moved out of `.claude/agents/spec-creator.md` unchanged; added `references/ears.md` (pattern choice, bad → good pairs), `references/design-gaps.md`, `references/devdigest.md`, a worked example, `assets/check-spec.mjs` with tests, 3 evals. After the first eval run: an undecided edge case is an open question, never an `EC` line |
 | 1.0.1 | 2026-10-04 | `devdigest.md`: read only the `INSIGHTS.md` files of the touched modules and packages; `spec-creator` may delegate questions to `researcher` agents |
 | 1.1.0 | 2026-10-04 | Lifecycle: an approved spec can be amended (reopened as a draft, `Amended:` header line, new ids only, approved again) instead of superseded; the guard hook allows only that reopening edit. Nothing is planned or built from a draft: `brainstorm`, `implementation-planner` and the plan check stop on one. `devdigest.md`: `test-writer` writes one test per `AC-n`/`EC-n` with the id in its name |
+| 1.1.1 | 2026-10-04 | `check-spec.mjs`: a spec path given as the first argument without `--root` was dropped (the check then covered the wrong files or none); fixed, with a CLI test. Found by `/pr-self-review` |
 
 Bump the version on every change: **patch** for wording/links, **minor** for a new rule,
 reference or check, **major** when a rule is reversed. Add a changelog row each time.

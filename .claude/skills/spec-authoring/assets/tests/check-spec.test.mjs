@@ -100,6 +100,33 @@ test('CLI: scans the spec folders, skips legacy specs, exits 1 on errors', () =>
   assert.match(result.stdout, /SPEC-00 is also used by/);
 });
 
+test('CLI: every spec path given is checked, with or without --root', () => {
+  const root = mkdtempSync(join(tmpdir(), 'spec-check-'));
+  const good = join(root, '00-run-cost-badge.md');
+  const broken = join(root, '00-broken.md');
+  writeFileSync(good, EXAMPLE);
+  writeFileSync(broken, EXAMPLE.replace('Status: draft\n', ''));
+  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
+
+  // A path as the first argument used to be dropped when --root was absent.
+  let result = run(broken);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stdout, /"Status:" is missing/);
+  assert.match(result.stdout, /1 spec\(s\), 1 error\(s\)/);
+
+  result = run(broken, good);
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /2 spec\(s\)/);
+
+  result = run(good);
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 spec\(s\), 0 error\(s\)/);
+
+  result = run('--root', root, broken);
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /1 spec\(s\), 1 error\(s\)/);
+});
+
 test('hook mode: exit 2 with the errors on stderr, silent on a clean spec or another file', () => {
   const root = mkdtempSync(join(tmpdir(), 'spec-check-'));
   mkdirSync(join(root, 'specs'));

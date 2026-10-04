@@ -2,7 +2,7 @@
 name: spec-authoring
 description: Rules for writing, reviewing and reading a DevDigest feature specification (Spec Driven Development) — the spec template and its ten sections, user stories, EARS acceptance criteria, edge cases, non-functional requirements, inputs with provenance tags, untrusted inputs, open questions, the US/AC/EC/NFR/OQ ids that plans and verification trace to, the draft → approved → implemented lifecycle, and a runnable spec check. Use whenever creating or editing anything under specs/ or <package>/specs/, turning a brief, a Figma frame or a design file into requirements, wording or reviewing an acceptance criterion, looking for gaps in a design, or tracing a plan step or a test back to a requirement — even if the word "spec" is never used. Not for implementation plans (implementation-planner), comparing ways to build something (brainstorm), or documenting a feature that already exists (doc-writer).
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Spec authoring (DevDigest)
