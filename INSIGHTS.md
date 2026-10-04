@@ -150,6 +150,27 @@ the running API over REST (`POST /pulls/:id/review`) and holds no secrets or DB 
 any future out-of-process entry point (CLI, bot, other MCP host).
 Where: `server/src/platform/container.ts:127` (`runBus`) and `:128` (`new JobRunner`), `mcp/src/api/http.ts:134` (`startReview`).
 
+### 2026-10-04 — Feature flow: tests leave the implementer, the verifier goes last, bugs are looked for early
+An audit of the agent flow found three things the agent files did not say. (1) `implementer` and
+`test-writer` both took their cases from the same plan lines, so tests were written twice, and
+`test-writer` never read the spec. Now the implementer only repairs tests it breaks (multi-agent
+mode) and `test-writer` writes one test per `AC-n`/`EC-n` with the id in the name. (2) Nobody
+looked for logic bugs until `/pr-self-review`: `architecture-reviewer` judges structure only. A
+`pr-skill-reviewer` in `correctness` mode now runs beside it and `test-writer`. (3) The verifier
+stays last, after one merged fix pass: moving it earlier (the option rejected) would fail every
+test item and void its PASS on the next fix; the static part, a spec id no step covers, moved to
+`check-plan.mjs`, before any code. The route is the `feature-flow` skill.
+Where: .claude/skills/feature-flow/SKILL.md:53, .claude/agents/implementer.md:46, .claude/agents/implementation-verifier.md:41, .claude/skills/feature-flow/assets/check-plan.mjs:175
+
+### 2026-10-04 — An agent that produces a file writes it itself, behind a guard hook
+`implementation-planner` and `brainstorm` used to return the plan or brief as their final message
+and the main session saved it: the same 14K-token text was output twice and then re-read on every
+later call of the main session. Both now have Write/Edit limited by `plans-guard.mjs` to their
+own file in `docs/plans/` and their own status (`draft`, `awaiting choice`), and return a
+ten-line summary. Give a new producing agent the same shape: a path-and-status guard, a
+PostToolUse form check, a summary as the final message.
+Where: .claude/hooks/plans-guard.mjs:14, .claude/agents/implementation-planner.md:8
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — Lint was removed from the starter on purpose, and history is not a source
@@ -244,6 +265,36 @@ quality suffers.
 Where: `.claude/agents/brainstorm.md:5` (`disallowedTools` denies `Agent`),
 `docs/agent-workflow-cost.md:28` (context × calls per agent; the N× figure is inferred from it).
 
+### 2026-10-04 — `disallowedTools` without `tools` is a denylist; a guard hook must deny by default
+`spec-creator` cannot use a `tools` allowlist (it must reach Figma MCP read tools), so it gets
+every tool the session has: `Artifact`, `CronCreate`, `RemoteTrigger`. Its guard matched only
+`Write|Edit|mcp__.*` and let the rest through. For such an agent set the hook matcher to `*` and
+block every tool the script does not name. Second hole in the same guard: it looked for a
+`Status:` line in the Edit's `new_string`, so `old_string: "draft"` → `new_string: "approved"`
+passed. A guard on Edit must apply the replacement to the file in memory and check the result.
+Where: .claude/hooks/spec-creator-guard.mjs:17 (allowlist), .claude/hooks/spec-creator-guard.mjs:45 (`afterEdit`), .claude/hooks/spec-creator-guard.test.mjs
+
+### 2026-10-04 — `check-changed.sh`: `--quick`, `--check <id>`, and a package stops at its first failure
+`run-checks.mjs` ran lint, tests and arch even after typecheck failed, so one type error put up to
+four 30-line failure tails into an agent's context; and to re-run one check an agent had to call
+the raw `pnpm typecheck`, with its full output. `check-changed.sh` now passes `--fail-fast` (later
+checks of the package show as `SKIP`; `--all` turns it off), takes `--check <id>` (`test` also
+matches `test:unit`), and `--quick` swaps the test check for `vitest related --run <changed
+files>` and drops lint and arch, for step groups that are not the last. `pr-self-review` calls
+`run-checks.mjs` without the flag and still runs everything.
+Where: scripts/check-changed.sh:77, .claude/skills/pr-self-review/assets/run-checks.mjs:68
+
+### 2026-10-04 — Claude Code transcripts: a subagent's cost is in its own file, and `output_tokens` is final only on the `stop_reason` line
+Measuring a run from `~/.claude/projects/<slug>/<session>.jsonl`: each subagent has its own
+`<session>/subagents/agent-<id>.jsonl` plus `.meta.json` (`agentType`, `toolUseId`, `spawnDepth`),
+and nothing of its usage is in the parent's transcript (on HW4, 24.2M of 92.6M tokens). One API
+response is stored as several lines sharing a `requestId`; they repeat the usage, so count once
+per request. Only the line with a `stop_reason` carries the final `output_tokens`; the others hold
+the stream-start value (8–30), and 441 of 673 requests had no final line. `retro.mjs` takes the
+maximum per request and otherwise estimates output as characters ÷ 4. The format is internal and
+undocumented: re-check after a Claude Code update.
+Where: .claude/skills/workflow-retro/assets/retro.mjs:90, .claude/skills/workflow-retro/references/reading.md:37
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-17 — `eslint --fix` leaves a whitespace-only line when it drops a disable directive
@@ -332,7 +383,24 @@ Giving `planner` `Write`/`Edit` in its frontmatter (so it saves `docs/plans/NN-*
 short summary) was denied by the auto-mode classifier as self-modification. So the planner still
 returns the full plan, and the main session keeps it in context (~13K tokens × every later call,
 ~$1 on Intent Layer). The user decides whether to make that change by hand.
-Where: .claude/agents/planner.md:4
+Where: .claude/agents/implementation-planner.md:4 (agent renamed from `planner` on 2026-10-04)
+
+### 2026-10-04 — Do spec-creator's frontmatter hooks fire in a live run?
+The guard (`PreToolUse`, matcher `*`) and the spec check (`PostToolUse`, matcher `Write|Edit`) are
+tested as scripts with `node --test`, but not inside a running subagent **(unverified)**: an agent
+file changed mid-session registers late, and frontmatter hooks need the workspace trust dialog
+accepted. On the next real spec run, confirm that a blocked tool returns the guard's message and
+that a spec with a form error returns `path:line: error: …` to the agent.
+Where: .claude/agents/spec-creator.md:9, .claude/skills/spec-authoring/assets/check-spec.mjs:8
+
+### 2026-10-04 — Do `--quick` and the planner's and brainstorm's hooks work in a live run?
+Added without a live run **(unverified)**: the worktree had no `node_modules`, so
+`vitest related --run --passWithNoTests --exclude '**/*.it.test.ts' <files>` was built and
+printed by `--quick --plan` but never executed; and the `plans-guard.mjs` / `check-plan.mjs --hook`
+frontmatter hooks are tested only as scripts, like spec-creator's. On the next feature: run
+`./scripts/check-changed.sh --quick` once by hand after the first group, and confirm that the
+planner's plan check error (`path:line: error: …`) reaches the agent.
+Where: scripts/check-changed.sh:77, .claude/agents/implementation-planner.md:8, .claude/agents/brainstorm.md:1
 
 ## Session Notes
 
@@ -349,3 +417,47 @@ Measured where Intent Layer's tokens went and turned it into rules: step groups 
 in plans, implementer fix mode, `implementation-verifier` on sonnet, narrow diffs, and
 `scripts/check-changed.sh` (one line per check, output only on failure).
 Where: docs/agent-workflow-cost.md:1, scripts/check-changed.sh:1
+
+### 2026-10-04 — spec-authoring skill, guard hardening, spec ids through the flow
+The spec rules moved from the `spec-creator` agent into the `spec-authoring` skill (one template,
+EARS references, a runnable check); the guard hook became default-deny; planner and verifier now
+keep the spec's `AC-n` / `EC-n` / `NFR-n` ids. Entries added: one in Tool & Library Notes, one in
+Open Questions.
+Where: .claude/skills/spec-authoring/SKILL.md:1, .claude/agents/implementation-verifier.md:36
+
+### 2026-10-04 — Feature-flow audit applied
+Audited the Spec Driven Development flow and applied the findings: the `feature-flow` skill
+(route, handoffs, `check-plan.mjs`), a new stage order, the test split between `implementer` and
+`test-writer`, spec and plan approval gates, spec amendments, self-writing planner and brainstorm,
+and cheaper check runs. Entries added: two in Codebase Patterns, one in Tool & Library Notes, one
+in Open Questions.
+Where: .claude/skills/feature-flow/SKILL.md:1, .claude/agents/README.md:69
+
+### 2026-10-04 — `/sdd` command and the architecture review loop
+Added the `sdd` skill (user-run, `disable-model-invocation`): it sorts a spec, a plan, designs and
+a requirements text, picks the entry stage from the `Status:` lines and runs `feature-flow`. The
+review stage became a loop: architecture CRITICAL and WARNING findings on changed lines are fixed,
+`architecture-reviewer` rechecks only the fixed files by finding id, up to 3 rounds, then the main
+session asks. A Workflow script for the execution part was considered and not chosen for now: the
+hooks and `--quick` are still unverified in a live run. Not run end to end yet **(unverified)**.
+Where: .claude/skills/sdd/SKILL.md:1, .claude/agents/architecture-reviewer.md:32, .claude/skills/feature-flow/references/handoffs.md:51
+
+### 2026-10-04 — Token-saving choices: tests off, review agents on sonnet, one agent on request
+The user chose, to save tokens for now: nobody writes new tests in the default flow (`test-writer`
+runs only with `/sdd --tests` or by name; `implementer` still repairs what it breaks; the verifier
+gets `tests: off` and checks criteria by reading code), and `architecture-reviewer` and
+`security-reviewer` run on sonnet, and so does `brainstorm`, which stays a required stage of the
+full flow (opus stays on `spec-creator`, `implementation-planner`, `pr-finding-verifier`). The tradeoff accepted: features ship without new
+tests, and the security trace is done by the weaker model, with `/pr-self-review`'s opus verifier
+as the backstop. Also: `spec-creator` or `implementation-planner` runs alone on request
+(`/sdd --only spec|plan`), with no next stage.
+Where: .claude/skills/feature-flow/SKILL.md:37, .claude/agents/architecture-reviewer.md:6, .claude/agents/security-reviewer.md:6, .claude/skills/sdd/SKILL.md:4
+
+### 2026-10-04 — `/workflow-retro` skill and the first ledger row
+Added the `workflow-retro` skill for the lab's run retrospective: `retro.mjs` measures tokens,
+cache read, tool calls, duration and parallelism per agent from the transcripts (deep by default),
+flags duplicated context, preload candidates, overloaded roles and concurrency, and appends a row
+to `docs/retros/ledger.md`. The baseline row is the HW4 session. One open action from it:
+`pr-skill-reviewer` reads `severity.md` and `reviewer-contract.md` in all 38 runs. Entry added: one
+in Tool & Library Notes.
+Where: .claude/skills/workflow-retro/SKILL.md:1, docs/retros/ledger.md:5

@@ -44,7 +44,7 @@ Read the `Docs:` bullet under Naming in the root `AGENTS.md` and the target pack
 | Decision with alternatives | ADR | next free `NNNN` in `docs/` (cross-package, root starts at `0001`) or `<package>/docs/`; shape of `server/docs/0001-latest-review-is-a-batch.md` (`Status: proposed · date`, Context, Decision, Alternatives rejected, Consequences); only when the input records a decision actually taken; `accepted` only when the input says so |
 | Routes, API, env | reference | `<package>/README.md` existing section |
 | Gotcha | — | `INSIGHTS.md` via the `engineering-insights` skill |
-| Spec | — | not doc-writer (planner or user) |
+| Spec | — | not doc-writer (`spec-creator` or the user) |
 | Plan Status | — | not doc-writer (implementer) |
 | AGENTS.md line | — | a suggestion in the report only (≤ 100 lines rule) |
 

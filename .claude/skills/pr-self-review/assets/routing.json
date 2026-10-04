@@ -172,6 +172,10 @@
     "mermaid-diagram": "authoring aid, not a review rubric",
     "engineering-insights": "documentation workflow, not a review rubric",
     "devdigest-demo": "demo-video conventions, not a review rubric",
+    "spec-authoring": "rules for specs (Markdown), checked by its own check-spec.mjs",
+    "feature-flow": "orchestration of the agent pipeline, not a review rubric",
+    "sdd": "the /sdd command: entry point of the feature flow, not a review rubric",
+    "workflow-retro": "run retrospective from transcripts, not a review rubric",
     "pr-self-review": "this skill"
   },
   "correctnessReviewer": {

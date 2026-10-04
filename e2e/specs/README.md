@@ -4,7 +4,10 @@ Feature specs for `e2e`, one file per feature: `NN-short-name.md`.
 Write the spec before the code and keep its `Status` current while implementing.
 Features spanning several packages go to the root `specs/` instead.
 
-## Template
+New specs use the template in the root `specs/README.md` (`Spec ID: SPEC-NN`, written by the
+`spec-creator` agent). The template below is the legacy one, kept for the specs already here.
+
+## Template (legacy)
 ```md
 # <Feature name>
 Status: draft | in progress | done | dropped

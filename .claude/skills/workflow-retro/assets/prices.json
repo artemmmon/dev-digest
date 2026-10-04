@@ -1,0 +1,5 @@
+{
+  "$comment": "USD per million tokens, API list prices as written in docs/agent-workflow-cost.md (2026-09-24). An estimate, not a bill: sonnet's cache read is that doc's assumption, cache writes are input x1.25 (5 min) and x2 (1 hour). A model that matches no key gets no dollar figure. Edit when prices change.",
+  "opus": { "input": 4, "output": 20, "cacheRead": 0.2, "cacheWrite5m": 5, "cacheWrite1h": 8 },
+  "sonnet": { "input": 2, "output": 10, "cacheRead": 0.2, "cacheWrite5m": 2.5, "cacheWrite1h": 4 }
+}
