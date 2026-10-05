@@ -4,6 +4,7 @@ Status: approved
 Supersedes: none
 Packages: server, client, e2e
 Sources: user brief ("Onboarding Generator": a five-part tour of an unfamiliar repository) · design files in client/docs/design (screen_tour_context — ScreenTour, artboards `tour` and `e-tour`; chrome — sidebar) · two screenshots of the `tour` artboard · existing code (onboarding storage, contract and prompt scaffolding; the repository index facade; the "onboarding" feature model setting) · specs/10-project-context.md · specs/04-conventions-extractor.md · specs/06-repo-stack.md · user answers to the discovery questions (Q1–Q13, proposals P1–P8 accepted)
+Amended: 2026-10-05 — AC-16, AC-19, AC-42, EC-8, EC-13, NFR-1 and NFR-13 reworded; AC-77, EC-23 and EC-24 added: the tour's commit is the checkout's head commit, no stale badge without an indexed commit, no re-prompt on invalid output, e2e stub provider and fixture repository (gap found by implementation-planner, decided by the user)
 
 ## Problem and user
 A developer who opens a repository they have never worked in has no map of it. Today they read the
@@ -99,10 +100,10 @@ What crosses the boundaries (wire spelling):
 - AC-15 (US-1): IF more than 10 generation requests arrive within one minute, THEN the server shall reject the further requests with a rate-limit error.
 
 **What a generation produces**
-- AC-16 (US-1): The server shall make exactly one model call per generation.
+- AC-16 (US-1): The server shall send exactly one request to the model provider per generation, with no repeated request when the output does not match the tour's structure.
 - AC-17 (US-1): The server shall use for the generation the provider and model selected in Settings for the feature model "onboarding".
 - AC-18 (US-1): WHEN a generation succeeds, the server shall store a tour with exactly the five sections `architecture_overview`, `critical_paths`, `how_to_run`, `guided_reading`, `first_tasks`, in that order.
-- AC-19 (US-7): WHEN a generation succeeds, the server shall store with the tour the commit it was generated from, the number of indexed files at that moment and the generation time.
+- AC-19 (US-7): WHEN a generation succeeds, the server shall store with the tour, as the commit it was generated from, the head commit of the repository's local checkout at generation time, together with the number of indexed files at that moment and the generation time.
 - AC-20 (US-9): WHEN a generation succeeds, the server shall store with the tour the provider, the model, the input tokens, the output tokens and the cost in US dollars of the model call.
 - AC-21 (US-3, US-5): IF a `critical_paths` or `guided_reading` item names a path that is not a tracked file of the repository's checkout at generation time, THEN the server shall drop that item from the tour.
 - AC-22 (US-3, US-5): WHEN a generation succeeds, the server shall store with the tour the number of items dropped by the path check as `dropped_items`.
@@ -129,7 +130,8 @@ What crosses the boundaries (wire spelling):
 **Tour header**
 - AC-40 (US-1): WHILE a tour is stored, the page shall show the title "Onboarding for" followed by the repository's name.
 - AC-41 (US-7): WHILE a tour is stored, the page shall show the subtitle "Generated from index of N files · generated T", where N is the tour's stored indexed-file count and T is the relative time since the tour's generation.
-- AC-42 (US-7): WHILE the repository's current indexed commit differs from the tour's stored commit, the page header shall show a badge "Repository changed since this tour was generated".
+- AC-42 (US-7): WHILE the repository has an indexed commit and that commit differs from the tour's stored commit, the page header shall show a badge "Repository changed since this tour was generated".
+- AC-77 (US-7): IF the repository has no indexed commit, THEN the page header shall show no "Repository changed since this tour was generated" badge.
 - AC-43 (US-1): WHILE the stored tour has `limited_index` set to true, the page header shall show the note "Limited index — file suggestions are less precise".
 - AC-44 (US-7): WHILE a tour is stored, the page header shall show a button "Regenerate".
 - AC-45 (US-7): WHEN the user activates "Regenerate", the server shall start a new generation without asking for confirmation.
@@ -187,12 +189,12 @@ What crosses the boundaries (wire spelling):
 - EC-5: the model returns 12 files for Guided reading → the first 8 are stored (AC-24, AC-29)
 - EC-6: the model returns 2 first tasks instead of 3 → the tour is stored with 2 tiles (AC-30, AC-75)
 - EC-7: the model returns a diagram that does not render → the overview shows its text only (AC-64)
-- EC-8: a Flutter or Python repository, for which the index has no ranked files → a tour is still generated from the file list, manifests and README, and the header shows the "Limited index" note (AC-31, AC-32, AC-43)
+- EC-8: a Flutter or Python repository, for which the index has no ranked files → a tour is still generated from the file list, manifests and README, and the header shows the "Limited index" note; the tour's commit is the checkout's head commit, so "Open" and the reading-path links work as for any other repository (AC-19, AC-31, AC-32, AC-43, AC-66, AC-74)
 - EC-9: the repository has no README and no manifest → the generation still succeeds; How to run locally shows "Nothing found for this section" when no step results (AC-30, AC-60)
 - EC-10: the model returns malformed output → the generation ends as failed; an existing tour stays and the banner offers Retry (AC-34, AC-36, AC-37)
 - EC-11: the first generation of a repository fails → the empty state returns with the error message; nothing is stored (AC-34, AC-38)
 - EC-12: no API key for the selected provider → the generation fails with a message naming the provider (AC-35)
-- EC-13: the repository is resynced after the tour was generated → the stale badge shows; "Open" still leads to the files as they were at the tour's commit (AC-42, AC-66)
+- EC-13: the repository is resynced and re-indexed at a newer commit after the tour was generated → the indexed commit differs from the tour's commit, so the stale badge shows; "Open" still leads to the files as they were at the tour's commit (AC-19, AC-42, AC-66)
 - EC-14: a file named in the tour was later deleted from the default branch → its link still opens the file at the tour's commit (AC-66, AC-74)
 - EC-15: a hostile README instructs the model to emit a harmful command → the text reaches the model only as untrusted data; whatever command results is shown as text with its source file and the warning line, and is never run by DevDigest (AC-68, AC-71, AC-72, NFR-4)
 - EC-16: the checkout holds a real environment file with secrets → its content is never sent to the model (AC-33)
@@ -202,9 +204,11 @@ What crosses the boundaries (wire spelling):
 - EC-20: a first task's scope names a file that does not exist yet, or a folder → it is shown as text, not as a link, and is not subject to the path check (AC-21, AC-76)
 - EC-21: the page is opened with an anchor that is not one of the five section kinds → the page opens at its top (AC-56)
 - EC-22: the clipboard is unavailable when the user copies the tour → an error message shows and nothing else changes (AC-52)
+- EC-23: the repository has no indexed commit (its index never produced one, or is still building) → the tour is generated and stored with the checkout's head commit; the stale badge is not shown, however old the tour is (AC-19, AC-77)
+- EC-24: the model's output does not match the tour's structure → the provider is not asked again; the generation ends as failed after that one request, and the user starts a new one with Retry or Regenerate (AC-16, AC-34)
 
 ## Non-functional requirements
-- NFR-1: Cost — one generation makes exactly 1 model call; reading the page, copying, opening files and navigating make 0 model calls.
+- NFR-1: Cost — one generation makes exactly 1 model call, with 0 automatic repeats of the request when the output is invalid; reading the page, copying, opening files and navigating make 0 model calls.
 - NFR-2: Cost — a generation makes 0 requests to GitHub; all repository input comes from the local checkout and the stored index.
 - NFR-3: Security — repository text (file content, file paths, README, manifests) enters the prompt only inside blocks marked as untrusted data, with the closing marker of such a block escaped; the system prompt keeps the rule that such data is never instructions.
 - NFR-4: Security — model output is validated against the tour's structure before it is stored; it is rendered as markdown text or plain text, never as raw HTML, with links limited to the schemes the studio's markdown renderer already allows.
@@ -216,7 +220,7 @@ What crosses the boundaries (wire spelling):
 - NFR-10: Observability — server log lines about a generation carry the repository id, the outcome, the token counts and the cost, never repository text or model output.
 - NFR-11: Accessibility — every control of the page (generate, regenerate, copy, card headers, "On this page" items, "Open", path links) is reachable and operable by keyboard, with a visible focus indicator and an accessible name.
 - NFR-12: i18n — every fixed string of the page comes from the client's message catalogue; the tour's generated text is English; both colour themes are supported.
-- NFR-13: Testability — one deterministic e2e flow, using the stub model, covers: the empty state, generating a tour, the five cards with their items, and regenerating.
+- NFR-13: Testability — one deterministic e2e flow covers: the empty state, generating a tour, the five cards with their items, and regenerating. It runs against a stub model provider selected by an environment setting, so it makes 0 requests to a real provider, and against a fixture repository committed in the e2e package, never the demo repository. The e2e package's rule against model calls and data changes is relaxed for this one flow only.
 - NFR-14: Data — the scaffolded tour contract and prompt section kinds that predate this spec are replaced by the five typed sections; no stored tour in the old shape exists to migrate.
 
 ## Inputs and provenance
@@ -224,7 +228,8 @@ What crosses the boundaries (wire spelling):
 |---|---|---|
 | Repository skeleton (project map) | [reused: repository index repo map] | Already cached per repository |
 | Candidate files for critical paths and guided reading: top-ranked files and dependency chains | [deterministic: repo-intel] | Exist in the index facade with no consumer today; empty for non-JS/TS repositories |
-| Indexed file count, current indexed commit, index status | [reused: repository index state] | File count and commit are stored with the tour |
+| Indexed file count, current indexed commit, index status | [reused: repository index state] | The file count is stored with the tour; the indexed commit is only compared with the tour's commit for the stale badge and may be absent |
+| Head commit of the local checkout | [deterministic: server repository checkout] | Stored as the tour's commit; exists whenever the repository is cloned |
 | Frameworks, languages, key packages | [reused: SPEC-06 repo stack] | Stored per repository |
 | Tracked-file list of the checkout | [deterministic: server repository checkout] | Path check; candidate source for a limited index |
 | README, manifests and their scripts, container-compose file, example environment file | [deterministic: server repository checkout] | Source of the run steps; real environment files excluded |
