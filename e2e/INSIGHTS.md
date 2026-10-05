@@ -27,6 +27,10 @@ up the whole hermetic stack and only then dies with `sh: tsx: command not found`
 Run `cd e2e && npm install` once before the first run.
 Where: `package.json:8` (`test` shells out to `tsx`), `../scripts/e2e.sh:110`.
 
+### 2026-10-05 — Supersedes "`scripts/e2e.sh` breaks a running dev web server"
+Fixed: `e2e.sh` starts `next dev` with `NEXT_DIST_DIR=.next-e2e` (read by `next.config.mjs`), so a dev server keeps its own `client/.next`. What `next dev` still rewrites are `client/next-env.d.ts` and `client/tsconfig.json`; the script snapshots both at start and restores them in `cleanup`, so a run leaves no git diff. Do not stop your dev web server before running it, and do not commit those two files if you ran `next dev` with `NEXT_DIST_DIR` by hand.
+Where: `../scripts/e2e.sh:173`, `../scripts/e2e.sh:61`, `../client/next.config.mjs:9`.
+
 ## Codebase Patterns
 
 ### 2026-09-15 — `specs/` is shared with feature spec docs
@@ -92,6 +96,10 @@ Fix: a `["wait", "500"]` step after the drawer opens and before clicking inside 
 "Delete skill x" button — add `--exact` when a name is a prefix of another control's name.
 Where: `specs/10-skills.flow.json:8-10`, `../client/src/vendor/ui/kit/Drawer.tsx` (animation),
 `../client/src/vendor/ui/styles.css:296` (`@keyframes ddslidein`).
+
+### 2026-10-05 — Supersedes "Flows assume the seeded repo is the only one", in part: the demo repo only has to be the first
+The hermetic DB now holds a second repo (`devdigest-fixtures/tour-sample`, seeded after the demo repo for flow 12). Flows 02/04/05 still pass because the home redirect takes `repos[0]`, and `ReposRepository.list` has no `ORDER BY`: "first" is Postgres's physical order, which is insertion order on a fresh table. Seed any new repo after the demo repo, never before it; if the redirect ever lands on the fixture repo, add an explicit order to `list` rather than reordering the seed.
+Where: `../server/src/modules/repos/repository.ts:53`, `../server/src/db/seed.ts:121`, `../client/src/app/page.tsx:21`.
 
 ## Open Questions
 

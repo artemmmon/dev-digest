@@ -27,12 +27,14 @@ flowchart TD
   PULLS --> PR["/pulls/:number<br/>review detail<br/>(overview · diff · findings)"]
 
   CTX["/repos/:repoId/context<br/>Project Context (read-only)"]
+  TOUR["/repos/:repoId/onboarding<br/>Onboarding Tour (five cards)"]
   AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config · skills · context)"]
   SKILLS["/skills<br/>card grid · preview drawer (?skill=) · create (?create=1)"] --> SKILL["/skills/:id<br/>config · context · preview · stats · versioning (?tab=)"]
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state<br/>GET /pulls/:id/reviews (lazy, FINDINGS hover popover)"| API
   PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff<br/>POST /pulls/:id/review · /pulls/:id/intent · /findings/:id/(accept|dismiss)"| API
+  TOUR -->|"GET /repos/:id/onboarding (polled while running)<br/>POST /repos/:id/onboarding/generate · GET /repos/:id/index-state"| API
   CTX -->|"GET /repos/:id/context · /repos/:id/context/content"| API
   AGENT -->|"GET · PUT /agents/:id/context · GET /repos/:id/context"| API
   AGENTS -->|"/agents · /agents/:id · /agents/:id/skills"| API
@@ -46,6 +48,13 @@ description): the PR's derived `{ summary, in_scope, out_of_scope }`, risk-area
 chips, a confidence badge and a Derive / Re-derive intent action
 (`src/lib/hooks/intent.ts`, `_components/OverviewTab/_components/IntentCard`).
 A `FindingCard` with `kind: 'out_of_scope'` shows an "Outside PR scope" badge.
+
+The Onboarding Tour page (`/repos/:repoId/onboarding`, `src/app/repos/[repoId]/onboarding/_components/TourView`)
+shows the stored tour as five cards, or an empty state with a Generate action. It polls the
+read route every 1.5 s while a generation runs, marks the tour stale when the repo's indexed
+commit differs from the tour's, and copies the whole tour as Markdown. It strips image
+syntax from the overview body before rendering or copying. See
+[`../docs/onboarding-tour.md`](../docs/onboarding-tour.md).
 
 Cross-cutting chrome lives in `src/components/app-shell` (nav, breadcrumbs,
 `g`-then-key shortcuts). Pages are thin; feature logic sits in colocated
