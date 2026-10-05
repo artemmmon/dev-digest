@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react";
 
 export const s = {
-  /* Two-column grid: the left cell is the IntentCard, the right is reserved for the
-     L04 Blast Radius card (not built yet). `auto-fit` collapses the unused track when
-     there is only one child, so today the card spans the full width instead of leaving
-     a visible empty placeholder; it narrows to one column below ~320px per cell. */
+  /* Two-column grid: the left cell is the IntentCard, the right is the BlastRadiusCard.
+     `auto-fit` keeps it to one column below ~320px per cell (and would collapse an unused
+     track if a child were ever removed instead of leaving an empty placeholder). */
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",

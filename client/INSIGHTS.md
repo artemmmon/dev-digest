@@ -326,6 +326,27 @@ header and was partly hidden. Sticky offsets need the border-box height. Fixed b
 for jsdom, which has no `borderBoxSize`.
 Where: `src/app/repos/[repoId]/pulls/[number]/use-element-height.ts:26`.
 
+### 2026-09-30 — Blast caller links pin to the PR `head_sha`, but caller lines come from the index
+`BlastTree` builds each caller link with `githubBlobUrl(repoFullName, headSha, file, line)` (user decision:
+link to the PR head), yet `line` was recorded by repo-intel at `indexed_sha` (the default branch). In a file
+the PR itself edits, `#L<line>` can point at a shifted line. The card says so (`linesAtIndex`); don't "fix" it
+by switching to `index.indexed_sha` without asking, that would link to a commit that may not contain the PR's files.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastTree/BlastTree.tsx:53`.
+
+### 2026-09-30 — `useBlastResync` finishes on `index-state.updatedAt` moving, so a no-op resync only ends by timeout
+`RepoIntelState.status` is terminal-only, so the hook records `updatedAt` at click time and treats a different
+value as "done" (then invalidates `keys.pr.blast`). If the resync writes no new index row (nothing changed
+upstream), `updatedAt` never moves and the notice shows `resyncTimeout` after `RESYNC_TIMEOUT_MS` (120 s) with no
+refetch. Also `useResyncRepoIntel` has no `meta.silent`, so a failed POST toasts globally AND shows `resyncFailed`.
+Where: `src/lib/hooks/blast.ts:35` (`useBlastResync`).
+
+### 2026-09-30 — Data-driven SVG: size by viewBox, not fixed width/height
+BlastGraph first used fixed `width`/`height` px, so a ~620px card clipped the right column ("DE"/"GE" only). Compute the
+`viewBox` from the layout (rightmost node edge + margin), set the style to `width: 100%; height: auto; maxWidth: <viewBox
+width>` and `preserveAspectRatio="xMinYMin meet"`: it scales down with the card and never upscales text. Also put
+`minWidth: 0` on the grid-item `<section>`; the card's own `minWidth: 0` is not enough.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastGraph/helpers.ts:112`
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -500,6 +521,15 @@ artifact, not a bug in the hook. A mock that assumes every call has a string `pa
 fails the test; guard it (`path?.endsWith(...)`) instead of chasing the caller further **(unverified: root cause in
 Vitest/TanStack Query internals, not confirmed beyond the observed stack)**.
 Where: `src/lib/hooks/reviews.test.tsx:181` (`usePrRunTracking` describe block).
+
+### 2026-09-30 — Wrapping a path at `/` only: nowrap segment spans + `<wbr/>`; jsdom then splits the link's accessible name
+A long `file:line` in a narrow card wrapped at a `-` inside a path segment (`repo-` / `intel/…`); CSS has no switch for
+hyphen breaks except `white-space: nowrap`, and `nowrap` also kills `<wbr/>` and `overflow-wrap`. So each `/`-terminated
+segment is a `nowrap` span with a `<wbr/>` between them, and a segment wider than the card is clipped by `overflow: hidden`
+(full ref in `title`). Side effect: jsdom has no default stylesheet, so `getComputedStyle(span).display` is `""` and
+dom-accessibility-api inserts a space between element children, making the link's name `src/ auth.ts:12`. Real browsers do
+not; assert `toHaveTextContent` for the exact text and match the name with `\s?`.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastTree/BlastTree.tsx:21`.
 
 ## Open Questions
 

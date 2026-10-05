@@ -16,7 +16,7 @@ export const SERVER_VERSION = '0.1.0';
 export const INSTRUCTIONS =
   'DevDigest is a local AI pull-request reviewer. Tools list its reviewer agents, run one agent on a GitHub PR ' +
   'and return its verdict and findings (spends LLM credits; can take minutes), read the findings of a finished run, ' +
-  "read a repo's accepted coding conventions, and a blast-radius tool that is not implemented yet. " +
+  "read a repo's accepted coding conventions, and map a PR's blast radius (changed symbols, callers, endpoints, crons). " +
   'Repos are owner/name, PRs are GitHub PR numbers, agent ids come from list_agents. Needs the DevDigest API running locally.';
 
 /** Runtime knobs of the service (shutdown signal, poll interval); see `ServiceOptions`. */

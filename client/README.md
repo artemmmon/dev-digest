@@ -33,7 +33,7 @@ flowchart TD
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state<br/>GET /pulls/:id/reviews (lazy, FINDINGS hover popover)"| API
-  PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff<br/>POST /pulls/:id/review · /pulls/:id/intent · /findings/:id/(accept|dismiss)"| API
+  PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff · /pulls/:id/blast<br/>POST /pulls/:id/review · /pulls/:id/intent · /repos/:id/resync · /findings/:id/(accept|dismiss)"| API
   TOUR -->|"GET /repos/:id/onboarding (polled while running)<br/>POST /repos/:id/onboarding/generate · GET /repos/:id/index-state"| API
   CTX -->|"GET /repos/:id/context · /repos/:id/context/content"| API
   AGENT -->|"GET · PUT /agents/:id/context · GET /repos/:id/context"| API
@@ -47,6 +47,9 @@ The PR detail's Overview tab renders the `IntentCard` first (before the PR
 description): the PR's derived `{ summary, in_scope, out_of_scope }`, risk-area
 chips, a confidence badge and a Derive / Re-derive intent action
 (`src/lib/hooks/intent.ts`, `_components/OverviewTab/_components/IntentCard`).
+Beside it sits the `BlastRadiusCard` (`src/lib/hooks/blast.ts`, `_components/OverviewTab/_components/BlastRadiusCard`):
+the precomputed repo-intel map of what the PR's changed symbols reach (callers, endpoints, cron jobs) as a
+tree or a plain-SVG graph, with a degraded-index notice and a Resync action.
 A `FindingCard` with `kind: 'out_of_scope'` shows an "Outside PR scope" badge.
 
 The Onboarding Tour page (`/repos/:repoId/onboarding`, `src/app/repos/[repoId]/onboarding/_components/TourView`)

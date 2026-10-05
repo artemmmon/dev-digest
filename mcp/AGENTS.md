@@ -2,7 +2,7 @@
 
 Local stdio MCP server (`devdigest`) that Claude Code launches. Five tools: `list_agents`,
 `run_agent_on_pr` (the only write tool), `get_findings`, `get_conventions`,
-`get_blast_radius` (registered stub, always `isError`). It drives the **running DevDigest
+`get_blast_radius` (read-only, from `GET /pulls/:id/blast`). It drives the **running DevDigest
 API over REST** (`DEVDIGEST_API_URL`, loopback only) and holds no secrets. Root rules: `../AGENTS.md`.
 Guide: `../docs/devdigest-mcp.md`.
 
@@ -44,10 +44,10 @@ bash ../scripts/mcp.sh  # launch (what .mcp.json runs) — never `pnpm start`, s
 - SDK 1.x returns input-validation failures as `isError` results and skips `outputSchema`
   validation on `isError`. Custom zod messages are the actionable text.
 - `StdioServerTransport` does not call `onclose` on stdin EOF; `index.ts` listens to stdin itself.
-- Only `run_agent_on_pr` and `get_findings` advertise an `outputSchema` (budget; the stub advertises none).
+- Only `run_agent_on_pr`, `get_findings` and `get_blast_radius` advertise an `outputSchema` (budget).
 - The API must be running (`../scripts/dev.sh`); an unreachable API is an `isError` telling you so.
 
 ## Documentation
-- `../docs/devdigest-mcp.md` — connect, env vars, measured budget, stub trade-off
+- `../docs/devdigest-mcp.md` — connect, env vars, measured budget, blast radius
 - `../docs/plans/05-devdigest-mcp.md` — the development plan and its amendments
 - `INSIGHTS.md` — gotchas; append via the `engineering-insights` skill

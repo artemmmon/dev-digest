@@ -77,6 +77,7 @@ flowchart TB
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
     intent["intent<br/>/pulls/:id/intent (GET · POST)"]
     smartDiff["smart-diff<br/>/pulls/:id/smart-diff (GET)"]
+    blast["blast<br/>/pulls/:id/blast (GET)"]
     projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/content (GET)"]
     onboarding["onboarding<br/>/repos/:id/onboarding (GET) · /repos/:id/onboarding/generate (POST, 202)"]
   end

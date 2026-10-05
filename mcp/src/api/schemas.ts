@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import type {
   Agent,
+  BlastRadiusResponse,
   ConventionList,
   FindingRecord,
   PrMeta,
@@ -101,6 +102,35 @@ export const ConventionListResponseLite = z.object({
   last_scan: z.object({ at: z.string() }).nullable(),
 });
 
+/** Same five strings as the server's `BlastDegradedReason` (drift-checked below). */
+export const BLAST_REASONS = ['flag_off', 'no_data', 'index_failed', 'index_partial', 'repo_too_large'] as const;
+
+/** `GET /pulls/:id/blast`: only the fields the tool reads. */
+export const BlastResponseLite = z.object({
+  blast: z.object({
+    changed_symbols: z.array(z.object({ name: z.string(), file: z.string(), kind: z.string() })),
+    downstream: z.array(
+      z.object({
+        symbol: z.string(),
+        callers: z.array(z.object({ name: z.string(), file: z.string(), line: z.number().int() })),
+        endpoints_affected: z.array(z.string()),
+        crons_affected: z.array(z.string()),
+      }),
+    ),
+    summary: z.string(),
+  }),
+  head_sha: z.string(),
+  index: z.object({ degraded: z.boolean(), reason: z.enum(BLAST_REASONS).nullable() }),
+  counts: z.object({
+    changed_files: z.number().int(),
+    symbols: z.number().int(),
+    callers: z.number().int(),
+    endpoints: z.number().int(),
+    crons: z.number().int(),
+  }),
+  truncated: z.boolean(),
+});
+
 // ---- drift checks (compile time only) ---------------------------------------
 type Assignable<Server, Local> = Server extends Local ? true : false;
 // `Assignable` alone cannot see a renamed field the local schema marks `.nullish()`: an
@@ -114,6 +144,7 @@ export type DriftChecks = AllTrue<[
   Assignable<RunSummary, z.input<typeof RunLite>>,
   Assignable<ReviewRecord, z.input<typeof ReviewLite>>,
   Assignable<ConventionList, z.input<typeof ConventionListResponseLite>>,
+  Assignable<BlastRadiusResponse, z.input<typeof BlastResponseLite>>,
   // Fields the local schemas mark `.nullish()`: a server rename must fail typecheck.
   HasKey<PrMeta, 'id'>,
   HasKey<FindingRecord, 'suggestion'>,
@@ -129,3 +160,4 @@ export type FindingInfo = z.output<typeof FindingLite>;
 export type ReviewInfo = z.output<typeof ReviewLite>;
 export type ConventionInfo = z.output<typeof ConventionLite>;
 export type ConventionListInfo = z.output<typeof ConventionListResponseLite>;
+export type BlastInfo = z.output<typeof BlastResponseLite>;

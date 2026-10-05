@@ -89,6 +89,8 @@ test('steps: fields, sequence and files', () => {
   has(errors(swap('- Done when: the log line appears.', '- Done when:')), 'Step 2 has no "- Done when:" line');
   has(errors(swap('### Step 2', '### Step 3')), 'out of sequence');
   has(errors(swap('modify `server/src/app.ts`\n- Change: log', 'modify `server/src/gone.ts`\n- Change: log')), '"server/src/gone.ts" (modify) does not exist');
+  assert.deepEqual(errors(swap('modify `server/src/app.ts`\n- Change: log', 'modify `server/src/probe.ts`\n- Change: log')), []);
+  has(errors(swap('create `server/src/probe.ts` · modify `server/src/app.ts`', 'modify `server/src/probe.ts`').replace('modify `server/src/app.ts`\n- Change: log', 'create `server/src/probe.ts`\n- Change: log')), 'Step 1: "server/src/probe.ts" (modify) does not exist');
   const exists = checkPlan(PLAN, project({ 'server/src/probe.ts': '' }));
   has(exists.filter((p) => p.level === 'warning').map((p) => p.message), 'already exists');
 });
