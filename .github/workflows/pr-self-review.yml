@@ -1,5 +1,6 @@
 # pr-self-review skill — script tests (routing, hashing, verdict, gate, real git push through the hook).
 # They build throw-away git repos in a temp dir: no network, no Docker, no dependencies to install.
+# Also: the guard hooks' tests, the spec-authoring and feature-flow check tests, and the spec check itself.
 name: pr-self-review
 
 on:
@@ -7,15 +8,29 @@ on:
     branches: [main]
     paths:
       - '.claude/skills/pr-self-review/**'
+      - '.claude/skills/spec-authoring/**'
+      - '.claude/skills/feature-flow/**'
+      - '.claude/skills/workflow-retro/**'
+      - 'scripts/check-changed.sh'
+      - '.claude/hooks/**'
       - '.claude/agents/**'
       - '.claude/settings.json'
+      - 'specs/**'
+      - '*/specs/**'
       - 'scripts/install-hooks.sh'
       - '.github/workflows/pr-self-review.yml'
   pull_request:
     paths:
       - '.claude/skills/pr-self-review/**'
+      - '.claude/skills/spec-authoring/**'
+      - '.claude/skills/feature-flow/**'
+      - '.claude/skills/workflow-retro/**'
+      - 'scripts/check-changed.sh'
+      - '.claude/hooks/**'
       - '.claude/agents/**'
       - '.claude/settings.json'
+      - 'specs/**'
+      - '*/specs/**'
       - 'scripts/install-hooks.sh'
       - '.github/workflows/pr-self-review.yml'
 
@@ -32,3 +47,5 @@ jobs:
         with:
           node-version: 22
       - run: node --test '.claude/skills/pr-self-review/assets/tests/*.test.mjs'
+      - run: node --test '.claude/hooks/*.test.mjs' '.claude/skills/spec-authoring/assets/tests/*.test.mjs' '.claude/skills/feature-flow/assets/tests/*.test.mjs' '.claude/skills/workflow-retro/assets/tests/*.test.mjs'
+      - run: node .claude/skills/spec-authoring/assets/check-spec.mjs

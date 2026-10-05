@@ -3,10 +3,12 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   Agent,
+  AgentContext,
   AgentSkillLink,
   AgentVersion,
   AppliesTo,
   CiFailOn,
+  ContextAttachmentInput,
   Provider,
   ReviewStrategy,
   SetAgentSkillsBody,
@@ -36,6 +38,8 @@ const VersionParams = z.object({
  *   GET    /agents/:id/skills       → linked skills (ordered)
  *   POST   /agents/:id/skills       → set/reorder linked skills OR link one
  *   PUT    /agents/:id/skills       → replace bindings {skill_id, enabled}[] (order = index)
+ *   GET    /agents/:id/context      → attached documents + those inherited through skills (?repo_id=)
+ *   PUT    /agents/:id/context      → replace the attached documents of one repo
  *   GET    /agents/:id/models       → dynamic model list for the agent's provider
  *   GET    /providers/:id/models    → dynamic model list for a provider (editor)
  */
@@ -68,6 +72,8 @@ const UpdateAgentBody = z.object({
   enabled: z.boolean().optional(),
 });
 
+const RepoQuery = z.object({ repo_id: z.string().uuid() });
+
 /** Either set the whole ordered set (`skill_ids`) or link one (`skill_id`). */
 const SetSkillsBody = z
   .object({
@@ -84,6 +90,7 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
   const service = new AgentsService({
     agents: app.container.agentsRepo,
     llm: (provider) => app.container.llm(provider),
+    docs: app.container.projectContextService,
   });
 
   app.get('/agents', { schema: { response: { 200: z.array(Agent) } } }, async (req) => {
@@ -200,6 +207,28 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
       const links = await service.setBindings(workspaceId, req.params.id, req.body.skills);
       if (!links) throw new NotFoundError('Agent not found');
       return links;
+    },
+  );
+
+  app.get(
+    '/agents/:id/context',
+    { schema: { params: IdParams, querystring: RepoQuery, response: { 200: AgentContext } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const ctx = await service.getContext(workspaceId, req.params.id, req.query.repo_id);
+      if (!ctx) throw new NotFoundError('Agent not found');
+      return ctx;
+    },
+  );
+
+  app.put(
+    '/agents/:id/context',
+    { schema: { params: IdParams, body: ContextAttachmentInput, response: { 200: AgentContext } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const ctx = await service.setContext(workspaceId, req.params.id, req.body);
+      if (!ctx) throw new NotFoundError('Agent not found');
+      return ctx;
     },
   );
 

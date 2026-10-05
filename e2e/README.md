@@ -32,12 +32,16 @@ A spec lives in `specs/NN-name.flow.json`:
 - Locators are deterministic only (`--url`, `--text`, `find role|text|label`).
   We never use the AI `chat` command, so runs are stable and key-free.
 
-Flows target **read-only seeded data** (the demo repo `acme/payments-api`, PR
-#482, the seeded agents), so nothing triggers a model call.
+Flows 01-11 target **read-only seeded data** (the demo repo `acme/payments-api`,
+PR #482, the seeded agents), so nothing triggers a model call. Flow 12 is the one
+exception: it generates an onboarding tour for a separate fixture repository with a
+stub model (see [Onboarding-tour flow](#onboarding-tour-flow-12)) — still no network
+and no API key.
 
-> **Precondition: a freshly-seeded DB.** Flow `02` follows the home redirect to
-> the *first* repo, so it assumes the seeded demo repo is the only one. CI
-> guarantees this — `e2e-web.yml` brings up an empty Postgres and seeds it.
+> **Precondition: a freshly-seeded DB.** Flows `02`, `04` and `05` follow the home
+> redirect to the *first* repo, so they assume the seeded demo repo comes first. CI
+> guarantees this — `e2e-web.yml` brings up an empty Postgres and seeds it (the
+> seed adds the tour fixture repo *after* the demo repo, so the demo stays first).
 > Your local dev DB usually has other imported repos, so running `npm test`
 > straight against it makes flows 02/04/05 land on the wrong repo and fail.
 > **Use the hermetic runner below** — it spins up its own isolated, freshly-seeded
@@ -65,8 +69,16 @@ npm i -g agent-browser@0.38.1 && agent-browser install
 ```
 
 The isolated Postgres is ephemeral (no persistent volume), so it's empty every
-run and the seeded demo repo `acme/payments-api` is the only one — which is
-exactly what flows 02/04/05 need.
+run. It holds two repos: the seeded demo repo `acme/payments-api` first, which is
+what flows 02/04/05 need, and the tour fixture repo `devdigest-fixtures/tour-sample`,
+which only flow 12 opens (by its fixed id).
+
+The script also builds the fixture checkout in a throw-away clone directory, which it
+removes on exit. The web server runs with its own build directory
+(`NEXT_DIST_DIR=.next-e2e`), but `next dev` still rewrites two committed client files,
+`client/next-env.d.ts` and `client/tsconfig.json`. `scripts/e2e.sh` snapshots them
+before it starts and restores them on exit — also on failure or Ctrl-C — so a run
+leaves no diff there.
 
 ### Against your own running stack
 
@@ -85,6 +97,35 @@ Env knobs:
 - Hermetic stack (`scripts/e2e.sh`): `E2E_PG_PORT` (5433), `E2E_API_PORT` (3101),
   `E2E_WEB_PORT` (3100), `E2E_PG_CONTAINER` (`devdigest-e2e-postgres`),
   `E2E_PG_IMAGE` (`pgvector/pgvector:pg16`).
+- Onboarding-tour flow (12), set by `scripts/e2e.sh` and `e2e-web.yml` — not by you:
+  `DEVDIGEST_CLONE_DIR` (the fixture checkout lives at
+  `<dir>/devdigest-fixtures/tour-sample`, built by `scripts/e2e-tour-fixture.sh`),
+  `SEED_E2E_FIXTURE_PATH` (the seed adds that repo, id `00000000-0000-4000-8000-0000000000e2`),
+  `DEVDIGEST_LLM_STUB` (`e2e/fixtures/llm-stub.json`: the stub model's answers).
+
+### Onboarding-tour flow (12)
+
+Flow 12 opens `/repos/00000000-0000-4000-8000-0000000000e2/onboarding`, clicks
+Generate, and checks the five cards against `e2e/fixtures/llm-stub.json`. Then it
+clicks Regenerate. It is the only flow that writes data, and it is numbered 12 so it
+runs last. It needs three things that the hermetic runner and `e2e-web.yml` set up
+for you:
+
+- A **fixture checkout**: `scripts/e2e-tour-fixture.sh <clone-dir>` copies
+  `e2e/fixtures/tour-repo` (a tiny Python service) into
+  `<clone-dir>/devdigest-fixtures/tour-sample` and commits it with a fixed author and
+  date. The checkout has to sit at `<DEVDIGEST_CLONE_DIR>/<owner>/<name>`; the API
+  derives the path from the repo's owner and name, not from the stored `clone_path`.
+- A **seeded repo row**: `pnpm db:seed` adds the repo when `SEED_E2E_FIXTURE_PATH` is
+  set.
+- A **stub model**: with `DEVDIGEST_LLM_STUB` set, the API answers every structured
+  LLM request from the JSON file instead of calling a provider. The file maps a
+  schema name to the answer, for example `OnboardingTourDraft` to the five sections.
+  The variable is test-only and the API refuses it when `NODE_ENV=production`.
+
+To change what the tour shows in the flow, edit `e2e/fixtures/llm-stub.json` and the
+matching `wait --text` steps together. A path in the stub's answer that is not in the
+fixture checkout is dropped by the server, so the card would lose that row.
 
 Failure screenshots are written to `e2e/test-results/` (git-ignored; uploaded as
 a CI artifact by `.github/workflows/e2e-web.yml`).
@@ -102,3 +143,6 @@ a CI artifact by `.github/workflows/e2e-web.yml`).
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
 | `08-agent-editor` | agents list → open Security Reviewer → editor Config tab renders |
 | `09-pr-overview` | PR #482 → Overview tab → Description + the seeded PR body |
+| `10-skills` | `/skills` → open a seeded skill's preview drawer → full page: Config and Versioning tabs → seeded Test Quality Reviewer's Skills tab lists every skill with the enabled count |
+| `11-pr-intent` | PR #482 → Overview tab → the Intent card's empty state with its Derive intent button (never clicked) |
+| `12-onboarding-tour` | fixture repo `devdigest-fixtures/tour-sample` → Generate onboarding tour (stub model) → five sections → Regenerate |

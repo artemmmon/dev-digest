@@ -1,5 +1,5 @@
 /* AgentEditor — agent config editor (model + system prompt) and the Skills tab
-   (bind, switch, reorder). Later lessons add Evals/Stats/CI tabs. Tab state lives in ?tab=. */
+   (bind, switch, reorder) and the Context tab (attach project documents). Later lessons add Evals/Stats/CI tabs. Tab state lives in ?tab=. */
 "use client";
 
 import React from "react";
@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Tabs } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
 import { ConfigTab } from "./_components/ConfigTab";
+import { ContextTab } from "./_components/ContextTab";
 import { SkillsTab } from "./_components/SkillsTab";
 import { TABS } from "./constants";
 import { s } from "./styles";
@@ -20,7 +21,13 @@ export function AgentEditor({ agent, tab, onTab }: { agent: Agent; tab: string; 
         <Tabs tabs={tabs} value={tab} onChange={onTab} pad="0 24px" />
       </div>
       <div style={s.body}>
-        {tab === "skills" ? <SkillsTab key={agent.id} agent={agent} /> : <ConfigTab key={agent.id} agent={agent} />}
+        {tab === "skills" ? (
+          <SkillsTab key={agent.id} agent={agent} />
+        ) : tab === "context" ? (
+          <ContextTab key={agent.id} agent={agent} />
+        ) : (
+          <ConfigTab key={agent.id} agent={agent} />
+        )}
       </div>
     </div>
   );

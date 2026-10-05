@@ -1,4 +1,4 @@
-import type { PrIntent, Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
+import type { ContextDocRecord, PrIntent, Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers, type ScopeFilter } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type { AgentRecord } from '../agents/types.js';
@@ -205,6 +205,9 @@ export class ReviewRunExecutor {
 
     runLog.info(`Starting review with agent "${agent.name}" (${agent.provider}/${agent.model})`);
 
+    // Declared before the `try` so a failed or cancelled run still stores what it read.
+    let contextRecords: ContextDocRecord[] | undefined;
+
     try {
       // Resolve the agent's LLM provider. (deps.llm throws if the provider
       // key is missing — caught below and persisted as a failed run.)
@@ -246,6 +249,23 @@ export class ReviewRunExecutor {
         runLog,
       );
 
+      // Project context — repository documents attached to the agent and to the skills
+      // that reached the prompt (a skipped skill contributes none). Untrusted text: the
+      // prompt fences it. Log lines carry paths and counts, never the text.
+      const projectContext = await this.deps.projectContext.resolveForRun({
+        repo,
+        agentId: agent.id,
+        skillIds: skillBlocks.map((b) => b.skill_id),
+      });
+      contextRecords = projectContext.records;
+      for (const r of projectContext.records) {
+        runLog.info(
+          r.status === 'read'
+            ? `context doc "${r.path}" attached (${r.tokens} token(s))`
+            : `context doc "${r.path}" skipped — ${r.status}`,
+        );
+      }
+
       // L03 — the PR's derived intent (shared pre-work, resolved once per batch
       // in executeRuns) is attached to EVERY agent, at every tier (D10); the
       // block itself says so explicitly when the tier is low or missing context.
@@ -272,6 +292,7 @@ export class ReviewRunExecutor {
         // T1.3 — pass the callers digest only when we built one. assemblePrompt
         // omits the section when this is empty/undefined.
         ...(skillBlocks.length > 0 ? { skills: skillBlocks.map((b) => b.text) } : {}),
+        ...(projectContext.documents.length > 0 ? { projectContext: projectContext.documents } : {}),
         ...(callersDigest ? { callers: callersDigest } : {}),
         // T3 — repo skeleton, same omit-when-empty contract.
         ...(repoMap ? { repoMap } : {}),
@@ -362,7 +383,8 @@ export class ReviewRunExecutor {
         })),
         raw_output: outcome.raw,
         memory_pulled: [],
-        specs_read: [],
+        specs_read: projectContext.records.filter((r) => r.status === 'read').map((r) => r.path),
+        context_docs: projectContext.records,
         // Persisted log = the run's FULL event buffer (incl. shared pre-work:
         // diff load + intent), not just events recorded inside this method.
         log: runLog.logFor(runId),
@@ -392,7 +414,7 @@ export class ReviewRunExecutor {
         })
         .catch(() => undefined);
       await this.repo
-        .saveRunTrace(runId, this.traceFromBuffer(runId, pull, agent, '0/0 passed', Date.now() - start))
+        .saveRunTrace(runId, this.traceFromBuffer(runId, pull, agent, '0/0 passed', Date.now() - start, contextRecords))
         .catch(() => undefined);
       this.deps.bus.complete(runId);
       throw err;
@@ -525,6 +547,7 @@ export class ReviewRunExecutor {
     agent: AgentRecord,
     grounding: string,
     durationMs = 0,
+    contextRecords?: ContextDocRecord[],
   ): RunTrace {
     return {
       config: {
@@ -540,7 +563,8 @@ export class ReviewRunExecutor {
       tool_calls: [],
       raw_output: '',
       memory_pulled: [],
-      specs_read: [],
+      specs_read: (contextRecords ?? []).filter((r) => r.status === 'read').map((r) => r.path),
+      ...(contextRecords ? { context_docs: contextRecords } : {}),
       log: this.deps.bus.buffer(runId).map((e) => ({ t: e.t, kind: e.kind, msg: e.msg })),
     };
   }

@@ -31,6 +31,7 @@ A glance at the repo (for example `ls`, or reading `CLAUDE.md`) to make your que
 
 ## Repository mode rules
 
+- If the prompt ends with `Already read: <paths>`, the caller has those files. Do not open them: search around them, and name one only as the place a finding points to.
 - Always exclude `server/clones/` from every search (for example `rg ... --glob '!server/clones/**'`). It holds runtime checkouts, including a full copy of this repo. Also skip `node_modules/`, `.next/`, `dist/` and `temp/`.
 - Start from the map. The root `CLAUDE.md` lists the docs. Then read the package `AGENTS.md`, the module's `INSIGHTS.md`, and any matching `specs/NN-*.md` or `docs/*.md` before reading code.
 - Every piece of evidence is a `path:line` plus a short quote of the line or lines. Take versions from that package's `package.json`, not from memory.

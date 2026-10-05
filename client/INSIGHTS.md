@@ -59,6 +59,14 @@ architecture decision (the two copies stop being literally byte-identical, thoug
 semantically identical), so it needs sign-off before implementing, not just for someone to hit next.
 Where: `../scripts/shared-contracts.sh`, `src/vendor/shared/index.ts`, `../server/src/vendor/shared/contracts/platform.ts:2` (`import { Provider } from './knowledge.js'`, one of several internal `.js` cross-imports needing the same treatment).
 
+### 2026-10-05 — Repository markdown in previews still loads remote images
+`DocContent` renders project documents through the kit `Markdown` (react-markdown, no raw HTML), but the primitive overrides only `p`, `strong`, `code` and `a`, so `![](https://…)` becomes a real `<img>` and the browser fetches it when you open a preview or the Project Context page. To stop it, add an `img` component override to the primitive (render the alt text or a link) — the primitive is also used by skill previews, `FindingCard` and `CommentCard`, so check them first.
+Where: client/src/vendor/ui/primitives/Markdown.tsx:31, client/src/components/context-docs/DocContent.tsx:37
+
+### 2026-10-05 — The tour overview leaked remote image fetches; fixed in the feature, not in the kit
+The onboarding overview body is model text (steerable by a hostile README) rendered through the kit `Markdown`, which takes only `children` (no `components` prop) and has no `img` override, so `![](https://host/…)` fetched an attacker-chosen URL on every page open (LLM05). Fixed in two layers without touching the shared primitive: `stripImageEmbeds` in `buildTour` (stored tour + export carry no embed) and a mirrored `stripImageEmbeds` in `TourView/helpers.ts`, applied before `<Markdown>` and in `tourToMarkdown`. Any other model text rendered through the kit `Markdown` needs the same treatment until the primitive itself gets an `img` override.
+Where: client/src/app/repos/[repoId]/onboarding/_components/TourView/helpers.ts:11, client/src/app/repos/[repoId]/onboarding/_components/TourView/_components/TourSections/TourSections.tsx:33, server/src/modules/onboarding/tour.ts:27
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Local `vendor/shared` lags behind the server
@@ -445,6 +453,10 @@ too. No need for `within`/testids to disambiguate two "1 file"-shaped strings ne
 sibling tree, as long as each element's own text differs.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.test.tsx` (singular file-count test), `DiffTab.tsx:135` (toolbar summary span).
 
+### 2026-10-05 — Onboarding Tour: scrolling is found from the DOM, not a ref to the shell's scroll box
+The shell's scroll container is not exposed to pages, so `useActiveSection` walks up from the tour wrapper to the first ancestor with `overflow-y: auto|scroll` that really overflows (same trick as the design file) and falls back to `window`. jsdom has no `Element.prototype.scrollTo` and no layout, so the hook calls `scrollTo?.()` and a test must stub `scrollTo`/`getBoundingClientRect` to prove a jump or the active item.
+Where: src/app/repos/[repoId]/onboarding/_components/TourView/hooks/useActiveSection.ts:28
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — The PR-list table card clipped anything absolutely positioned in a row
@@ -520,6 +532,13 @@ not; assert `toHaveTextContent` for the exact text and match the name with `\s?`
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastTree/BlastTree.tsx:21`.
 
 ## Open Questions
+
+### 2026-10-04 — Context tabs with no active repository are undefined
+The agent and skill editors are not repo-scoped, but both Context tabs list one repo's documents (`useActiveRepo()`). Neither SPEC-10 nor the design says what the tab shows when `reposLoaded` is true and `activeRepo` is null, so both tabs render nothing there. Needs a decision (empty state with a link to Repos?), then replace the `return null`. Where: src/app/skills/_components/SkillDetail/_components/ContextTab/ContextTab.tsx:24 and src/app/agents/[id]/_components/AgentEditor/_components/ContextTab/ContextTab.tsx:20
+
+### 2026-10-04 — Supersedes "Context tabs with no active repository are undefined"
+Decided in SPEC-10 AC-73 to AC-78: with `reposLoaded` true and `activeRepo` null, both Context tabs show the kit `EmptyState` (Folder icon, "Select a repository to attach project context", no button); the skill tab keeps only its heading and drops the Save/Discard footer. `SkillDetail` keys the attachment draft by `activeRepo?.id ?? null`, not the raw `repoId`, because `repoId` can be a stale `localStorage` id that matches no repository and would otherwise reach `useSkillContext` and the save patch. Do not edit the old entry.
+Where: `src/app/skills/_components/SkillDetail/SkillDetail.tsx:56`
 
 ## Session Notes
 

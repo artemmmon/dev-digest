@@ -49,6 +49,10 @@ On `ts-route-contract` deepseek-v4-flash cited `author` anywhere from line 5 to 
 `scoreRun` counts a change as caught by file + a keyword the finding must name + a ±5 line slack.
 Where: `src/experiments/score.ts:29` (`LINE_SLACK`).
 
+### 2026-10-05 — Project documents: the list drops symlinks, the run reader follows in-root ones
+`GitClient.listFiles` skips mode `120000`, so the list and content endpoints never show a link. `FsProjectDocReader` (used at run time for a stored path) resolves links and only rejects a target outside the clone root, so a path attached as a regular file that later becomes an in-repo link is read through it. Not exploitable beyond the clone, but the list/run asymmetry is real; to close it, reject a path whose `lstat` is a link in the reader. Documented as a known limit in `docs/project-context.md`.
+Where: server/src/adapters/project-docs/fs.ts:28, server/src/adapters/git/simple-git.ts:204
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Queue state is in-memory only
@@ -392,6 +396,22 @@ Where: `src/vendor/shared/contracts/brief.ts:163`, `src/modules/repo-intel/const
 The "index flips between the two reads and the facade may still fall back" caveat is closed: `blastDeps.blastRadius` in `container.ts` passes `{ persistentOnly: true }`, so `RepoIntelService.getBlastRadius` returns the empty degraded `no_data` instead of touching `codeIndex` / `readClone`. `shouldQueryFacade` still saves the call when the state read already says unusable.
 Where: `src/platform/container.ts:208`, `src/modules/repo-intel/service.ts:271`.
 
+### 2026-10-04 — project-context has its own matcher and a structural reader port
+`_shared/glob.ts` escapes `{`/`}` (`escapeLiteral`) and cannot match a mid-pattern `**`, so `**/{specs,docs,insights}/**/*.md` cannot go through it; `project-context/helpers.ts` `isProjectDocument` is a hand-written matcher for that one constant. Also: depcruise forbids both `modules/*/ports.ts → modules/repos` (core-is-pure) and `adapters → modules` (adapters-not-to-modules), so `ProjectContextDeps.repos` is a local `RepoLookup` and `FsProjectDocReader` declares its own result type and satisfies `ProjectDocReader` structurally.
+Where: server/src/modules/_shared/glob.ts:17, server/src/modules/project-context/helpers.ts:11, server/src/adapters/project-docs/fs.ts:12
+
+### 2026-10-04 — The run's document records are declared before the `try` in `runOneAgent`, so a failed run still stores them
+`context_docs`/`specs_read` come from `projectContext.resolveForRun`, called mid-`try`. `contextRecords` is a `let` outside the `try` and the `catch` passes it to `traceFromBuffer`; a failure after resolution (LLM error, cancel) therefore still records which documents were read. A failure inside `resolveForRun` itself leaves it `undefined` and the failed trace carries no `context_docs`.
+Where: server/src/modules/reviews/run-executor.ts:209
+
+### 2026-10-04 — Agents and skills validate attachment paths through one `_shared` helper and a structural `docs` port
+`ProjectDocsLister` lives in `_shared/ports.ts` (not `_shared/context-docs.ts`): depcruise `core-is-pure` forbids a `ports.ts` importing a file that imports `platform/errors`. `assertAttachablePaths` (duplicates rejected; a path already stored for the owner/repo is accepted even if no longer a document) is shared by both services; `container.projectContextService` satisfies the port.
+Where: server/src/modules/_shared/context-docs.ts:8, server/src/modules/_shared/ports.ts
+
+### 2026-10-05 — Background generation with persisted state: claim by upsert, complete guarded by `started_at`, reap on boot
+The onboarding tour (SPEC-11) answers 202 and runs in the background. `OnboardingRepository.claim` is one `INSERT … ON CONFLICT (repo_id) DO UPDATE … setWhere status <> 'running' RETURNING started_at`; no row back = already running (409). `complete`/`fail` match `repo_id` + `started_at` + `status='running'`, so a run that was timed out, reaped or whose repo was deleted stores nothing (`complete` returns false). A boot reaper (`reapInterrupted`) sits next to `reapStaleRuns` in `app.ts` and is awaited before listening. The service never stores `err.message`; only the fixed texts of `constants.ts` reach the row.
+Where: server/src/modules/onboarding/repository.ts:36, server/src/app.ts:88
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -466,6 +486,10 @@ Where: src/modules/intent/constants.ts:15
 the repository maps `Number(row.costUsd)` on read and `String(cost)` on write. Other `cost_usd` columns
 (runs, eval, ci) are still `double precision` — migrate them the same way if touched.
 Where: src/db/schema/reviews.ts:104, src/modules/intent/repository.ts
+
+### 2026-10-05 — `maxRetries` only limits schema re-prompts; HTTP retries need `transportRetries: 0`
+A caller that must send exactly one request sets `maxRetries: 0` AND `transportRetries: 0`. The OpenAI SDK client retries 2x on its own and `withRetry` adds 3 attempts; OpenRouter used to ignore `req.timeoutMs` (now `req.transportRetries`/`timeoutMs` become per-request SDK options when set). Unset keeps each provider's default.
+Where: reviewer-core/src/llm/openrouter.ts:94, server/src/adapters/llm/openai.ts:110
 
 ## Recurring Errors & Fixes
 

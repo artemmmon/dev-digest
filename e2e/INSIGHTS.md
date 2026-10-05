@@ -7,6 +7,10 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 
 ## What Works
 
+### 2026-10-05 — Supersedes "SPEC-10 NFR-11 (project-context e2e flow) is deferred", in part: a stub model and a fixture checkout now exist
+`DEVDIGEST_LLM_STUB=<json>` makes `Container.llm()` return a `StubLLMProvider` that answers each `schemaName` from the file (no key, no network; refused with `NODE_ENV=production`). `scripts/e2e.sh` also seeds a fixture repo with a real git checkout (`SEED_E2E_FIXTURE_PATH`). Flow 12 uses both for the onboarding tour. A project-context flow can reuse them: add a `ProjectContext` schema fixture to `fixtures/llm-stub.json`.
+Where: `../scripts/e2e.sh:132`, `fixtures/llm-stub.json`, `specs/12-onboarding-tour.flow.json:1`.
+
 ## What Doesn't Work
 
 ### 2026-09-16 — `scripts/e2e.sh` breaks a running dev web server
@@ -23,12 +27,20 @@ up the whole hermetic stack and only then dies with `sh: tsx: command not found`
 Run `cd e2e && npm install` once before the first run.
 Where: `package.json:8` (`test` shells out to `tsx`), `../scripts/e2e.sh:110`.
 
+### 2026-10-05 — Supersedes "`scripts/e2e.sh` breaks a running dev web server"
+Fixed: `e2e.sh` starts `next dev` with `NEXT_DIST_DIR=.next-e2e` (read by `next.config.mjs`), so a dev server keeps its own `client/.next`. What `next dev` still rewrites are `client/next-env.d.ts` and `client/tsconfig.json`; the script snapshots both at start and restores them in `cleanup`, so a run leaves no git diff. Do not stop your dev web server before running it, and do not commit those two files if you ran `next dev` with `NEXT_DIST_DIR` by hand.
+Where: `../scripts/e2e.sh:173`, `../scripts/e2e.sh:61`, `../client/next.config.mjs:9`.
+
 ## Codebase Patterns
 
 ### 2026-09-15 — `specs/` is shared with feature spec docs
 The folder name was taken by the flows before the docs structure existed. The
 runner filters `*.flow.json`, so `*.md` specs there are ignored at run time.
 Where: `run.ts:55` (inside `loadFlows`).
+
+### 2026-10-05 — A fixture checkout must live at `<DEVDIGEST_CLONE_DIR>/<owner>/<name>`
+`repos.clone_path` alone is not used for git reads: `SimpleGitClient.clonePathFor` derives the path from the owner and name under `cloneDir`. A seeded fixture repo whose `clone_path` points elsewhere gets "repo_not_cloned"-style failures or empty reads. `scripts/e2e-tour-fixture.sh <clone-dir>` builds `<clone-dir>/devdigest-fixtures/tour-sample` with a fixed author and date; `e2e.sh` passes it a temp dir and exports it as `DEVDIGEST_CLONE_DIR`. The fixture repo is seeded after the demo repo, so the home redirect still lands on the demo.
+Where: `../server/src/adapters/git/simple-git.ts:49`, `../scripts/e2e-tour-fixture.sh:23`.
 
 ## Tool & Library Notes
 
@@ -85,6 +97,10 @@ Fix: a `["wait", "500"]` step after the drawer opens and before clicking inside 
 Where: `specs/10-skills.flow.json:8-10`, `../client/src/vendor/ui/kit/Drawer.tsx` (animation),
 `../client/src/vendor/ui/styles.css:296` (`@keyframes ddslidein`).
 
+### 2026-10-05 — Supersedes "Flows assume the seeded repo is the only one", in part: the demo repo only has to be the first
+The hermetic DB now holds a second repo (`devdigest-fixtures/tour-sample`, seeded after the demo repo for flow 12). Flows 02/04/05 still pass because the home redirect takes `repos[0]`, and `ReposRepository.list` has no `ORDER BY`: "first" is Postgres's physical order, which is insertion order on a fresh table. Seed any new repo after the demo repo, never before it; if the redirect ever lands on the fixture repo, add an explicit order to `list` rather than reordering the seed.
+Where: `../server/src/modules/repos/repository.ts:53`, `../server/src/db/seed.ts:121`, `../client/src/app/page.tsx:21`.
+
 ## Open Questions
 
 ### 2026-09-23 — A 2-character label is a bad `wait --text` target
@@ -95,5 +111,9 @@ label like `ts`. `wait --text` is a page-wide, case-sensitive substring match on
 adding a flow step for it; `FileCard.test.tsx` covers the chip precisely instead. If a flow
 ever needs it, seed a PR file whose chip label is long/distinctive (`yaml`, `dart`), not `ts`/`js`.
 Where: `specs/05-pr-diff.flow.json`, `../client/src/components/diff-viewer/FileCard/FileCard.tsx`.
+
+### 2026-10-04 — SPEC-10 NFR-11 (project-context e2e flow) is deferred
+No flow covers Project Context yet. A flow needs a model that answers without a real LLM, but no stub model provider is reachable from a running API, and the seeded repo has no checkout (`clonePath: null`), so document discovery has nothing to read. Plan 06 deferred both to a follow-up plan, so NFR-11 is NOT met. Before adding the flow: add a stub provider the API can select by env, and a fixture checkout for the seeded repo.
+Where: `../server/src/db/seed.ts:318`, `../specs/10-project-context.md` (NFR-11).
 
 ## Session Notes

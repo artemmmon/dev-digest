@@ -1,0 +1,33 @@
+{
+  "OnboardingTourDraft": {
+    "architecture_overview": {
+      "body": "Tour Sample is a small Python web service. app/main.py creates the FastAPI application and mounts the router from app/routes.py, which serves the health check and the item list.",
+      "diagram": "flowchart LR\n  Client --> Main[app/main.py]\n  Main --> Routes[app/routes.py]"
+    },
+    "critical_paths": {
+      "files": [
+        { "path": "app/main.py", "note": "Application entry point that mounts the router" },
+        { "path": "app/routes.py", "note": "HTTP handlers for health and items" }
+      ]
+    },
+    "how_to_run": {
+      "steps": [
+        { "command": "make install", "source": "Makefile" },
+        { "command": "make run", "source": "Makefile" }
+      ]
+    },
+    "guided_reading": {
+      "reading": [
+        { "path": "README.md", "why": "Start here for the purpose of the service" },
+        { "path": "app/main.py", "why": "See how the application is assembled" }
+      ]
+    },
+    "first_tasks": {
+      "tasks": [
+        { "title": "Add a request id header", "scope": "app/main.py", "complexity": "low" },
+        { "title": "Return items from a database", "scope": "app/routes.py", "complexity": "medium" },
+        { "title": "Paginate the item list", "scope": "app/routes.py", "complexity": "high" }
+      ]
+    }
+  }
+}

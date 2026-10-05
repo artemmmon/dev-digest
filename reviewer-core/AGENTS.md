@@ -30,7 +30,7 @@ npm run typecheck # this IS the build — the package never emits JS
 - Prompt-injection defense is the single `INJECTION_GUARD` rule plus fencing
   untrusted text — do not add keyword/denylist filtering.
 - Grounding is mandatory; never trust the model's self-reported score.
-- Optional prompt slots (`skills`, `memory`, `specs`, `callers`) are empty in the
+- Optional prompt slots (`skills`, `memory`, `projectContext`, `callers`) are empty in the
   starter; omitted slots must leave no section in the prompt.
 
 ## Gotchas

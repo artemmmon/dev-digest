@@ -30,6 +30,9 @@ const EnvSchema = z.object({
   API_HOST: z.string().min(1).default('localhost'),
   WEB_PORT: z.coerce.number().int().default(3000),
   DEVDIGEST_CLONE_DIR: z.string().optional(),
+  // TEST-ONLY: path to a JSON fixture; replaces every LLM provider with a stub that
+  // answers from it (hermetic e2e). Refused when NODE_ENV=production.
+  DEVDIGEST_LLM_STUB: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // `.env` (and .env.example) ship `LOG_LEVEL=` empty; an empty string is not a
   // valid enum member, so coerce '' → undefined to fall through to the default.
@@ -66,6 +69,11 @@ export type AppConfig = {
    * EXACTLY like the ripgrep-only baseline.
    */
   repoIntelEnabled: boolean;
+  /**
+   * Absolute path of the JSON fixture the stub LLM provider answers from, or null for the
+   * real providers. Test-only (`DEVDIGEST_LLM_STUB`); never set in production.
+   */
+  llmStubPath: string | null;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -73,6 +81,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const cloneDirRaw =
     parsed.DEVDIGEST_CLONE_DIR ?? join(homedir(), '.devdigest', 'workspace');
   const cloneDir = isAbsolute(cloneDirRaw) ? cloneDirRaw : resolve(process.cwd(), cloneDirRaw);
+  if (parsed.DEVDIGEST_LLM_STUB && parsed.NODE_ENV === 'production') {
+    throw new Error('DEVDIGEST_LLM_STUB is test-only and must not be set with NODE_ENV=production');
+  }
+  const llmStubPath = parsed.DEVDIGEST_LLM_STUB ? resolve(process.cwd(), parsed.DEVDIGEST_LLM_STUB) : null;
   return {
     databaseUrl: parsed.DATABASE_URL,
     apiPort: parsed.API_PORT,
@@ -85,5 +97,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     webOrigin: `http://localhost:${parsed.WEB_PORT}`,
     embeddingsEnabled: parsed.EMBEDDINGS_ENABLED === 'true',
     repoIntelEnabled: parsed.REPO_INTEL_ENABLED !== 'false',
+    llmStubPath,
   };
 }

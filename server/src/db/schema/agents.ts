@@ -2,6 +2,7 @@ import { pgTable, uuid, text, integer, boolean, jsonb, primaryKey, index } from 
 import { now } from './_shared';
 import { workspaces, users } from './core';
 import { skills } from './skills';
+import { repos } from './repos';
 
 // ============================================================ Agents & skills
 
@@ -73,5 +74,29 @@ export const agentSkills = pgTable(
     pk: primaryKey({ columns: [t.agentId, t.skillId] }),
     // the PK leads with agent_id; this one serves "agents using a skill" and the FK cascade
     skillIdx: index('agent_skills_skill_idx').on(t.skillId),
+  }),
+);
+
+/**
+ * Project documents (repo-relative markdown paths) attached to an agent for one
+ * repo. Only the path is stored; the text is read from the clone at run time.
+ * `position` is the order the documents reach the prompt.
+ */
+export const agentContextDocs = pgTable(
+  'agent_context_docs',
+  {
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    repoId: uuid('repo_id')
+      .notNull()
+      .references(() => repos.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.agentId, t.repoId, t.path] }),
+    // the PK leads with agent_id; this one serves the FK cascade from repos
+    repoIdx: index('agent_context_docs_repo_idx').on(t.repoId),
   }),
 );

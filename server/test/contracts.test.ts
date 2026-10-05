@@ -9,7 +9,7 @@ import {
   PrHistory,
   SmartDiff,
   Conformance,
-  Onboarding,
+  TourRead,
   EvalRun,
   MemoryItem,
   RunTrace,
@@ -131,8 +131,28 @@ describe('AI contracts parse fixtures', () => {
       }),
     ).not.toThrow();
     expect(() =>
-      Onboarding.parse({
-        sections: [{ kind: 'architecture', title: 'T', body: 'b', links: [] }],
+      TourRead.parse({
+        tour: {
+          repo_id: '00000000-0000-4000-8000-000000000001',
+          generated_at: '2026-01-01T00:00:00.000Z',
+          commit_sha: 'abc123',
+          files_indexed: 3,
+          limited_index: false,
+          provider: 'openrouter',
+          model: 'm',
+          tokens_in: 1,
+          tokens_out: 1,
+          cost_usd: null,
+          dropped_items: 0,
+          sections: [
+            { kind: 'architecture_overview', body: 'b', diagram: null },
+            { kind: 'critical_paths', files: [{ path: 'a.ts', note: 'n' }] },
+            { kind: 'how_to_run', steps: [{ command: 'make run', source: 'Makefile' }] },
+            { kind: 'guided_reading', reading: [{ path: 'a.ts', why: 'w' }] },
+            { kind: 'first_tasks', tasks: [{ title: 't', scope: 's', complexity: 'low' }] },
+          ],
+        },
+        generation: { status: 'idle', started_at: null },
       }),
     ).not.toThrow();
     expect(() =>

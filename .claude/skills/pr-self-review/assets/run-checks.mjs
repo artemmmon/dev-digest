@@ -3,10 +3,12 @@
 //
 //   node collect-diff.mjs | node run-checks.mjs > checks.json
 //   node run-checks.mjs --plan < collect.json        # print what would run, run nothing
+//   node run-checks.mjs --fail-fast < collect.json   # stop a package's lane at its first failure
 //
 // Reads collect-diff's JSON on stdin. Runs packages in parallel, each package's checks in order
 // (typecheck before lint before tests). Prints a JSON array of results:
-//   status: pass | fail | error   (error = could not run, e.g. dependencies not installed)
+//   status: pass | fail | error | skipped   (error = could not run, e.g. dependencies not installed;
+//   skipped = only with --fail-fast: an earlier check of the same package failed, so its output would be noise)
 // The pnpm/npm children run under the same Node as this script, so start it with Node >= 22 on PATH.
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -63,9 +65,19 @@ async function main() {
   const root = repoRoot();
   const byPackage = new Map();
   for (const c of checks) (byPackage.get(c.package) ?? byPackage.set(c.package, []).get(c.package)).push(c);
+  const failFast = process.argv.includes('--fail-fast');
   const lanes = [...byPackage.values()].map(async (lane) => {
     const results = [];
-    for (const c of lane) results.push(await runOne(root, c));
+    let stoppedBy = null;
+    for (const c of lane) {
+      if (stoppedBy) {
+        results.push({ package: c.package, id: c.id, cmd: c.cmd, dir: c.dir, status: 'skipped', exit_code: null, duration_ms: 0, output_tail: `not run: ${stoppedBy} did not pass` });
+        continue;
+      }
+      const result = await runOne(root, c);
+      results.push(result);
+      if (failFast && result.status !== 'pass') stoppedBy = c.id;
+    }
     return results;
   });
   const results = (await Promise.all(lanes)).flat();

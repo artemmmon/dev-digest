@@ -1,7 +1,9 @@
 /* SkillDetail — the body of /skills/<id>: a header (name, type, version, delete) and the tabs
-   Config · Preview · Stats · Versioning. It owns the draft of the skill being edited, so Preview shows
-   unsaved text and switching tabs loses nothing. The page remounts it (key) when another version of the
-   skill is saved, which resets the draft. A skill someone else wrote is flagged in Config: its body
+   Config · Context · Preview · Stats · Versioning. It owns the draft of the skill being edited, so Preview
+   shows unsaved text and switching tabs loses nothing. The page remounts it (key) when another version of
+   the skill is saved, which resets the draft. The Context tab's document list is part of the draft, but
+   saving only that list does not make a new version, so no remount happens: the list draft is reset by
+   hand after a save. A skill someone else wrote is flagged in Config: its body
    becomes instructions inside every prompt that uses it. Delete asks in a ConfirmDialog. */
 "use client";
 
@@ -12,10 +14,14 @@ import type { Skill } from "@devdigest/shared";
 import { SkillTypeChip } from "@/components/skill-type-chip";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useDeleteSkill, useToggleSkill, useUpdateSkill } from "@/lib/hooks/skills";
+import { useSkillContext } from "@/lib/hooks/project-context";
+import { useActiveRepo } from "@/lib/repo-context";
 import { notify } from "@/lib/toast";
 import { changedFields, draftFromSkill, isDraftValid, type SkillDraft } from "../helpers";
+import { sameList } from "./helpers";
 import { TABS, type SkillTab } from "./constants";
 import { ConfigTab } from "./_components/ConfigTab";
+import { ContextTab } from "./_components/ContextTab";
 import { PreviewTab } from "./_components/PreviewTab";
 import { StatsTab } from "./_components/StatsTab";
 import { VersionsTab } from "./_components/VersionsTab";
@@ -46,9 +52,20 @@ export function SkillDetail({
   const [message, setMessage] = React.useState("");
   const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 
+  // The repository the context belongs to: the active one. The raw id can be a stale stored id that matches no repository.
+  const { activeRepo } = useActiveRepo();
+  const repoId = activeRepo?.id ?? null;
+  const contextQ = useSkillContext(skill.id, repoId);
+  // `null` = untouched: the tab shows the saved list. Tied to the repo it was edited for, so
+  // switching repository drops it instead of sending one repo's paths to another.
+  const [contextDraft, setContextDraft] = React.useState<{ repoId: string; paths: string[] } | null>(null);
+
   const base = draftFromSkill(skill);
   const patch = changedFields(base, draft);
-  const dirty = Object.keys(patch).length > 0;
+  const savedPaths = contextQ.data?.paths;
+  const draftPaths = contextDraft && contextDraft.repoId === repoId ? contextDraft.paths : null;
+  const contextChanged = draftPaths !== null && savedPaths !== undefined && !sameList(draftPaths, savedPaths);
+  const dirty = Object.keys(patch).length > 0 || contextChanged;
   const valid = isDraftValid(draft);
   const pending = update.isPending;
 
@@ -67,10 +84,15 @@ export function SkillDetail({
     update
       .mutateAsync({
         id: skill.id,
-        patch: { ...patch, ...(patch.body !== undefined && message.trim() ? { message } : {}) },
+        patch: {
+          ...patch,
+          ...(patch.body !== undefined && message.trim() ? { message } : {}),
+          ...(contextChanged && repoId && draftPaths ? { context: { repo_id: repoId, paths: draftPaths } } : {}),
+        },
       })
       .then((saved) => {
         setDraft(draftFromSkill(saved));
+        setContextDraft(null);
         setMessage("");
         notify.success(t("form.savedToast", { name: saved.name, version: saved.version }));
       })
@@ -79,6 +101,7 @@ export function SkillDetail({
 
   const discard = () => {
     setDraft(base);
+    setContextDraft(null);
     setMessage("");
   };
 
@@ -118,6 +141,23 @@ export function SkillDetail({
               onDiscard: discard,
             }}
             onToggle={(enabled) => toggle.mutate({ id: skill.id, enabled })}
+          />
+        )}
+        {active === "context" && (
+          <ContextTab
+            form={{
+              repoId,
+              saved: savedPaths,
+              loadFailed: contextQ.isError,
+              onRetry: () => void contextQ.refetch(),
+              paths: draftPaths ?? savedPaths ?? [],
+              onPaths: (paths) => repoId && setContextDraft({ repoId, paths }),
+              dirty,
+              valid,
+              pending,
+              onSave: save,
+              onDiscard: discard,
+            }}
           />
         )}
         {active === "preview" && (

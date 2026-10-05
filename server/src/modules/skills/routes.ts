@@ -2,8 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
+  ContextAttachmentInput,
   Skill,
   SkillAgentUse,
+  SkillContext,
   SkillImportBody,
   SkillImportPreview,
   SkillImportUrlBody,
@@ -22,6 +24,7 @@ import { SkillsService } from './service.js';
  *   GET    /skills/:id             → one skill
  *   GET    /skills/:id/versions    → saved bodies with their change messages, newest first
  *   GET    /skills/:id/agents      → agents that have the skill switched on
+ *   GET    /skills/:id/context     → documents attached to the skill for one repo (?repo_id=)
  *   POST   /skills                 → create
  *   PUT    /skills/:id             → edit (a changed body creates a new version)
  *   PATCH  /skills/:id/enabled     → global on/off
@@ -32,7 +35,12 @@ import { SkillsService } from './service.js';
 
 const UpdateSkillBody = SkillInput.omit({ source: true })
   .partial()
-  .extend({ message: z.string().trim().max(200).optional() });
+  .extend({
+    message: z.string().trim().max(200).optional(),
+    /** Replaces the skill's attached documents for one repo; does not create a skill version. */
+    context: ContextAttachmentInput.optional(),
+  });
+const RepoQuery = z.object({ repo_id: z.string().uuid() });
 const EnabledBody = z.object({ enabled: z.boolean() });
 
 /** base64 inflates by 4/3; leave room for the JSON envelope. */
@@ -46,6 +54,7 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
     remote: app.container.httpFetcher,
     usage: app.container.agentsRepo,
     tokenizer: app.container.tokenizer,
+    docs: app.container.projectContextService,
   });
 
   app.get('/skills', { schema: { response: { 200: z.array(Skill) } } }, async (req) => {
@@ -79,6 +88,17 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
       const agents = await service.agentsUsing(workspaceId, req.params.id);
       if (!agents) throw new NotFoundError('Skill not found');
       return agents;
+    },
+  );
+
+  app.get(
+    '/skills/:id/context',
+    { schema: { params: IdParams, querystring: RepoQuery, response: { 200: SkillContext } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      const ctx = await service.getContext(workspaceId, req.params.id, req.query.repo_id);
+      if (!ctx) throw new NotFoundError('Skill not found');
+      return ctx;
     },
   );
 

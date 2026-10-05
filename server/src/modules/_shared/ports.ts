@@ -55,3 +55,9 @@ export const RESYNC_JOB_KIND = 'repo-intel-resync';
 export function repoJobKey(payload: unknown): string {
   return `repo:${(payload as { repoId: string }).repoId}`;
 }
+
+/** What the agents and skills modules need from `project-context` (structural; no import of that module). */
+export interface ProjectDocsLister {
+  /** Sorted document paths; `[]` when not cloned; `undefined` when the repo is not in the workspace. */
+  listPaths(workspaceId: string, repoId: string): Promise<string[] | undefined>;
+}

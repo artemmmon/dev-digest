@@ -18,6 +18,7 @@ import { SimpleGitClient } from '../adapters/git/simple-git.js';
 import { RipgrepCodeIndex } from '../adapters/codeindex/ripgrep.js';
 import { OpenAIProvider } from '../adapters/llm/openai.js';
 import { AnthropicProvider } from '../adapters/llm/anthropic.js';
+import { StubLLMProvider } from '../adapters/llm/stub.js';
 import { OpenAIEmbedder } from '../adapters/embedder/openai.js';
 import { OpenRouterProvider } from '@devdigest/reviewer-core';
 import { estimateCost } from '../adapters/llm/pricing.js';
@@ -27,6 +28,8 @@ import { AgentsRepository } from '../modules/agents/repository.js';
 import { SkillsRepository } from '../modules/skills/repository.js';
 import { ConventionsRepository } from '../modules/conventions/repository.js';
 import type { ConventionsDeps } from '../modules/conventions/ports.js';
+import { OnboardingRepository } from '../modules/onboarding/repository.js';
+import type { OnboardingDeps } from '../modules/onboarding/ports.js';
 import { resolveFeatureModel } from '../modules/settings/feature-models.js';
 import { renderPrompt } from './prompts.js';
 import type { ArchiveReader, RemoteFileFetcher } from '../modules/skills/ports.js';
@@ -52,6 +55,9 @@ import { AstGrepSourceParser } from '../adapters/astgrep/source-parser.js';
 import { FsRepoFiles } from '../adapters/repo-files/fs.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
+import { FsProjectDocReader } from '../adapters/project-docs/fs.js';
+import type { ProjectDocReader } from '../modules/project-context/ports.js';
+import { ProjectContextService } from '../modules/project-context/service.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -120,7 +126,10 @@ export class Container {
   private _sourceParser?: SourceParser;
   private _repoFiles?: RepoFiles;
   private _tokenizer?: Tokenizer;
+  private _projectDocReader?: ProjectDocReader;
+  private _projectContextService?: ProjectContextService;
   private _priceBook?: PriceBook;
+  private _onboardingRepo?: OnboardingRepository;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -163,6 +172,32 @@ export class Container {
       resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'conventions'),
       llm: (provider) => this.llm(provider),
       systemPrompt: (vars) => renderPrompt('conventions.system.md', vars),
+    };
+  }
+
+  get onboardingRepo(): OnboardingRepository {
+    return (this._onboardingRepo ??= new OnboardingRepository(this.db));
+  }
+
+  /** Collaborators of the onboarding tour service. Cross-module reads are passed as functions. */
+  get onboardingDeps(): OnboardingDeps {
+    return {
+      store: this.onboardingRepo,
+      repos: this.reposRepo,
+      git: this.git,
+      intel: {
+        topFiles: (repoId, n) => this.repoIntel.getTopFilesByRank(repoId, n),
+        criticalPaths: (repoId) => this.repoIntel.getCriticalPaths(repoId),
+        repoMap: async (repoId, tokenBudget) => (await this.repoIntel.getRepoMap(repoId, tokenBudget)).text,
+        indexState: async (repoId) => {
+          const state = await this.repoIntel.getIndexState(repoId);
+          return { filesIndexed: state.filesIndexed, lastIndexedSha: state.lastIndexedSha };
+        },
+      },
+      resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'onboarding'),
+      llm: (provider) => this.llm(provider),
+      systemPrompt: () => renderPrompt('onboarding.system.md', {}),
+      tokenizer: this.tokenizer,
     };
   }
 
@@ -225,6 +260,7 @@ export class Container {
       // Structural port onto the intent service (L03) — reviews never imports
       // `modules/intent` directly; the container is the only file that knows both.
       intent: this.intentService,
+      projectContext: this.projectContextService,
     };
   }
 
@@ -310,6 +346,23 @@ export class Container {
   }
 
   /** Token counter (js-tiktoken) for the repo-map budget search. */
+  /** Bounded, root-confined reader for project documents (SPEC-10). */
+  get projectDocReader(): ProjectDocReader {
+    return (this._projectDocReader ??= new FsProjectDocReader());
+  }
+
+  /** Project documents of a repo's checkout; also the port agents, skills and reviews use. */
+  get projectContextService(): ProjectContextService {
+    return (this._projectContextService ??= new ProjectContextService({
+      repos: this.reposRepo,
+      git: this.git,
+      reader: this.projectDocReader,
+      tokenizer: this.tokenizer,
+      agents: this.agentsRepo,
+      skills: this.skillsRepo,
+    }));
+  }
+
   get tokenizer(): Tokenizer {
     if (this.overrides.tokenizer) return this.overrides.tokenizer;
     this._tokenizer ??= new TiktokenTokenizer();
@@ -361,6 +414,15 @@ export class Container {
   async llm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     const injected = this.overrides.llm?.[id];
     if (injected) return injected;
+    // test-only: DEVDIGEST_LLM_STUB swaps every provider for the fixture-backed stub,
+    // before any secret lookup (no API key needed). `llmWithKey` keeps real providers.
+    if (this.config.llmStubPath) {
+      const cachedStub = this.llmCache.get(id);
+      if (cachedStub) return cachedStub;
+      const stub = StubLLMProvider.fromFile(this.config.llmStubPath, id);
+      this.llmCache.set(id, stub);
+      return stub;
+    }
     const cached = this.llmCache.get(id);
     if (cached) return cached;
     const provider = await this.buildLlm(id);

@@ -1,4 +1,5 @@
 import type {
+  ContextDocRecord,
   MemoryPulled,
   PromptAssembly,
   RunLogLine,
@@ -31,6 +32,8 @@ export interface BuildTraceInput {
   rawOutput: string;
   memoryPulled: MemoryPulled[];
   specsRead: string[];
+  /** What the run did with each attached project document. */
+  contextDocs?: ContextDocRecord[];
   log: RunLogLine[];
 }
 
@@ -50,6 +53,7 @@ export function buildRunTrace(input: BuildTraceInput): RunTrace {
     raw_output: input.rawOutput,
     memory_pulled: input.memoryPulled,
     specs_read: input.specsRead,
+    ...(input.contextDocs ? { context_docs: input.contextDocs } : {}),
     log: input.log,
   };
   // Validate so a malformed trace fails loudly at write-time, not read-time.

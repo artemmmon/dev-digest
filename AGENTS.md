@@ -43,9 +43,9 @@ Every package exposes the same three checks: `typecheck` · `lint` · `test`.
   the DB **must** end in `.it.test.ts` — that suffix is what splits the CI lanes.
 - i18n: one file per feature, `client/messages/en/<camelCase>.json`, `camelCase` keys
   nested by UI area.
-- Docs: specs `specs/NN-short-name.md` · decision records `docs/NNNN-short-title.md` ·
+- Docs: specs `specs/NN-short-name.md` (from the `spec-creator` agent) · decision records `docs/NNNN-short-title.md` ·
   guides `docs/kebab-case-topic.md` · development plans `docs/plans/NN-short-name.md`
-  (from the `planner` agent) · brainstorm briefs `docs/plans/NN-short-name.brainstorm.md` (from `brainstorm`)
+  (from the `implementation-planner` agent) · brainstorm briefs `docs/plans/NN-short-name.brainstorm.md` (from `brainstorm`)
   · e2e flows `e2e/specs/NN-name.flow.json`.
 - DB tables and columns are `snake_case` (`agent_runs.cost_usd`) and the Zod wire
   contracts keep that spelling; only React props and locals are `camelCase`.
@@ -83,13 +83,15 @@ Read on demand when the task matches — do not preload.
 - `docs/` — cross-package docs; `docs/agent-prompts/` — reviewer agent prompts, model choice
 - `docs/demo-video.md` — how to record a narrated demo of a lesson
 - `specs/` — cross-package feature specs (check before starting a feature)
+- `.claude/agents/README.md` + the `feature-flow` skill — how a feature goes through the subagents; start one with `/sdd`
 - `INSIGHTS.md` — cross-package gotchas and non-obvious decisions
 
 ## Keeping docs alive
 - Before changing code in a module, read its `INSIGHTS.md` — the one exception to
-  "do not preload"; that's where past sessions left their lessons.
+  "do not preload"; that's where past sessions left their lessons. A package-level file is
+  40–50 KB: search it for your module and read the entries that match.
 - Found something non-obvious (a dead end, a quirk, an error + fix, an unwritten
   convention, an open question)? Record it right away with the `engineering-insights`
   skill — it picks the module's `INSIGHTS.md` and section. Don't wait to be asked.
-- Implementing a spec? Update its `Status` line when you start and when you finish.
+- Implementing a spec? Keep its `Status` line current — the two vocabularies are in `specs/README.md`.
 - Keep every `AGENTS.md` ≤ 100 lines: map, not documentation. Details go to `docs/`.

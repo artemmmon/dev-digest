@@ -8,16 +8,17 @@ file. To add an agent, give it a row here.
 
 | Agent | Responsibility | Model | Tools (allowed / denied) | Writes files |
 |---|---|---|---|---|
-| [brainstorm](brainstorm.md) | Generates 3–5 options for a feature or fix, scores them in a weighted matrix with a sensitivity check, and recommends one | claude-opus-5-5 | Read, Grep, Glob, Bash, WebSearch, WebFetch, Skill · preloads `onion-architecture`, `frontend-architecture` · denied Write, Edit, NotebookEdit, Agent | no |
+| [spec-creator](spec-creator.md) | Writes one feature spec (problem, user stories, EARS acceptance criteria, edge cases, inputs with provenance, untrusted inputs) from the user's sources; analyzes the design for gaps, edge cases, module interactions and UX improvements and asks before writing | opus | Read, Grep, Glob, Skill, ToolSearch, Write, Edit, Figma read tools, and Agent for `researcher` only: a `tools` allowlist plus a `PreToolUse` hook on Write, Edit, Agent and MCP calls · preloads `spec-authoring`, `security` · denied Bash, NotebookEdit, WebSearch, WebFetch · a `PostToolUse` hook runs the spec check after each write | yes (`specs/*.md`, `<package>/specs/*.md`, `Status: draft` only) |
+| [brainstorm](brainstorm.md) | Compares ways to build an approved spec or a fix: 3–5 options scored in a weighted matrix with a sensitivity check, or a short brief when only one way is viable; recommends one | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch, Skill, Write, Edit · preloads `onion-architecture`, `frontend-architecture` · denied NotebookEdit, Agent · a `PreToolUse` hook limits Write/Edit to its brief | yes (`docs/plans/NN-*.brainstorm.md`, `Status: awaiting choice` only) |
 | [researcher](researcher.md) | Answers one concrete question from the repo, external sources or both | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch, AskUserQuestion (filtered out when run as a subagent), Skill · denied Write, Edit, NotebookEdit | no |
-| [planner](planner.md) | Turns one request into a Development Plan that honors modules, skills, INSIGHTS.md and architecture rules | opus | Read, Grep, Glob, Bash, Skill · preloads `onion-architecture`, `frontend-architecture`, `engineering-insights` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
-| [implementer](implementer.md) | Executes an approved plan in server/client, loads the matching skills, runs the checks, and checks its own diff against the plan | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes |
-| [test-writer](test-writer.md) | Writes behavioural tests for implemented server/client code (`mode: after`), or red-mode tests for an approved plan before implementation (`mode: red`); proves every test can fail and never fixes production code | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (tests only) |
-| [architecture-reviewer](architecture-reviewer.md) | Read-only audit of a module, package or branch diff against the onion and frontend-architecture rules; mechanical checks (`pnpm arch`, lint, shared-contracts check) first, judgement second | opus | Read, Grep, Glob, Bash · preloads `onion-architecture`, `frontend-architecture` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
-| [implementation-verifier](implementation-verifier.md) | Read-only traceability check of finished code against every Development Plan item and spec requirement; one verdict per item, PASS/FAIL/INCOMPLETE overall | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
-| [security-reviewer](security-reviewer.md) | Read-only security audit of a branch diff: traces attacker-controlled input to sensitive sinks and reports only confirmed exploitable paths | opus | Read, Grep, Glob, Bash · preloads `security` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
+| [implementation-planner](implementation-planner.md) | Reviews the requirements (questions, recommendations, execution mode), then turns them into a Development Plan that honors modules, skills, INSIGHTS.md and architecture rules, and cites every spec id. Writes no specs | opus | Read, Grep, Glob, Bash, Skill, AskUserQuestion (filtered out when run as a subagent), Write, Edit · preloads `onion-architecture`, `frontend-architecture`, `engineering-insights` · denied NotebookEdit, Agent, WebSearch, WebFetch · a `PreToolUse` hook limits Write/Edit to its plan; a `PostToolUse` hook runs the plan check | yes (`docs/plans/NN-*.md`, `Status: draft` only) |
+| [implementer](implementer.md) | Executes an approved plan in server/client by the practices written into each step, repairs the tests it breaks (writes new ones only in single-agent mode), runs the checks, and checks its own diff against the plan | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes |
+| [test-writer](test-writer.md) | **Off in the default flow for now** (runs with `/sdd --tests` or when asked by name). Writes the feature's tests, one per spec criterion (`AC-n`, `EC-n`) with the id in the test name, for implemented server/client code (`mode: after`), or red-mode tests for an approved plan before implementation (`mode: red`); proves every test can fail and never fixes production code | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (tests only) |
+| [architecture-reviewer](architecture-reviewer.md) | Read-only audit of a module, package or branch diff against the onion and frontend-architecture rules; mechanical checks (`pnpm arch`, lint, shared-contracts check) first, judgement second; `recheck:` after a fix | sonnet | Read, Grep, Glob, Bash · preloads `onion-architecture`, `frontend-architecture` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
+| [implementation-verifier](implementation-verifier.md) | The last gate: read-only traceability check of finished code against every spec requirement and plan step (mechanical items come from `check-plan.mjs --implemented`); one verdict per item, PASS/FAIL/INCOMPLETE overall; `recheck:` after a fix | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
+| [security-reviewer](security-reviewer.md) | Read-only security audit of a branch diff: traces attacker-controlled input to sensitive sinks and reports only confirmed exploitable paths | sonnet | Read, Grep, Glob, Bash · preloads `security` · denied Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch | no |
 | [doc-writer](doc-writer.md) | Turns an implemented plan, spec or report into docs grounded in the current code: picks the Diátaxis kind and location, updates the folder index, draws Mermaid diagrams | sonnet | Read, Grep, Glob, Bash, Edit, Write, Skill · preloads `mermaid-diagram`, `engineering-insights` · denied Agent, NotebookEdit, WebSearch, WebFetch | yes (docs only) |
-| [pr-skill-reviewer](pr-skill-reviewer.md) | Reviews changed lines against ONE skill, or for plain correctness | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
+| [pr-skill-reviewer](pr-skill-reviewer.md) | Reviews changed lines against ONE skill, or for plain correctness (the feature flow uses the correctness mode right after the build) | sonnet | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
 | [pr-finding-verifier](pr-finding-verifier.md) | Tries to refute ONE CRITICAL finding | opus | Read, Grep, Glob, Bash · denied Write, Edit, NotebookEdit | no |
 
 Bash is read-only by instruction for every agent except `implementer`, `test-writer` and
@@ -25,31 +26,48 @@ Bash is read-only by instruction for every agent except `implementer`, `test-wri
 read-only list as `researcher`. `architecture-reviewer` and `implementation-verifier` may also
 run named check commands, never with `--fix` or `sync`: `architecture-reviewer` runs only
 `pnpm arch`, `pnpm lint` and `./scripts/shared-contracts.sh check`; `implementation-verifier`
-runs the plan's Verification checks and the `routing.json` package checks (including tests) plus
-the same contracts check, all read from `routing.json`. `security-reviewer` may also run
+runs `./scripts/check-changed.sh` (the `routing.json` package checks, tests included, plus the
+contracts check), the plan check and the plan's own Verification commands. `implementation-planner`
+and `brainstorm` have Write and Edit for one file each, enforced by
+[plans-guard.mjs](../hooks/plans-guard.mjs). `security-reviewer` may also run
 `pnpm audit --prod` or `npm audit --omit=dev`, only when a `package.json` or lock file changed in
 the diff, and never with `--fix`. None of them commits, pushes or opens PRs. For `git push`,
 `gh pr create` and `gh pr merge`, the `pr-self-review` hook in `.claude/settings.json` blocks the
 command whoever runs it.
 
+`spec-creator` has no Bash at all. Its scope is enforced, not only instructed. Like the other
+agents it has a `tools` allowlist (Read, Grep, Glob, Skill, ToolSearch, Write, Edit, Agent and the
+Figma server `mcp__plugin_design_figma`); the hook [spec-creator-guard.mjs](../hooks/spec-creator-guard.mjs),
+declared in its frontmatter with the matcher `Write|Edit|Agent|Task|mcp__.*`, checks what an
+allowlist cannot: the Agent tool only with `subagent_type: researcher`; Write/Edit only in
+`specs/*.md` and `<package>/specs/*.md`, only on a spec that is `Status: draft` and still is after
+the change (the hook applies the edit in memory and checks the result); and MCP calls only to
+Figma read tools (`get_*`). Any other tool passes the hook untouched. One exception is the amendment: an `approved`
+spec may be edited when the edit itself turns it back into a draft. A second hook,
+`PostToolUse` on Write/Edit, runs
+[check-spec.mjs](../skills/spec-authoring/assets/check-spec.mjs) `--hook` and returns the spec's
+form errors to the agent. The guards and the checks have tests that run in the `pr-self-review` workflow.
+
 ## Inputs and outputs
 
 | Agent | Input | Output |
 |---|---|---|
-| brainstorm | One problem or feature request | Brainstorm brief (`Status: awaiting choice`, options, weighted matrix, sensitivity, recommendation, planner inputs) that the caller saves as `docs/plans/NN-short-name.brainstorm.md` — or a Clarification report |
+| spec-creator | Pass 1: one feature request plus its sources (text brief, Figma links, design files, code paths, related specs). Pass 2: the user's answers, sent to the same agent | Pass 1: Spec discovery report (research results · design gaps · uncovered edge cases · module interactions · preliminary inputs and provenance · proposals · questions with numbered options), nothing written. Pass 2: the spec file `NN-short-name.md` (`Spec ID: SPEC-NN`, `Status: draft`) plus its index line; Spec report |
+| brainstorm | An approved spec path, or one problem for a fix with no spec | The brief file `docs/plans/NN-short-name.brainstorm.md` (`Status: awaiting choice`: options, weighted matrix, sensitivity, recommendation, planner inputs — or the short form when one way is viable) and a Brief summary — or a Clarification report |
 | researcher | One question (repository, external, or both) | Repository report and/or External report: Answer · Findings with evidence · Code map / Sources · Conflicts · **Not found** — or a Clarification report |
-| planner | One feature/fix request, optionally a `specs/NN-*.md`, optionally a chosen brainstorm brief | Development Plan (`Status: draft`) with step groups and an implementer brief above `<!-- implementer-brief:end -->`; the caller saves it as `docs/plans/NN-short-name.md` — or a Clarification report |
-| implementer | Plan mode: plan path + step group (+ previous group's handoff). Fix mode: a gap list with `path:line` (verifier `To reach PASS`, reviewer CRITICALs) | Code, tests, updated plan/spec `Status`, `INSIGHTS.md` entries; Implementation report (steps · deviations · skills applied · checks · not run · handoff to the next group · handoff to review) — or a Plan deviation report |
-| test-writer | Plan path + `mode: after`/`red`, or target files/module + behaviour | Tests next to their subject; Test report (tests written · proof · stability · checks · bugs found) — or a Blocked report — or a Clarification report |
-| architecture-reviewer | `mode: diff` (+ `base`) or `mode: module` (+ `target`), optional plan path | One JSON object: `checks`, `findings` (with `in_change`), `rubric_read`, `not_checked` — or a clarification JSON |
-| implementation-verifier | Plan path (+ Implementation report, + `base`) | Implementation verification report: `PASS`/`FAIL`/`INCOMPLETE` verdict, traceability matrix, coverage gaps — or a Clarification report |
+| implementation-planner | One feature/fix request, optionally a `specs/NN-*.md`, optionally a chosen brainstorm brief, optionally `mode: multi-agent` / `single-agent` and the answers to its Requirements review | First a Requirements review (requirements · questions · recommendations · execution mode) unless nothing is open; then the plan file `docs/plans/NN-short-name.md` (`Status: draft`, `Execution mode:`, step groups, an implementer brief above `<!-- implementer-brief:end -->`, a `Covers` line of spec ids per step) and a Plan summary |
+| implementer | Plan mode: plan path + step group (+ previous group's handoff). Fix mode: a gap list with `path:line` (verifier `To reach PASS`, reviewer CRITICALs) | Code, repaired tests, updated plan/spec `Status`, `INSIGHTS.md` entries; Implementation report (steps · deviations · skills loaded · tests touched · checks · not run · handoff to the next group · handoff to review) — or a Plan deviation report (also when the plan is still a draft) |
+| test-writer | Plan path + `mode: after`/`red`, or target files/module + behaviour | Tests next to their subject, named by spec id; Test report (tests written · coverage per spec id · not covered · proof · stability · checks · bugs found) — or a Blocked report — or a Clarification report |
+| architecture-reviewer | `mode: diff` (+ `base`) or `mode: module` (+ `target`), optional plan path; `recheck:` with its earlier findings and `fixed_files:` after a fix | One JSON object: `checks`, `findings` (with `id`, `in_change`), `rechecked` (`closed` / `open` per id), `rubric_read`, `not_checked` — or a clarification JSON |
+| implementation-verifier | Plan path (+ Implementation report, + Test report, + `base`, + `recheck: <ids>` after a fix) | Implementation verification report: `PASS`/`FAIL`/`INCOMPLETE` verdict, traceability matrix, coverage gaps — or a Clarification report |
 | security-reviewer | `mode: diff` (+ `base`), optional plan path | One JSON object: `checks`, `findings` (with `in_change`/`owasp`/`source`/`sink`), `needs_manual_check`, `not_checked` — or a clarification JSON |
 | doc-writer | Plan/spec/implementation report/notes, optional audience | Docs in `docs/` or `<package>/docs/`, index updates, `INSIGHTS.md` entries; Documentation report — or a Clarification report |
-| pr-skill-reviewer | `skill`, `repo_root`, `merge_base`, `files`, rubric and contract paths | One JSON object with findings ([reviewer-contract.md](../skills/pr-self-review/references/reviewer-contract.md)) |
+| pr-skill-reviewer | `skill` (a SKILL.md path or `correctness`), `repo_root`, `merge_base`, `files`, rubric and contract paths | One JSON object with findings ([reviewer-contract.md](../skills/pr-self-review/references/reviewer-contract.md)) |
 | pr-finding-verifier | One CRITICAL finding, `merge_base`, rubric and contract paths | One JSON verdict: `confirmed` · `downgrade` · `refuted` |
 
-`pr-skill-reviewer` and `pr-finding-verifier` are spawned only by the
-[pr-self-review](../skills/pr-self-review/SKILL.md) skill. They are not for general use.
+`pr-skill-reviewer` and `pr-finding-verifier` are spawned by the
+[pr-self-review](../skills/pr-self-review/SKILL.md) skill. The feature flow also starts one
+`pr-skill-reviewer` in `correctness` mode right after the build. They are not for general use.
 Architecture-reviewer CRITICALs with `in_change: true` may be re-checked by the main session;
 `pr-finding-verifier` itself stays spawned by `pr-self-review` only.
 
@@ -57,44 +75,118 @@ Architecture-reviewer CRITICALs with `in_change: true` may be re-checked by the 
 
 ```mermaid
 flowchart LR
-  B[brainstorm] -->|brief, you pick an option| P[planner]
-  R[researcher<br/>optional] -.->|research report| P
-  P -->|Development Plan| S[saved plan<br/>docs/plans/NN-*.md]
-  S -->|you approve| I[implementer<br/>one run per step group]
-  S -.->|red mode| TW[test-writer]
-  I -->|Implementation report| TW
-  TW -->|Test report| PV[implementation-verifier]
-  TW -->|changed files| AR[architecture-reviewer]
-  I -->|test-writer skipped| PV
-  AR -->|CRITICAL findings| I
-  PV -->|FAIL / INCOMPLETE| I
+  SC[spec-creator] -.->|Spec discovery:<br/>questions| SC
+  SC -->|draft spec,<br/>you approve| B[brainstorm]
+  B -->|brief file,<br/>you pick an option| P[implementation-planner]
+  P -.->|Requirements review:<br/>questions, mode| P
+  P -->|plan file + plan check,<br/>you approve| I[implementer<br/>one run per step group]
+  I -.->|only with --tests| TW[test-writer<br/>one test per AC/EC]
+  I --> AR[architecture-reviewer]
+  I --> CR[pr-skill-reviewer<br/>correctness]
+  TW -->|bugs found| F[implementer<br/>fix mode]
+  AR -->|CRITICAL, WARNING| F
+  CR -->|CRITICAL| F
+  F -->|recheck, max 3 rounds| AR
+  F -->|nothing open| PV[implementation-verifier]
+  PV -->|FAIL: fix, then recheck<br/>max 2 rounds| F
   PV -->|PASS| SEC[security-reviewer]
-  SEC -->|CRITICAL findings| I
+  SEC -->|CRITICAL: fix, recheck| F
   SEC -->|no CRITICAL| DW[doc-writer]
-  DW -->|docs updated| SR[pr-self-review]
+  DW --> SR[pr-self-review<br/>run by you]
   SR -->|PASS verdict| PUSH[push / PR]
 ```
 
+You start it with the `/sdd` command ([sdd](../skills/sdd/SKILL.md)): pass a spec, a plan,
+designs and a requirements prompt in any mix, and it picks the stage to start from. How the main
+session then runs the flow — what each agent is handed, what goes out in one message, the
+pre-flight, the fix rounds — is the [feature-flow](../skills/feature-flow/SKILL.md) skill. The
+rules below are why the flow has this shape.
+
+- **Two approvals are yours.** A spec and a plan both start as `Status: draft` and only you
+  approve them (the main session writes `approved` on your word). `brainstorm` and
+  `implementation-planner` stop on a draft spec, `implementer` stops on a draft plan, and
+  [check-plan.mjs](../skills/feature-flow/assets/check-plan.mjs) fails a plan whose spec is not
+  approved or that leaves an `AC-n`, `EC-n` or `NFR-n` without a step.
+- **New tests are off for now.** To save tokens, nobody writes new tests in the default flow:
+  `implementer` only repairs the tests its change breaks, `test-writer` is not started, and the
+  verifier checks each criterion by reading the code (it says so in its report). The plan still
+  records what should be tested on each step's `Tests (test-writer)` line. `/sdd --tests` turns
+  the stage on for one feature: `test-writer` then writes at least one test per `AC-n` and `EC-n`
+  from the spec's wording, with the id first in the test name, so the verifier finds a criterion's
+  evidence by searching for its id. You can also ask for `test-writer` by name later, on finished
+  code. Test writing was the largest share of the implementer's calls, which is why it does not
+  go back there.
+- **One agent on request.** Ask for `spec-creator` or `implementation-planner` by name, or run
+  `/sdd --only spec` / `--only plan`, and only that agent runs: its questions are relayed, its
+  file is written, and the flow stops there. A standalone planner needs no brainstorm brief.
+- **Bugs are looked for right after the build.** `architecture-reviewer` judges structure only.
+  Logic errors are the correctness reviewer's job (`pr-skill-reviewer` with `skill: correctness`),
+  which runs in the same message as `architecture-reviewer` (and `test-writer`, when tests are
+  on). Their findings go to one fix-mode `implementer`.
+- **Architecture comments get their own loop.** The fix covers the architecture CRITICALs and
+  WARNINGs on changed lines; then `architecture-reviewer` runs again with `recheck:`, reading
+  only the files the fix touched, and says per finding id whether it is closed. What is still
+  open, or new, is the next round. Three rounds at most; after that the main session stops and
+  asks you. SUGGESTIONs are listed in the closing report, not fixed.
+- **A gap in an approved spec is amended, not worked around.** The planner recommends it; you
+  decide; `spec-creator` reopens the spec as a draft, adds the criterion under the next free id
+  and an `Amended:` line; you approve again. Ids are never renumbered.
 - **The plan is the only handoff.** `implementer` gets nothing from the planning conversation. That
   is why every step in the plan carries its files, rules with `path:line` and a "Done when" condition.
-- **Both agents read the same routing file.** `planner` and `implementer` both use
+- **The spec says what, the plan says how.** `spec-creator` writes the spec first: problem, user
+  stories, EARS acceptance criteria (`AC-n`), edge cases (`EC-n`), inputs with provenance and
+  untrusted inputs. It may hold workflow diagrams and contracts between modules, but no
+  implementation details. The rules of the spec itself (template, EARS, ids, provenance tags) are
+  the [spec-authoring](../skills/spec-authoring/SKILL.md) skill, not the agent file; the planner
+  and the verifier keep the spec's `AC-n` / `EC-n` / `NFR-n` ids, so a criterion can be followed
+  from the spec through the plan to the verification matrix. It runs in two passes: the Spec discovery report comes back first, the
+  main session relays its questions and proposals with `AskUserQuestion` and sends the answers to
+  the same agent with `SendMessage`, and only then is the draft written. It works from the sources
+  you give plus the repo, and reads only the `INSIGHTS.md` files of the modules and packages the
+  feature touches. For a question that reading does not settle (a sweep of the repo, or a fact
+  about an outside API or library) it starts up to 4 `researcher` agents in parallel, one
+  question each; an outside finding supports a question or a proposal, never a requirement by itself. It always writes `Status: draft`; you set `approved`. `brainstorm` then
+  explores how to build the approved spec, and `implementation-planner` plans the chosen option.
+- **Requirements in, plan out.** `implementation-planner` writes implementation plans only. It never
+  writes or edits a spec; a spec changes only through `spec-creator` or by your own hand. Before planning it reviews the
+  requirements it was given, asks about gaps and contradictions, and recommends how to reach the
+  goal better. A recommendation enters the plan only after you accept it.
+- **You choose the execution mode.** The planner asks every time the request does not state it.
+  `multi-agent` is the flow in the diagram: step groups, one `implementer` per group, then the
+  review agents. `single-agent` is one agent doing every step in one pass (one group `G1`),
+  with no handoffs and no review agents; the package checks and the `pr-self-review` gate still apply.
+  The main session relays the Requirements review with `AskUserQuestion` and sends the answers to
+  the same planner with `SendMessage`, so it does not re-read the repo.
+- **Both agents read the same routing file.** `implementation-planner` and `implementer` both use
   [routing.json](../skills/pr-self-review/assets/routing.json), which maps paths to skills and
   packages to checks. So the skills listed in a plan are exactly the skills the implementer loads,
   and the same skills `pr-self-review` later reviews against. The planner loads each of those
   skills in full and puts their practices into the steps, so best practices are decided by
-  the stronger model (opus) rather than improvised by the implementer. The `security`
+  the stronger model (opus) rather than improvised by the implementer. The implementer does not
+  load the skills again: it follows the steps' `Practices` lines and loads a skill only where a
+  step says `load:`. The `security`
   skill is applied too, as implementation practice; `security-reviewer` does the security
   *review*, after `implementation-verifier` PASS.
 - **Subagents cannot ask the user questions.** The `AskUserQuestion` tool is filtered out for
-  subagents. When a request is vague, `brainstorm`, `researcher`, `planner`, `implementer`,
+  subagents. When a request is vague, `spec-creator`, `brainstorm`, `researcher`, `implementation-planner`, `implementer`,
   `test-writer`, `architecture-reviewer`, `implementation-verifier`, `security-reviewer` and
-  `doc-writer` all return a Clarification or Plan deviation report instead of guessing, and the
+  `doc-writer` all return a Clarification, Spec discovery, Requirements review or Plan deviation report instead of guessing, and the
   main session relays it.
-- **Verification is independent.** `implementation-verifier` re-checks every plan item
-  against the code itself; the implementer's Implementation report is a pointer to evidence, not
-  evidence. It runs after implementation because it checks code against the plan, not the plan
-  itself. It runs on sonnet: its work is item-by-item traceability with `path:line` evidence,
-  while the judgement calls stay on opus (`planner`, `architecture-reviewer`).
+- **Verification is independent, and last.** `implementation-verifier` re-checks every spec
+  requirement and plan step against the code itself; the implementer's Implementation report is a
+  pointer to evidence, not evidence. It runs after the review loop, because a PASS on code that then changes is void (and, when
+  tests are on, its evidence includes the tests); after a later fix it
+  runs again with `recheck:`. It does not grade the steps' `Practices` or the plan's constraints:
+  `architecture-reviewer` and `pr-self-review` do. The static part of its old job, a spec id no
+  step covers, moved to the plan check, before any code exists. It runs on sonnet: its work is item-by-item traceability with `path:line` evidence.
+- **Opus only where the artifact steers everything after it.** `spec-creator` and
+  `implementation-planner` run on opus; so does `pr-finding-verifier`, which decides a block.
+  Everything else runs on sonnet: `brainstorm`, `architecture-reviewer` and `security-reviewer`
+  moved there on 2026-10-04 to save tokens. `brainstorm` stays a required stage of the full flow;
+  its brief is checked twice after it, by you when you pick an option and by the opus planner,
+  which verifies every `path:line` it reuses. Their findings carry a quoted
+  line and a rule, their CRITICAL list is closed and starts from mechanical checks, and
+  `/pr-self-review` reviews the same skills again with an opus verifier for every CRITICAL.
 
 ## Keeping token cost down
 
@@ -103,22 +195,33 @@ calls, far more than with the model. On the Intent Layer feature, one implemente
 calls up to a 535K-token context cost more than all planning and review together. The measurements
 behind these rules are in [docs/agent-workflow-cost.md](../../docs/agent-workflow-cost.md).
 
-- **brainstorm runs on Opus 5.5 as one agent.** The model is pinned to `claude-opus-5-5` because
-  the user asked for it. Subagents can nest (up to 3 layers,
+- **brainstorm runs as one agent, on sonnet.** It was pinned to `claude-opus-5-5` until
+  2026-10-04, when the user moved it to sonnet to save tokens. Subagents can nest (up to 3 layers,
   `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`), but N parallel option-agents would cost about N× tokens. That is an estimate: cost is context ×
   calls per agent ([agent-workflow-cost.md](../../docs/agent-workflow-cost.md)), and each
   option-agent would re-read the same context. So one agent writes all options
   and denies `Agent`. The main session sets the brief's `Status: chosen: option <k>` after the
-  user picks, then passes the brief path to `planner`.
+  user picks, then passes the brief path to `implementation-planner`.
 - **One implementer run per step group.** Run the plan's step groups in order, each in a fresh
   `implementer`, and pass along the previous run's "Handoff to the next group". Do not resume a
   finished implementer for the next group.
 - **Pass paths, not content.** Prompts to agents carry the plan path, the group and the handoff,
-  never the plan text or a diff. Agents read diffs themselves, narrowly.
-- **Fixes go in fix mode.** Hand the verifier's `To reach PASS` list, or reviewer CRITICALs, to one
-  `implementer` in fix mode. The main session coordinates and does not edit code itself.
-- **Checks in one line each.** Agents run `./scripts/check-changed.sh`, which prints one line per
-  check and the output only for failures.
+  never the plan text or a diff. Agents read diffs themselves, narrowly. `implementation-planner`
+  and `brainstorm` write their own files and return a ten-line summary, so a plan is never an
+  agent's output twice and never sits in the main session's context.
+- **A small start for the implementer.** It reads its step group, the package `AGENTS.md` and only
+  the matching entries of an `INSIGHTS.md` (the package files are 40–50 KB); no `routing.json`, no
+  skills unless a step says `load:`. Whatever it reads at the start is re-read on every later call.
+- **Nobody writes new tests by default** (see above).
+- **Fixes go in fix mode, in bounded rounds.** Hand the merged findings of the review stage, the
+  verifier's `To reach PASS` list or the security CRITICALs to one `implementer` in fix mode. Three
+  rounds in the review loop, two per later gate, then the main session stops and asks you. It coordinates and does not edit code
+  itself.
+- **Checks in one line each, and no more of them than needed.** Agents run
+  `./scripts/check-changed.sh`, never a raw `pnpm typecheck` or a whole suite: one line per check,
+  output only for a failure, and a package stops at its first failing check. A group that is not
+  the last runs `--quick` (typecheck plus the tests related to the changed files); one failing
+  check is re-run with `--check <id> --only <package>`.
 - **Fresh main session after a break.** The main session's cache expires after an hour. Resuming a
   250K+ context after a break rewrites all of it at twice the input price. After a break of more
   than an hour, or when switching to manual testing or Q&A, start a new session from a short
@@ -127,115 +230,8 @@ behind these rules are in [docs/agent-workflow-cost.md](../../docs/agent-workflo
 
 ## Sources
 
-### planner and implementer
-
-Official Claude Code and Anthropic sources (checked 2026-09-24 by `researcher`):
-
-| Source | Rule it grounds |
-|---|---|
-| [Subagents](https://code.claude.com/docs/en/sub-agents) | `tools` allowlist vs `disallowedTools`. `skills:` preloads full skill text and does not limit the Skill tool. `AskUserQuestion` is filtered for subagents. Denying `Agent` stops nesting. Short, trigger-style `description` |
-| [Permission modes](https://code.claude.com/docs/en/permission-modes) | In `auto`, `acceptEdits` and `bypassPermissions` sessions, a subagent's `permissionMode` is ignored, so planner's read-only rule is enforced by leaving `Write`/`Edit` out of its tools, not by `permissionMode: plan` |
-| [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) | Loading skills on demand (progressive disclosure) instead of preloading all of them: planner preloads the two architecture skills plus `engineering-insights`, and loads the other routed skills through the Skill tool |
-| [When to use multi-agent systems](https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them) (2026-01-23) | Warns that splitting agents by role (planner → implementer) loses context at each handoff; hence the self-contained plan, the Plan deviation stop, and review as a separate verification step |
-| [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09-29) | Exploration runs in an isolated context and returns a condensed result; planner returns only the plan |
-
-Project sources:
-
-| Source | Rule it grounds |
-|---|---|
-| [AGENTS.md](../../AGENTS.md) | Naming, cross-package rules (shared contracts sync, migrations only via `db:generate`), "Do not touch", spec `Status` updates |
-| Per-package `AGENTS.md` and `INSIGHTS.md` | Read before planning or coding a module |
-| [onion-architecture](../skills/onion-architecture/SKILL.md) · [frontend-architecture](../skills/frontend-architecture/SKILL.md) | Where server and client code lives, and which way imports point |
-| [routing.json](../skills/pr-self-review/assets/routing.json) | Path → skills; package → checks (`typecheck`, `lint`, tests, `pnpm arch`), `extraChecks` |
-| [engineering-insights](../skills/engineering-insights/SKILL.md) | How implementer records non-obvious findings |
-| [TESTING.md](../../TESTING.md) | Unit tests vs `.it.test.ts` tests that need Postgres |
-| [pr-self-review gate](../skills/pr-self-review/SKILL.md) | No push, PR or merge without a PASS verdict; never set `PR_SELF_REVIEW_OVERRIDE` |
-
-### test-writer
-
-Checked 2026-09-24 by `researcher`:
-
-| Source | Rule it grounds |
-|---|---|
-| [Claude Code best practices](https://code.claude.com/docs/en/best-practices) | Give a runnable check and show evidence; writer/reviewer split |
-| [Red/green TDD for coding agents](https://simonwillison.net/guides/agentic-engineering-patterns/red-green-tdd/) (practitioner) | Red mode; break check proves a test of existing code can fail |
-| [Testing Library guiding principles](https://testing-library.com/docs/guiding-principles) | Test like the user; no internals |
-| [Vitest mocking guide](https://vitest.dev/guide/mocking) | Restore mocks, unstub globals and envs after each test |
-| [Fastify testing guide](https://fastify.dev/docs/latest/Guides/Testing) | `app.inject()`, an app factory, closing the app in an after hook |
-| [Flaky tests at Google](https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html) | No sleeps or shared state; re-run new tests for stability |
-| [Stryker mutation testing](https://stryker-mutator.io/docs/stryker-js/introduction) | Mutation testing as a signal; not adopted here — the break check is the lightweight version |
-| [routing.json](../skills/pr-self-review/assets/routing.json) | `server-app`'s glob ignores `**/*.test.ts`, so skills route by the file under test |
-| [TESTING.md](../../TESTING.md) | Behaviour at the seams; `.it.test.ts` split; `renderWithIntl` + `userEvent` |
-| [onion-architecture tools.md](../skills/onion-architecture/references/tools.md) | Test style by ring: pure / service fakes / `.it.test.ts` / route + `app.inject` |
-
-### architecture-reviewer
-
-Checked 2026-09-24 by `researcher`:
-
-| Source | Rule it grounds |
-|---|---|
-| [Architectural fitness function](https://www.thoughtworks.com/radar/techniques/architectural-fitness-function) (2018) | Mechanical checks first, judgement second |
-| [dependency-cruiser rules reference](https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md) | What `pnpm arch` actually checks |
-| [Claude Code code review guide](https://code.claude.com/docs/en/code-review) | `file:line` evidence, a small severity set, verification as a separate step |
-| [claude-code-security-review](https://github.com/anthropics/claude-code-security-review) | Two-stage find → filter pattern (mirrored by `pr-finding-verifier`, not this agent) |
-| [reviewer-contract.md](../skills/pr-self-review/references/reviewer-contract.md) | Finding JSON shape, reused unchanged and wrapped in `mode`/`target`/`checks` |
-| [severity.md](../skills/pr-self-review/references/severity.md) | CRITICAL is a closed list (`onion-layer-violation`, `cross-package-import`, `contract-drift`, `check-failed`) |
-
-### implementation-verifier
-
-Checked 2026-09-24 by `researcher`:
-
-| Source | Rule it grounds |
-|---|---|
-| [FHWA systems engineering guide §3.3.6](https://ops.fhwa.dot.gov/seits/sections/section3/3_3_6.html) | Verification vs validation; one method per requirement; traceability matrix (ISO/IEC/IEEE 29148) |
-| [spec-kit agentic SDD reference](https://github.github.com/spec-kit/reference/agentic-sdd.html) | Read-only coverage report; uncovered requirements and unplanned changes |
-| [Kiro specs correctness](https://kiro.dev/docs/specs/correctness/) | Requirement ↔ test traceability; tests are evidence, not proof |
-| [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) (2026-01-09) | One dimension per judgment; allow "cannot verify" instead of guessing |
-| [Developing tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests) | Structured, constrained report output |
-
-### doc-writer
-
-Checked 2026-09-24 by `researcher`:
-
-| Source | Rule it grounds |
-|---|---|
-| [Diátaxis](https://diataxis.fr/) | One doc kind per document: tutorial, how-to, reference, explanation |
-| [Docs as code](https://www.writethedocs.org/guide/docs-as-code/) | Docs live beside code, in the same repo, reviewed like code |
-| [ADR GitHub](https://adr.github.io/) | ADR sections: Status, Context, Decision, Alternatives rejected, Consequences |
-| [C4 model](https://c4model.com/) | Diagram levels; no deeper than container/component here |
-| [Google developer documentation style guide](https://developers.google.com/style) | Active voice, present tense, second person |
-| [GitHub diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams) | GitHub renders Mermaid natively; no diagram images |
-| [Mermaid config schema](https://mermaid.js.org/config/schema-docs/config.html) | `maxTextSize` and other renderer limits |
-| [server/docs/0001-latest-review-is-a-batch.md](../../server/docs/0001-latest-review-is-a-batch.md) | The ADR shape doc-writer follows |
-| [mermaid-diagram](../skills/mermaid-diagram/SKILL.md) | Diagram type choice, ≤ ~20 nodes, labeled edges, one direction, no colours |
-
-### brainstorm
-
-Checked 2026-09-28 by `researcher`:
-
-| Source | Rule it grounds |
-|---|---|
-| [Subagents](https://code.claude.com/docs/en/sub-agents) | `model` accepts a full ID like `claude-opus-5-5`; `skills:` preloads full content; nesting up to 3 layers, denying `Agent` stops it |
-| [Building Effective AI Agents](https://www.anthropic.com/engineering/building-effective-agents) (2024-12-19) | Generate several candidates, then select: "Parallelization — voting"; "Best-of-N" is this repo's name for it |
-| [NASA SE Handbook §6.8 Decision Analysis](https://www.nasa.gov/reference/6-8-decision-analysis/) | Measurable, differentiating criteria; weights set before scoring; sensitivity analysis |
-| [Decision-matrix method](https://en.wikipedia.org/wiki/Decision-matrix_method) (community) | Corroborates weighted scoring and the sensitivity study |
-| [Claude Code best practices](https://code.claude.com/docs/en/best-practices) | Explore, then plan, then code: an options step before planning |
-| [agent-workflow-cost.md](../../docs/agent-workflow-cost.md) | Cost is context × calls per agent; N option-agents re-reading one context ≈ N× tokens (inferred), hence one agent |
-
-### security-reviewer
-
-Checked 2026-09-28 by `researcher`:
-
-| Source | Rule it grounds |
-|---|---|
-| [claude-code-security-review](https://github.com/anthropics/claude-code-security-review) | Find → filter pipeline; excludes DoS, rate limiting, resource exhaustion, unproven generic validation, open redirect |
-| [prompts.py](https://raw.githubusercontent.com/anthropics/claude-code-security-review/main/claudecode/prompts.py) | Trace user input to sensitive operations; report only high confidence. Its HIGH/MEDIUM/LOW tiers are mapped to our severity.md labels |
-| [findings_filter.py](https://raw.githubusercontent.com/anthropics/claude-code-security-review/main/claudecode/findings_filter.py) | Concrete exclusion patterns; confidence-gated keep step |
-| [OWASP Top 10:2025](https://top10.owasp.org/2025) | `owasp` field A01–A10 (SSRF folded into A01; A10 Mishandling of Exceptional Conditions) |
-| [OWASP Top 10 for LLM Apps 2025](https://genai.owasp.org/llm-top-10/) (2025-03-12) | LLM01 Prompt Injection …: DevDigest builds prompts from PR content |
-| [Mitigate jailbreaks and prompt injections](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks) | Untrusted PR/diff content is never instruction text |
-| [severity.md](../skills/pr-self-review/references/severity.md) | CRITICAL only as `security-vuln` with a concrete exploit path |
-| [security skill](../skills/security/SKILL.md) | Confidence method, "Do NOT flag"; its own severity table is not used |
+The outside and project sources each agent's rules come from, with the date they were checked,
+are in [docs/agent-sources.md](../../docs/agent-sources.md).
 
 ## Adding an agent
 

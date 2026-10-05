@@ -7,6 +7,7 @@ import type {
   AgentRecord,
   AgentStore,
   AgentVersionRecord,
+  InheritedContextDoc,
   InsertAgent,
   ResolvedSkill,
   SkillBinding,
@@ -401,5 +402,119 @@ export class AgentsRepository implements AgentStore {
         ),
       )
       .orderBy(asc(t.agentSkills.order));
+  }
+
+  // ---- agent_context_docs (project documents attached to an agent) --------
+
+  /** Attached document paths for one repo, ordered by `position`. */
+  async contextPaths(agentId: string, repoId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ path: t.agentContextDocs.path })
+      .from(t.agentContextDocs)
+      .where(and(eq(t.agentContextDocs.agentId, agentId), eq(t.agentContextDocs.repoId, repoId)))
+      .orderBy(asc(t.agentContextDocs.position));
+    return rows.map((r) => r.path);
+  }
+
+  /**
+   * Replace the agent's document list for one repo, position = index. Delete + insert +
+   * version bump are one unit under the agent row lock (same shape as `setSkills`).
+   */
+  async setContextDocs(
+    workspaceId: string,
+    agentId: string,
+    repoId: string,
+    paths: string[],
+  ): Promise<boolean> {
+    return this.inTransaction((repo) => repo.setContextDocsLocked(workspaceId, agentId, repoId, paths));
+  }
+
+  private async setContextDocsLocked(
+    workspaceId: string,
+    agentId: string,
+    repoId: string,
+    paths: string[],
+  ): Promise<boolean> {
+    const [agent] = await this.db
+      .select()
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, agentId)))
+      .for('update');
+    if (!agent) return false;
+
+    const before = await this.contextPaths(agentId, repoId);
+    await this.db
+      .delete(t.agentContextDocs)
+      .where(and(eq(t.agentContextDocs.agentId, agentId), eq(t.agentContextDocs.repoId, repoId)));
+    if (paths.length > 0) {
+      await this.db
+        .insert(t.agentContextDocs)
+        .values(paths.map((path, position) => ({ agentId, repoId, path, position })));
+    }
+
+    // Only a change to what reaches the prompt (the ordered list) is a config change.
+    if (before.length !== paths.length || before.some((p, i) => p !== paths[i])) {
+      const nextVersion = agent.version + 1;
+      const [row] = await this.db
+        .update(t.agents)
+        .set({ version: nextVersion })
+        .where(eq(t.agents.id, agentId))
+        .returning();
+      await this.snapshotVersion(row!, nextVersion);
+    }
+    return true;
+  }
+
+  /** Documents of enabled skills bound (enabled) to the agent: binding order, then position. */
+  async inheritedContextDocs(agentId: string, repoId: string): Promise<InheritedContextDoc[]> {
+    return this.db
+      .select({
+        path: t.skillContextDocs.path,
+        skillId: t.skills.id,
+        skillName: t.skills.name,
+      })
+      .from(t.agentSkills)
+      .innerJoin(t.skills, eq(t.skills.id, t.agentSkills.skillId))
+      .innerJoin(t.skillContextDocs, eq(t.skillContextDocs.skillId, t.skills.id))
+      .where(
+        and(
+          eq(t.agentSkills.agentId, agentId),
+          eq(t.agentSkills.enabled, true),
+          eq(t.skills.enabled, true),
+          eq(t.skillContextDocs.repoId, repoId),
+        ),
+      )
+      .orderBy(asc(t.agentSkills.order), asc(t.skillContextDocs.position));
+  }
+
+  /** path → distinct agents of the workspace receiving it: direct rows plus enabled skill bindings. */
+  async contextUsedBy(workspaceId: string, repoId: string): Promise<Map<string, number>> {
+    const direct = await this.db
+      .select({ path: t.agentContextDocs.path, agentId: t.agentContextDocs.agentId })
+      .from(t.agentContextDocs)
+      .innerJoin(t.agents, eq(t.agents.id, t.agentContextDocs.agentId))
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agentContextDocs.repoId, repoId)));
+    const viaSkills = await this.db
+      .select({ path: t.skillContextDocs.path, agentId: t.agentSkills.agentId })
+      .from(t.skillContextDocs)
+      .innerJoin(t.skills, eq(t.skills.id, t.skillContextDocs.skillId))
+      .innerJoin(t.agentSkills, eq(t.agentSkills.skillId, t.skills.id))
+      .innerJoin(t.agents, eq(t.agents.id, t.agentSkills.agentId))
+      .where(
+        and(
+          eq(t.agents.workspaceId, workspaceId),
+          eq(t.skills.workspaceId, workspaceId),
+          eq(t.skillContextDocs.repoId, repoId),
+          eq(t.agentSkills.enabled, true),
+          eq(t.skills.enabled, true),
+        ),
+      );
+    const agentsByPath = new Map<string, Set<string>>();
+    for (const r of [...direct, ...viaSkills]) {
+      const set = agentsByPath.get(r.path) ?? new Set<string>();
+      set.add(r.agentId);
+      agentsByPath.set(r.path, set);
+    }
+    return new Map([...agentsByPath].map(([path, ids]) => [path, ids.size]));
   }
 }

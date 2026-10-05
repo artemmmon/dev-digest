@@ -50,6 +50,10 @@ function fakeAgents(list: AgentRecord[]): AgentStore {
     },
     namesByIds: async (_ws: string, ids: string[]) =>
       new Map(ids.flatMap((id) => (byId.has(id) ? [[id, byId.get(id)!.name] as const] : []))),
+    contextPaths: async () => [],
+    setContextDocs: async () => true,
+    inheritedContextDocs: async () => [],
+    contextUsedBy: async () => new Map<string, number>(),
   } as unknown as AgentStore;
 }
 
@@ -87,6 +91,7 @@ function setup(agents: AgentRecord[] = [agent({})], prFiles: string[] = []) {
     llm: async () => new MockLLMProvider('openai'),
     repoIntel: {} as RepoIntel,
     intent: fakeIntent,
+    projectContext: { resolveForRun: async () => ({ documents: [], records: [] }) },
     bus,
   };
   return { state, bus, service: new ReviewService(deps) };
@@ -264,6 +269,7 @@ describe('ReviewRunExecutor — a throwing intent resolver still completes the r
       bus,
       tokenizer: { count: () => 0 },
       intent: { forRun: async () => Promise.reject(new Error('boom: intent store is down')) },
+      projectContext: { resolveForRun: async () => ({ documents: [], records: [] }) },
     };
 
     const executor = new ReviewRunExecutor(deps);

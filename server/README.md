@@ -78,10 +78,12 @@ flowchart TB
     intent["intent<br/>/pulls/:id/intent (GET · POST)"]
     smartDiff["smart-diff<br/>/pulls/:id/smart-diff (GET)"]
     blast["blast<br/>/pulls/:id/blast (GET)"]
+    projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/content (GET)"]
+    onboarding["onboarding<br/>/repos/:id/onboarding (GET) · /repos/:id/onboarding/generate (POST, 202)"]
   end
   subgraph Agents["Agents"]
-    agents["agents<br/>/agents · /agents/:id · /agents/:id/skills"]
-    skills["skills<br/>/skills · /skills/:id · /skills/import/preview"]
+    agents["agents<br/>/agents · /agents/:id · /agents/:id/skills · /agents/:id/context"]
+    skills["skills<br/>/skills · /skills/:id · /skills/:id/context · /skills/import/preview"]
   end
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
@@ -92,6 +94,11 @@ flowchart TB
   end
   HEALTH["/health (liveness) · /health/ready (DB ping → 200/503)"]
 ```
+
+`POST /repos/:id/onboarding/generate` answers `202` and runs the tour generation in the
+background (one model request, 180 s deadline; `409 generation_in_progress` while one
+runs; 10 per minute). Interrupted generations are marked failed on boot. See
+[`../docs/onboarding-tour.md`](../docs/onboarding-tour.md).
 
 ## Environment
 
@@ -109,6 +116,8 @@ flowchart TB
 | `DEVDIGEST_CLONE_DIR` | `./clones` | imported-repo checkouts (git-ignored) |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
 | `SEED_DEMO` | `true` | `false` → `pnpm db:seed` skips the `acme/payments-api` demo repo, PR #482 and its review (`e2e.sh` forces `true`) |
+| `DEVDIGEST_LLM_STUB` | — | **Test-only.** Path to a JSON fixture (`{ "<schemaName>": <answer> }`); every LLM provider is replaced by a stub that answers from it, so no key or network is needed. Refused when `NODE_ENV=production`. Leave empty; `scripts/e2e.sh` sets it |
+| `SEED_E2E_FIXTURE_PATH` | — | **Test-only**, read by `pnpm db:seed` only (not in `.env.example`). Absolute path of the fixture git checkout; adds the repo `devdigest-fixtures/tour-sample` (fixed id `00000000-0000-4000-8000-0000000000e2`) after the demo repo. Set by `scripts/e2e.sh` and `e2e-web.yml`; see [`../e2e/README.md`](../e2e/README.md) |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 
 Secrets (API keys, `GITHUB_TOKEN`) are **not** part of `AppConfig` — they go
@@ -143,6 +152,10 @@ What the reviewer actually sends to the model is assembled in
   demo / test / not for production / do not flag" never descope the review — real
   defects are reported at full severity regardless. We deliberately do **not**
   keyword-scan untrusted text (a denylist only catches one phrasing).
+- **Project context is attached by hand.** Repository markdown documents attached to
+  the agent and to its enabled skills are read from the local checkout at run start
+  (`modules/project-context`), fenced as untrusted data under `## Project context`, and
+  recorded in the trace. See [`../docs/project-context.md`](../docs/project-context.md).
 - **Grounding is mandatory.** Every finding must cite a line that exists in the
   diff or it is dropped (`groundFindings`), and the score is recomputed from the
   surviving findings — the model's self-reported score is ignored.

@@ -148,6 +148,27 @@
       "when": 1790410323195,
       "tag": "0020_orange_johnny_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791144260200,
+      "tag": "0021_warm_green_goblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791196266365,
+      "tag": "0022_sticky_ultron",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791208588791,
+      "tag": "0023_goofy_morg",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@ name: security-reviewer
 description: Read-only security reviewer. It traces attacker-controlled input to sensitive sinks in a branch diff and reports only confirmed exploitable paths as JSON, with severity per severity.md. Edits nothing. Does not do architecture or per-skill review. Use after implementation-verifier PASS, before doc-writer and pr-self-review.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit, NotebookEdit, Agent, WebSearch, WebFetch
-model: opus
+model: sonnet
 skills: security
 ---
 

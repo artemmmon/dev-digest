@@ -62,6 +62,12 @@ export interface StructuredRequest<T> {
   timeoutMs?: number;
   maxRetries?: number;
   /**
+   * HTTP-level retries on timeout/429/5xx; unset keeps each provider's default.
+   * Separate from `maxRetries`, which only limits schema re-prompts. A caller
+   * that needs exactly one request sets both to 0.
+   */
+  transportRetries?: number;
+  /**
    * OpenRouter session id — groups related generations (e.g. all map-reduce
    * chunks of one review) into a session in the OpenRouter dashboard. Sent as
    * the `session_id` body field; ignored by providers that don't support it.

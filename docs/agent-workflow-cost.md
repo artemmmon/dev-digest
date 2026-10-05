@@ -4,6 +4,9 @@ Where the tokens of a planner → implementer → reviewers run go, measured on 
 and the rules in [.claude/agents/README.md](../.claude/agents/README.md#keeping-token-cost-down)
 that follow from it.
 
+To measure a run yourself, use the `/workflow-retro` skill (`.claude/skills/workflow-retro/`): it
+reads the same transcripts with a script and keeps the trend in [retros/ledger.md](retros/ledger.md).
+
 ## The measured run
 
 Feature: Intent Layer (`specs/08-intent-layer.md`, plan `docs/plans/02-intent-layer.md`), built on

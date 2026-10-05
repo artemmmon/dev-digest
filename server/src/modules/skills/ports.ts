@@ -1,4 +1,5 @@
 import type { SkillSource, SkillType } from '@devdigest/shared';
+import type { ProjectDocsLister } from '../_shared/ports.js';
 
 /** Ports of the skills module (onion-architecture: core declares, outer ring implements). */
 
@@ -40,6 +41,11 @@ export interface UpdateSkill {
   appliesTo?: string[] | null;
   /** Stored with the new version when the body changes; ignored otherwise. */
   message?: string;
+  /**
+   * Replace the skill's document list for one repo (position = index), inside the same
+   * transaction. Never touches `version` or `skill_versions`.
+   */
+  context?: { repoId: string; paths: string[] };
 }
 
 /** One stored body of a skill. */
@@ -63,6 +69,10 @@ export interface SkillStore {
   listVersions(workspaceId: string, id: string): Promise<SkillVersionRecord[] | undefined>;
   /** False when no such skill existed in the workspace. Agent bindings cascade. */
   deleteById(workspaceId: string, id: string): Promise<boolean>;
+  /** Attached document paths of a skill for one repo, ordered by `position`. */
+  contextPaths(skillId: string, repoId: string): Promise<string[]>;
+  /** skill id → ordered paths for one repo; skills with no rows are absent. */
+  contextPathsFor(skillIds: string[], repoId: string): Promise<Map<string, string[]>>;
 }
 
 /** One file inside an archive, as declared by its header (nothing is decompressed to list it). */
@@ -107,4 +117,6 @@ export interface SkillsServiceDeps {
   remote: RemoteFileFetcher;
   usage: SkillUsageReader;
   tokenizer: TokenCounter;
+  /** Document paths of a repository (the `project-context` service satisfies it structurally). */
+  docs: ProjectDocsLister;
 }
