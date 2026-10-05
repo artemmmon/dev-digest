@@ -146,6 +146,7 @@ export function checkPlan(text, root) {
   }
 
   if (plan.steps.length === 0) error(1, 'no steps; write "### Step 1 — <title> (<package>)".');
+  const created = new Set(); // paths an earlier step creates: a later step may modify or delete them
   plan.steps.forEach((step, index) => {
     if (step.n !== index + 1) error(step.line, `step ${step.n} is out of sequence; expected Step ${index + 1}.`);
     for (const name of STEP_FIELDS) {
@@ -155,8 +156,9 @@ export function checkPlan(text, root) {
     const before = status && ['draft', 'approved'].includes(status.value);
     for (const file of stepFiles(step)) {
       const exists = existsSync(join(root, file.path));
-      if (file.verb !== 'create' && !exists && before) error(file.line, `Step ${step.n}: "${file.path}" (${file.verb}) does not exist.`);
+      if (file.verb !== 'create' && !exists && !created.has(file.path) && before) error(file.line, `Step ${step.n}: "${file.path}" (${file.verb}) does not exist.`);
       if (file.verb === 'create' && exists && before) warning(file.line, `Step ${step.n}: "${file.path}" is to be created but already exists.`);
+      if (file.verb === 'create') created.add(file.path);
     }
   });
 
