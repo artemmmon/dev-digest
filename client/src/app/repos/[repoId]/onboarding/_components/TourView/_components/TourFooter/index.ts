@@ -1,0 +1,1 @@
+export { TourFooter } from "./TourFooter";

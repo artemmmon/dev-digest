@@ -10,3 +10,4 @@ export * from "./trace";
 export * from "./repo-intel";
 export * from "./intent";
 export * from "./project-context";
+export * from "./onboarding-tour";

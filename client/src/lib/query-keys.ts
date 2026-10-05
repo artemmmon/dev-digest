@@ -43,6 +43,8 @@ export const keys = {
   skillAgents: (id: Id) => ["skill", id, "agents"] as const,
   /** A repo's convention candidates + last scan (the Conventions page). */
   conventions: (repoId: Id) => ["conventions", repoId] as const,
+  /** A repo's onboarding tour + generation state (one cache entry; the page polls it while generating). */
+  onboardingTour: (repoId: Id) => ["onboarding-tour", repoId] as const,
   /** An agent's skill bindings (order + per-agent switch). */
   agentSkills: (agentId: Id) => ["agent-skills", agentId] as const,
   /** A repo's project documents (list); a prefix of the single-document keys below. */

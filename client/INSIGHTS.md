@@ -428,6 +428,10 @@ too. No need for `within`/testids to disambiguate two "1 file"-shaped strings ne
 sibling tree, as long as each element's own text differs.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.test.tsx` (singular file-count test), `DiffTab.tsx:135` (toolbar summary span).
 
+### 2026-10-05 — Onboarding Tour: scrolling is found from the DOM, not a ref to the shell's scroll box
+The shell's scroll container is not exposed to pages, so `useActiveSection` walks up from the tour wrapper to the first ancestor with `overflow-y: auto|scroll` that really overflows (same trick as the design file) and falls back to `window`. jsdom has no `Element.prototype.scrollTo` and no layout, so the hook calls `scrollTo?.()` and a test must stub `scrollTo`/`getBoundingClientRect` to prove a jump or the active item.
+Where: src/app/repos/[repoId]/onboarding/_components/TourView/hooks/useActiveSection.ts:28
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — The PR-list table card clipped anything absolutely positioned in a row
