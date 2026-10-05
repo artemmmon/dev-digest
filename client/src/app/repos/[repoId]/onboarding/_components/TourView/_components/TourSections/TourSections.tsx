@@ -14,7 +14,7 @@ import type {
 } from "@devdigest/shared";
 import { MermaidDiagram } from "@/components/mermaid-diagram";
 import { githubBlobUrl } from "@/lib/github-urls";
-import type { TourSection } from "../../helpers";
+import { stripImageEmbeds, type TourSection } from "../../helpers";
 import { useCopyFeedback } from "../../hooks/useCopyFeedback";
 import { s } from "../../styles";
 
@@ -29,7 +29,8 @@ export function OverviewBody({ section }: { section: ArchitectureOverviewSection
     <>
       {section.body.trim() !== "" && (
         <div style={s.overviewText}>
-          <Markdown>{section.body}</Markdown>
+          {/* The kit Markdown renders `![](url)` as a real <img>; strip embeds so no remote image is fetched. */}
+          <Markdown>{stripImageEmbeds(section.body)}</Markdown>
         </div>
       )}
       {/* An unrenderable diagram renders nothing at all (MermaidDiagram), so no wrapper box here. */}

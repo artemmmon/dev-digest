@@ -63,6 +63,10 @@ Where: `../scripts/shared-contracts.sh`, `src/vendor/shared/index.ts`, `../serve
 `DocContent` renders project documents through the kit `Markdown` (react-markdown, no raw HTML), but the primitive overrides only `p`, `strong`, `code` and `a`, so `![](https://…)` becomes a real `<img>` and the browser fetches it when you open a preview or the Project Context page. To stop it, add an `img` component override to the primitive (render the alt text or a link) — the primitive is also used by skill previews, `FindingCard` and `CommentCard`, so check them first.
 Where: client/src/vendor/ui/primitives/Markdown.tsx:31, client/src/components/context-docs/DocContent.tsx:37
 
+### 2026-10-05 — The tour overview leaked remote image fetches; fixed in the feature, not in the kit
+The onboarding overview body is model text (steerable by a hostile README) rendered through the kit `Markdown`, which takes only `children` (no `components` prop) and has no `img` override, so `![](https://host/…)` fetched an attacker-chosen URL on every page open (LLM05). Fixed in two layers without touching the shared primitive: `stripImageEmbeds` in `buildTour` (stored tour + export carry no embed) and a mirrored `stripImageEmbeds` in `TourView/helpers.ts`, applied before `<Markdown>` and in `tourToMarkdown`. Any other model text rendered through the kit `Markdown` needs the same treatment until the primitive itself gets an `img` override.
+Where: client/src/app/repos/[repoId]/onboarding/_components/TourView/helpers.ts:11, client/src/app/repos/[repoId]/onboarding/_components/TourView/_components/TourSections/TourSections.tsx:33, server/src/modules/onboarding/tour.ts:27
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Local `vendor/shared` lags behind the server

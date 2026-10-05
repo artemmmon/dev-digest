@@ -19,6 +19,24 @@ export interface TourMeta {
 
 const ELLIPSIS = '…';
 
+/**
+ * Model text never chooses a URL that is fetched: markdown images (`![alt](url)`, `![alt][ref]`)
+ * become their alt text and raw `<img>` tags are dropped. Repeats until stable so a tag cannot be
+ * rebuilt from the pieces left behind by removing another.
+ */
+export function stripImageEmbeds(body: string): string {
+  let out = body;
+  // Every pass that changes the text shortens it, so this ends.
+  for (;;) {
+    const next = out
+      .replace(/!\[([^\]]*)\](?:\((?:[^()]|\([^()]*\))*\)|\[[^\]]*\])?/g, '$1')
+      .replace(/<img\b[^>]*>?/gi, '');
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 /** Cut to `max` UTF-16 units ending with an ellipsis, never splitting a surrogate pair. */
 function cutBody(body: string, max: number): string {
   if (body.length <= max) return body;
@@ -70,7 +88,7 @@ export function buildTour(
     sections: [
       {
         kind: 'architecture_overview',
-        body: cutBody(draft.architecture_overview.body, TOUR_LIMITS.overviewChars),
+        body: cutBody(stripImageEmbeds(draft.architecture_overview.body), TOUR_LIMITS.overviewChars),
         diagram: diagram === '' ? null : diagram,
       },
       { kind: 'critical_paths', files: files.slice(0, TOUR_LIMITS.criticalPaths) },
