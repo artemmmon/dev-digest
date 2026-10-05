@@ -24,7 +24,7 @@ interface FileLinks {
   commit: string;
 }
 
-export function OverviewBody({ section }: { section: ArchitectureOverviewSection }) {
+function OverviewBody({ section }: { section: ArchitectureOverviewSection }) {
   return (
     <>
       {section.body.trim() !== "" && (
@@ -43,7 +43,7 @@ export function OverviewBody({ section }: { section: ArchitectureOverviewSection
   );
 }
 
-export function CriticalPathsBody({ section, repoName, commit }: { section: CriticalPathsSection } & FileLinks) {
+function CriticalPathsBody({ section, repoName, commit }: { section: CriticalPathsSection } & FileLinks) {
   const t = useTranslations("onboarding");
   const id = React.useId();
   return (
@@ -71,7 +71,7 @@ export function CriticalPathsBody({ section, repoName, commit }: { section: Crit
   );
 }
 
-export function HowToRunBody({ section }: { section: HowToRunSection }) {
+function HowToRunBody({ section }: { section: HowToRunSection }) {
   const t = useTranslations("onboarding");
   const { result, copy } = useCopyFeedback();
   return (
@@ -113,7 +113,7 @@ export function HowToRunBody({ section }: { section: HowToRunSection }) {
   );
 }
 
-export function GuidedReadingBody({ section, repoName, commit }: { section: GuidedReadingSection } & FileLinks) {
+function GuidedReadingBody({ section, repoName, commit }: { section: GuidedReadingSection } & FileLinks) {
   return (
     <ol style={s.list}>
       {section.reading.map((item, i) => (
@@ -131,7 +131,7 @@ export function GuidedReadingBody({ section, repoName, commit }: { section: Guid
   );
 }
 
-export function FirstTasksBody({ section }: { section: FirstTasksSection }) {
+function FirstTasksBody({ section }: { section: FirstTasksSection }) {
   const t = useTranslations("onboarding");
   return (
     <ul style={{ ...s.tasks, padding: 0, marginBottom: 0 }}>

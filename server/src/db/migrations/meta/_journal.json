@@ -162,6 +162,13 @@
       "when": 1791196266365,
       "tag": "0022_sticky_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791208588791,
+      "tag": "0023_goofy_morg",
+      "breakpoints": true
     }
   ]
 }

@@ -103,16 +103,6 @@ export function tourToMarkdown(tour: Tour, repoName: string, labels: TourMarkdow
   return `${out.join("\n\n")}\n`;
 }
 
-/** Write `text` to the clipboard; false when the clipboard is unavailable or refuses. */
-export async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** The tour is out of date when the repository has an indexed commit and it differs from the tour's. */
 export function isTourStale(indexedSha: string | null | undefined, tourSha: string): boolean {
   return typeof indexedSha === "string" && indexedSha !== "" && indexedSha !== tourSha;

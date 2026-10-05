@@ -1,0 +1,1 @@
+ALTER TABLE "onboarding_generations" ADD CONSTRAINT "onboarding_generations_status_ck" CHECK ("onboarding_generations"."status" in ('idle', 'running', 'failed'));

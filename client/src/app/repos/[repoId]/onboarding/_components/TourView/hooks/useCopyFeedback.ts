@@ -1,8 +1,17 @@
 "use client";
 
 import React from "react";
-import { copyToClipboard } from "../helpers";
 import { COPY_FEEDBACK_MS } from "../constants";
+
+/** Write `text` to the clipboard; false when the clipboard is unavailable or refuses. */
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Copy a text and remember, for a moment, which control ("key") copied it and whether it worked. */
 export function useCopyFeedback() {
