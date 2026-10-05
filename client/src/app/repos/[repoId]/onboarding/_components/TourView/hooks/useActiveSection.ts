@@ -33,8 +33,6 @@ function scrollToCard(kind: TourSectionKind, from: HTMLElement | null, behavior:
 
 /** How long the page must stay still before a jump counts as finished. */
 const JUMP_SETTLE_MS = 150;
-/** Slack for "scrolled to the very end" (sub-pixel scroll positions). */
-const BOTTOM_SLACK_PX = 2;
 
 /**
  * Which section is at the top of the visible area, and how to jump to one.
@@ -59,17 +57,24 @@ export function useActiveSection(
   const pinned = React.useRef<{ kind: TourSectionKind; byPosition: TourSectionKind | undefined } | null>(null);
   const settleTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** The section position alone points at: the last card at or above the threshold, or the last one at the very end. */
+  /**
+   * The section position alone points at: the last card whose top is at or above the reading line. The line
+   * sits near the top of the visible area and, over the last stretch of the page, slides down to its bottom
+   * edge — so every card gets its own range of scroll positions, including the ones near the end of the page
+   * that can never reach the top.
+   */
   const byPosition = React.useCallback((): TourSectionKind | undefined => {
     const container = scrollParent(wrapRef.current);
     if (!container) return kinds[0];
-    if (container.scrollTop + container.clientHeight >= container.scrollHeight - BOTTOM_SLACK_PX) {
-      return kinds[kinds.length - 1];
-    }
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    const slide = Math.min(container.clientHeight - ACTIVE_THRESHOLD_PX, maxScroll);
+    const left = Math.max(0, maxScroll - container.scrollTop);
+    const progress = slide > 0 ? Math.min(1, Math.max(0, 1 - left / slide)) : 0;
+    const line = ACTIVE_THRESHOLD_PX + progress * (container.clientHeight - ACTIVE_THRESHOLD_PX);
     let current = kinds[0];
     for (const kind of kinds) {
       const card = document.getElementById(kind);
-      if (card && topWithin(card, container) - container.scrollTop <= ACTIVE_THRESHOLD_PX) current = kind;
+      if (card && topWithin(card, container) - container.scrollTop <= line) current = kind;
     }
     return current;
   }, [kinds, wrapRef]);
