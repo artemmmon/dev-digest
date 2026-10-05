@@ -42,7 +42,7 @@ The index below shows each spec's status in its own vocabulary.
 - [08-intent-layer](08-intent-layer.md) — done — server, reviewer-core, client, e2e
 - [09-smart-diff](09-smart-diff.md) — done — server, client
 - [10-project-context](10-project-context.md) — approved — server, client, reviewer-core, e2e
-- [11-onboarding-tour](11-onboarding-tour.md) — approved — server, client, e2e
+- [11-onboarding-tour](11-onboarding-tour.md) — implemented — server, client, e2e
 
 Per-package slices of these two live in `server/specs/`, `client/specs/`,
 `reviewer-core/specs/` and `e2e/specs/`.

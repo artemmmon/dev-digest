@@ -18,6 +18,7 @@ import { SimpleGitClient } from '../adapters/git/simple-git.js';
 import { RipgrepCodeIndex } from '../adapters/codeindex/ripgrep.js';
 import { OpenAIProvider } from '../adapters/llm/openai.js';
 import { AnthropicProvider } from '../adapters/llm/anthropic.js';
+import { StubLLMProvider } from '../adapters/llm/stub.js';
 import { OpenAIEmbedder } from '../adapters/embedder/openai.js';
 import { OpenRouterProvider } from '@devdigest/reviewer-core';
 import { estimateCost } from '../adapters/llm/pricing.js';
@@ -392,6 +393,15 @@ export class Container {
   async llm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     const injected = this.overrides.llm?.[id];
     if (injected) return injected;
+    // test-only: DEVDIGEST_LLM_STUB swaps every provider for the fixture-backed stub,
+    // before any secret lookup (no API key needed). `llmWithKey` keeps real providers.
+    if (this.config.llmStubPath) {
+      const cachedStub = this.llmCache.get(id);
+      if (cachedStub) return cachedStub;
+      const stub = StubLLMProvider.fromFile(this.config.llmStubPath, id);
+      this.llmCache.set(id, stub);
+      return stub;
+    }
     const cached = this.llmCache.get(id);
     if (cached) return cached;
     const provider = await this.buildLlm(id);

@@ -85,6 +85,11 @@ Env knobs:
 - Hermetic stack (`scripts/e2e.sh`): `E2E_PG_PORT` (5433), `E2E_API_PORT` (3101),
   `E2E_WEB_PORT` (3100), `E2E_PG_CONTAINER` (`devdigest-e2e-postgres`),
   `E2E_PG_IMAGE` (`pgvector/pgvector:pg16`).
+- Onboarding-tour flow (12), set by `scripts/e2e.sh` and `e2e-web.yml` — not by you:
+  `DEVDIGEST_CLONE_DIR` (the fixture checkout lives at
+  `<dir>/devdigest-fixtures/tour-sample`, built by `scripts/e2e-tour-fixture.sh`),
+  `SEED_E2E_FIXTURE_PATH` (the seed adds that repo, id `00000000-0000-4000-8000-0000000000e2`),
+  `DEVDIGEST_LLM_STUB` (`e2e/fixtures/llm-stub.json`: the stub model's answers).
 
 Failure screenshots are written to `e2e/test-results/` (git-ignored; uploaded as
 a CI artifact by `.github/workflows/e2e-web.yml`).
@@ -102,3 +107,4 @@ a CI artifact by `.github/workflows/e2e-web.yml`).
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
 | `08-agent-editor` | agents list → open Security Reviewer → editor Config tab renders |
 | `09-pr-overview` | PR #482 → Overview tab → Description + the seeded PR body |
+| `12-onboarding-tour` | fixture repo `devdigest-fixtures/tour-sample` → Generate onboarding tour (stub model) → five sections → Regenerate |

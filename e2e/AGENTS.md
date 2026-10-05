@@ -25,7 +25,9 @@ npm run typecheck
   **Never** the AI `chat` command.
 - `wait` commands are the assertions; extra checks go in `"assert": { "stdoutIncludes" }`.
 - Flows use read-only seeded data (`acme/payments-api`, PR #482, seeded agents)
-  and must never trigger a model call or mutate data.
+  and must never trigger a model call or mutate data. Single exception: flow 12
+  (onboarding tour) generates a tour for the fixture repo `devdigest-fixtures/tour-sample`
+  through the stub LLM provider (`DEVDIGEST_LLM_STUB`) — no network, never `acme/payments-api`.
 - Keep coverage typological: one flow per main journey, not per edge case.
 
 ## Gotchas

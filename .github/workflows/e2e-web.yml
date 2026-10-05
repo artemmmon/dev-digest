@@ -36,6 +36,10 @@ env:
   DATABASE_URL: postgres://devdigest:devdigest@localhost:5432/devdigest
   NEXT_PUBLIC_API_BASE: http://localhost:3001
   E2E_BASE_URL: http://localhost:3000
+  # Onboarding-tour flow (12): fixture git checkout + stub LLM provider (no API key).
+  DEVDIGEST_CLONE_DIR: ${{ runner.temp }}/clones
+  SEED_E2E_FIXTURE_PATH: ${{ runner.temp }}/clones/devdigest-fixtures/tour-sample
+  DEVDIGEST_LLM_STUB: ${{ github.workspace }}/e2e/fixtures/llm-stub.json
 
 jobs:
   e2e:
@@ -63,6 +67,10 @@ jobs:
             sleep 2
           done
           [ "$(docker inspect -f '{{.State.Health.Status}}' devdigest-postgres)" = "healthy" ]
+
+      # --- Tour fixture: a tiny git checkout of devdigest-fixtures/tour-sample ---
+      - name: Build tour fixture checkout
+        run: bash scripts/e2e-tour-fixture.sh "$DEVDIGEST_CLONE_DIR"
 
       # --- API: install, migrate, seed, then start in the background ---
       - name: Install + migrate + seed (server)

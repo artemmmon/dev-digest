@@ -1,0 +1,148 @@
+{
+  "name": "Onboarding tour generates from the stub model and regenerates",
+  "description": "Opens the fixture repository devdigest-fixtures/tour-sample (never acme/payments-api), generates its onboarding tour with the stub LLM provider (DEVDIGEST_LLM_STUB, no network call), checks the five sections against e2e/fixtures/llm-stub.json, then regenerates. The one flow that mutates data; numbered 12 so it runs last.",
+  "steps": [
+    {
+      "cmd": [
+        "open",
+        "{BASE}/repos/00000000-0000-4000-8000-0000000000e2/onboarding"
+      ],
+      "label": "open the fixture repo's onboarding tour page"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "DevDigest indexes the repo and writes a guided tour"
+      ],
+      "label": "no tour yet: the empty state explains the feature"
+    },
+    {
+      "cmd": [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Generate onboarding tour"
+      ],
+      "label": "click Generate onboarding tour (stub model, fixture repository)"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Onboarding for"
+      ],
+      "label": "the tour is ready: the header names the repository"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Architecture overview"
+      ],
+      "label": "Architecture overview card title"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Tour Sample is a small Python web service"
+      ],
+      "label": "architecture overview body comes from llm-stub.json"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Critical paths"
+      ],
+      "label": "Critical paths card title"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Application entry point that mounts the router"
+      ],
+      "label": "a critical path note from llm-stub.json"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "How to run locally"
+      ],
+      "label": "How to run locally card title"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "make install"
+      ],
+      "label": "a run command from llm-stub.json"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Guided reading path"
+      ],
+      "label": "Guided reading path card title"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Start here for the purpose of the service"
+      ],
+      "label": "a reading reason from llm-stub.json"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "First tasks"
+      ],
+      "label": "First tasks card title"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Add a request id header"
+      ],
+      "label": "a first task from llm-stub.json"
+    },
+    {
+      "cmd": [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Regenerate",
+        "--exact"
+      ],
+      "label": "click Regenerate (second stub generation)"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Regenerate"
+      ],
+      "label": "the Regenerate button is back after the second generation"
+    },
+    {
+      "cmd": [
+        "wait",
+        "--text",
+        "Onboarding for"
+      ],
+      "label": "the tour is shown again"
+    }
+  ]
+}

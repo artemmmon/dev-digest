@@ -1,5 +1,5 @@
 # Development Plan: Onboarding Tour (SPEC-11)
-Status: in progress
+Status: implemented
 Spec: specs/11-onboarding-tour.md
 Brainstorm: docs/plans/07-onboarding-tour.brainstorm.md
 Execution mode: multi-agent (chosen by the user)

@@ -1,6 +1,6 @@
 # Spec: Onboarding Tour
 Spec ID: SPEC-11
-Status: approved
+Status: implemented
 Supersedes: none
 Packages: server, client, e2e
 Sources: user brief ("Onboarding Generator": a five-part tour of an unfamiliar repository) · design files in client/docs/design (screen_tour_context — ScreenTour, artboards `tour` and `e-tour`; chrome — sidebar) · two screenshots of the `tour` artboard · existing code (onboarding storage, contract and prompt scaffolding; the repository index facade; the "onboarding" feature model setting) · specs/10-project-context.md · specs/04-conventions-extractor.md · specs/06-repo-stack.md · user answers to the discovery questions (Q1–Q13, proposals P1–P8 accepted)

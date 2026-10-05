@@ -7,6 +7,10 @@ Written via the `engineering-insights` skill: append-only, one entry per finding
 
 ## What Works
 
+### 2026-10-05 — Supersedes "SPEC-10 NFR-11 (project-context e2e flow) is deferred", in part: a stub model and a fixture checkout now exist
+`DEVDIGEST_LLM_STUB=<json>` makes `Container.llm()` return a `StubLLMProvider` that answers each `schemaName` from the file (no key, no network; refused with `NODE_ENV=production`). `scripts/e2e.sh` also seeds a fixture repo with a real git checkout (`SEED_E2E_FIXTURE_PATH`). Flow 12 uses both for the onboarding tour. A project-context flow can reuse them: add a `ProjectContext` schema fixture to `fixtures/llm-stub.json`.
+Where: `../scripts/e2e.sh:132`, `fixtures/llm-stub.json`, `specs/12-onboarding-tour.flow.json:1`.
+
 ## What Doesn't Work
 
 ### 2026-09-16 — `scripts/e2e.sh` breaks a running dev web server
@@ -29,6 +33,10 @@ Where: `package.json:8` (`test` shells out to `tsx`), `../scripts/e2e.sh:110`.
 The folder name was taken by the flows before the docs structure existed. The
 runner filters `*.flow.json`, so `*.md` specs there are ignored at run time.
 Where: `run.ts:55` (inside `loadFlows`).
+
+### 2026-10-05 — A fixture checkout must live at `<DEVDIGEST_CLONE_DIR>/<owner>/<name>`
+`repos.clone_path` alone is not used for git reads: `SimpleGitClient.clonePathFor` derives the path from the owner and name under `cloneDir`. A seeded fixture repo whose `clone_path` points elsewhere gets "repo_not_cloned"-style failures or empty reads. `scripts/e2e-tour-fixture.sh <clone-dir>` builds `<clone-dir>/devdigest-fixtures/tour-sample` with a fixed author and date; `e2e.sh` passes it a temp dir and exports it as `DEVDIGEST_CLONE_DIR`. The fixture repo is seeded after the demo repo, so the home redirect still lands on the demo.
+Where: `../server/src/adapters/git/simple-git.ts:49`, `../scripts/e2e-tour-fixture.sh:23`.
 
 ## Tool & Library Notes
 

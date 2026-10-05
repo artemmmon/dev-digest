@@ -56,6 +56,7 @@ command -v agent-browser >/dev/null || \
 # --- teardown trap (installed before we start anything) ----------------------
 SERVER_PID=""
 WEB_PID=""
+CLONE_TMP=""
 # Recursively kill a process and all its descendants. `pnpm exec tsx` / `next dev`
 # spawn the real listener as a GRANDCHILD, so a plain `kill $PID` + `pkill -P`
 # leaves it orphaned (port stays bound). Walk the tree leaves-first instead.
@@ -79,6 +80,7 @@ cleanup() {
     [ -n "$pids" ] && kill $pids 2>/dev/null || true
   done
   docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+  [ -n "$CLONE_TMP" ] && rm -rf "$CLONE_TMP" || true
   exit "$code"
 }
 trap cleanup EXIT INT TERM
@@ -124,9 +126,19 @@ case "$DATABASE_URL" in
   *":${PG_PORT}/"*) : ;;
   *) echo "refusing: DATABASE_URL is not on :$PG_PORT ($DATABASE_URL)"; exit 1 ;;
 esac
+# Onboarding-tour flow (12): a tiny fixture git checkout under a throw-away clone dir, and
+# the stub LLM provider that answers from a JSON fixture — no network, no API key. The
+# checkout must sit at <DEVDIGEST_CLONE_DIR>/<owner>/<name> (what GitClient reads).
+CLONE_TMP="$(mktemp -d)"
+export DEVDIGEST_CLONE_DIR="$CLONE_TMP"
+log "building the tour fixture checkout"
+SEED_E2E_FIXTURE_PATH="$(bash "$ROOT/scripts/e2e-tour-fixture.sh" "$CLONE_TMP")"
+export SEED_E2E_FIXTURE_PATH
+export DEVDIGEST_LLM_STUB="$ROOT/e2e/fixtures/llm-stub.json"
+
 log "applying migrations (isolated db)"
 (cd server && pnpm db:migrate)
-log "seeding demo data (isolated db)"
+log "seeding demo data + tour fixture repo (isolated db)"
 (cd server && pnpm db:seed)
 
 # --- API on :$API_PORT -------------------------------------------------------

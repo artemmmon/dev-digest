@@ -59,11 +59,22 @@ export const SYSTEM_USER_EMAIL = 'you@local';
 export interface SeedOptions {
   /** Seed the acme/payments-api demo repo; the CLI turns it off with SEED_DEMO=false. */
   demo?: boolean;
+  /**
+   * Absolute path of the git checkout of the e2e tour fixture repo
+   * (`devdigest-fixtures/tour-sample`, built by scripts/e2e-tour-fixture.sh). When set, the
+   * repo is added after the demo repo, so the demo stays the first repo of the list. The CLI
+   * reads SEED_E2E_FIXTURE_PATH; only the hermetic e2e stack sets it.
+   */
+  e2eFixturePath?: string;
 }
+
+/** Fixed id of the e2e fixture repo — the tour flow opens `/repos/<id>/onboarding`. */
+export const E2E_FIXTURE_REPO_ID = '00000000-0000-4000-8000-0000000000e2';
+export const E2E_FIXTURE_REPO = { owner: 'devdigest-fixtures', name: 'tour-sample' } as const;
 
 export async function seed(
   db: Db,
-  { demo = true }: SeedOptions = {},
+  { demo = true, e2eFixturePath }: SeedOptions = {},
 ): Promise<{ workspaceId: string; userId: string }> {
   // ---- workspace + user (no-auth defaults) ----
   let [ws] = await db
@@ -107,6 +118,7 @@ export async function seed(
   }
 
   if (demo) await seedDemoRepo(db, workspaceId, userId);
+  if (e2eFixturePath) await seedE2eFixtureRepo(db, workspaceId, userId, e2eFixturePath);
 
   // ---- built-in agents (the three starter presets) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
@@ -299,6 +311,28 @@ export async function seed(
   return { workspaceId, userId };
 }
 
+/** The e2e tour fixture repo: one row, no PRs — only the tour flow opens it. */
+async function seedE2eFixtureRepo(
+  db: Db,
+  workspaceId: string,
+  userId: string,
+  clonePath: string,
+): Promise<void> {
+  await db
+    .insert(t.repos)
+    .values({
+      id: E2E_FIXTURE_REPO_ID,
+      workspaceId,
+      owner: E2E_FIXTURE_REPO.owner,
+      name: E2E_FIXTURE_REPO.name,
+      fullName: `${E2E_FIXTURE_REPO.owner}/${E2E_FIXTURE_REPO.name}`,
+      defaultBranch: 'main',
+      clonePath,
+      createdBy: userId,
+    })
+    .onConflictDoNothing();
+}
+
 /** Demo fixtures: acme/payments-api, PR #482 with files/commits, a sample review + findings. */
 async function seedDemoRepo(db: Db, workspaceId: string, userId: string): Promise<void> {
   // ---- demo repo (acme/payments-api) ----
@@ -415,7 +449,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const handle = createDb(url);
-  seed(handle.db, { demo: process.env.SEED_DEMO !== 'false' })
+  seed(handle.db, {
+    demo: process.env.SEED_DEMO !== 'false',
+    e2eFixturePath: process.env.SEED_E2E_FIXTURE_PATH || undefined,
+  })
     .then(async (r) => {
       console.log('✓ seeded', r);
       await handle.close();
