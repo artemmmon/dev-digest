@@ -36,9 +36,9 @@ env:
   DATABASE_URL: postgres://devdigest:devdigest@localhost:5432/devdigest
   NEXT_PUBLIC_API_BASE: http://localhost:3001
   E2E_BASE_URL: http://localhost:3000
-  # Onboarding-tour flow (12): fixture git checkout + stub LLM provider (no API key).
-  DEVDIGEST_CLONE_DIR: ${{ runner.temp }}/clones
-  SEED_E2E_FIXTURE_PATH: ${{ runner.temp }}/clones/devdigest-fixtures/tour-sample
+  # Onboarding-tour flow (12): stub LLM provider (no API key). The clone-dir vars
+  # need the runner temp dir; the `runner` context is only available inside steps,
+  # so they are exported via $GITHUB_ENV in the "Export fixture paths" step.
   DEVDIGEST_LLM_STUB: ${{ github.workspace }}/e2e/fixtures/llm-stub.json
 
 jobs:
@@ -47,6 +47,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Fixture git checkout for the onboarding-tour flow (12). The `runner`
+      # context is not available in `env:` at workflow or job level, so build the
+      # paths from $RUNNER_TEMP and export them for every later step.
+      - name: Export fixture paths
+        run: |
+          {
+            echo "DEVDIGEST_CLONE_DIR=$RUNNER_TEMP/clones"
+            echo "SEED_E2E_FIXTURE_PATH=$RUNNER_TEMP/clones/devdigest-fixtures/tour-sample"
+          } >> "$GITHUB_ENV"
 
       - uses: pnpm/action-setup@v4
         with:

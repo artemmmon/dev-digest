@@ -57,6 +57,14 @@ command -v agent-browser >/dev/null || \
 SERVER_PID=""
 WEB_PID=""
 CLONE_TMP=""
+# `NEXT_DIST_DIR=.next-e2e next dev` rewrites these two committed client files to
+# point at .next-e2e. Snapshot them now, put them back in cleanup (even on failure).
+CLIENT_SNAP="$(mktemp -d)"
+cp client/next-env.d.ts client/tsconfig.json "$CLIENT_SNAP/"
+restore_client_files() {
+  cp "$CLIENT_SNAP/next-env.d.ts" client/next-env.d.ts 2>/dev/null || true
+  cp "$CLIENT_SNAP/tsconfig.json" client/tsconfig.json 2>/dev/null || true
+}
 # Recursively kill a process and all its descendants. `pnpm exec tsx` / `next dev`
 # spawn the real listener as a GRANDCHILD, so a plain `kill $PID` + `pkill -P`
 # leaves it orphaned (port stays bound). Walk the tree leaves-first instead.
@@ -80,6 +88,8 @@ cleanup() {
     [ -n "$pids" ] && kill $pids 2>/dev/null || true
   done
   docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+  restore_client_files   # after next dev is down, so it cannot rewrite them again
+  rm -rf "$CLIENT_SNAP"
   [ -n "$CLONE_TMP" ] && rm -rf "$CLONE_TMP" || true
   exit "$code"
 }
