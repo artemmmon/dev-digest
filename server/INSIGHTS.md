@@ -396,6 +396,10 @@ Where: server/src/modules/reviews/run-executor.ts:209
 `ProjectDocsLister` lives in `_shared/ports.ts` (not `_shared/context-docs.ts`): depcruise `core-is-pure` forbids a `ports.ts` importing a file that imports `platform/errors`. `assertAttachablePaths` (duplicates rejected; a path already stored for the owner/repo is accepted even if no longer a document) is shared by both services; `container.projectContextService` satisfies the port.
 Where: server/src/modules/_shared/context-docs.ts:8, server/src/modules/_shared/ports.ts
 
+### 2026-10-05 — Background generation with persisted state: claim by upsert, complete guarded by `started_at`, reap on boot
+The onboarding tour (SPEC-11) answers 202 and runs in the background. `OnboardingRepository.claim` is one `INSERT … ON CONFLICT (repo_id) DO UPDATE … setWhere status <> 'running' RETURNING started_at`; no row back = already running (409). `complete`/`fail` match `repo_id` + `started_at` + `status='running'`, so a run that was timed out, reaped or whose repo was deleted stores nothing (`complete` returns false). A boot reaper (`reapInterrupted`) sits next to `reapStaleRuns` in `app.ts` and is awaited before listening. The service never stores `err.message`; only the fixed texts of `constants.ts` reach the row.
+Where: server/src/modules/onboarding/repository.ts:36, server/src/app.ts:88
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -470,6 +474,10 @@ Where: src/modules/intent/constants.ts:15
 the repository maps `Number(row.costUsd)` on read and `String(cost)` on write. Other `cost_usd` columns
 (runs, eval, ci) are still `double precision` — migrate them the same way if touched.
 Where: src/db/schema/reviews.ts:104, src/modules/intent/repository.ts
+
+### 2026-10-05 — `maxRetries` only limits schema re-prompts; HTTP retries need `transportRetries: 0`
+A caller that must send exactly one request sets `maxRetries: 0` AND `transportRetries: 0`. The OpenAI SDK client retries 2x on its own and `withRetry` adds 3 attempts; OpenRouter used to ignore `req.timeoutMs` (now `req.transportRetries`/`timeoutMs` become per-request SDK options when set). Unset keeps each provider's default.
+Where: reviewer-core/src/llm/openrouter.ts:94, server/src/adapters/llm/openai.ts:110
 
 ## Recurring Errors & Fixes
 

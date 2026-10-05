@@ -27,6 +27,8 @@ import { AgentsRepository } from '../modules/agents/repository.js';
 import { SkillsRepository } from '../modules/skills/repository.js';
 import { ConventionsRepository } from '../modules/conventions/repository.js';
 import type { ConventionsDeps } from '../modules/conventions/ports.js';
+import { OnboardingRepository } from '../modules/onboarding/repository.js';
+import type { OnboardingDeps } from '../modules/onboarding/ports.js';
 import { resolveFeatureModel } from '../modules/settings/feature-models.js';
 import { renderPrompt } from './prompts.js';
 import type { ArchiveReader, RemoteFileFetcher } from '../modules/skills/ports.js';
@@ -123,6 +125,7 @@ export class Container {
   private _projectDocReader?: ProjectDocReader;
   private _projectContextService?: ProjectContextService;
   private _priceBook?: PriceBook;
+  private _onboardingRepo?: OnboardingRepository;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -165,6 +168,32 @@ export class Container {
       resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'conventions'),
       llm: (provider) => this.llm(provider),
       systemPrompt: (vars) => renderPrompt('conventions.system.md', vars),
+    };
+  }
+
+  get onboardingRepo(): OnboardingRepository {
+    return (this._onboardingRepo ??= new OnboardingRepository(this.db));
+  }
+
+  /** Collaborators of the onboarding tour service. Cross-module reads are passed as functions. */
+  get onboardingDeps(): OnboardingDeps {
+    return {
+      store: this.onboardingRepo,
+      repos: this.reposRepo,
+      git: this.git,
+      intel: {
+        topFiles: (repoId, n) => this.repoIntel.getTopFilesByRank(repoId, n),
+        criticalPaths: (repoId) => this.repoIntel.getCriticalPaths(repoId),
+        repoMap: async (repoId, tokenBudget) => (await this.repoIntel.getRepoMap(repoId, tokenBudget)).text,
+        indexState: async (repoId) => {
+          const state = await this.repoIntel.getIndexState(repoId);
+          return { filesIndexed: state.filesIndexed, lastIndexedSha: state.lastIndexedSha };
+        },
+      },
+      resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'onboarding'),
+      llm: (provider) => this.llm(provider),
+      systemPrompt: () => renderPrompt('onboarding.system.md', {}),
+      tokenizer: this.tokenizer,
     };
   }
 
