@@ -9,10 +9,14 @@ Prompts carry paths and a few fields, never file contents, a diff or another age
 |---|---|---|---|
 | `spec-creator` pass 1 | The feature request in the user's words + every source (brief, Figma links, design files, code paths, related specs) | Spec discovery report | Relay questions and proposals with `AskUserQuestion` (numbered options, recommended first) |
 | `spec-creator` pass 2 | `SendMessage` to the same agent: the answers, by question number | Spec report; the draft is on disk | Ask the user to review and approve it |
-| `spec-creator` amendment | `amend: <spec path>` + the gap + the user's decision | Spec report; the spec is a draft again | The user approves it again |
+| `spec-creator` amendment | A **new** `spec-creator` (Agent tool, not `SendMessage` to the pass-1 agent): `amend: <spec path>` + the gap + the user's decision | Spec report; the spec is a draft again | The user approves it again |
 | `brainstorm` | `Spec: <path>` (or the problem, for a fix with no spec) | Brief summary; the brief is on disk | Show the options; after the choice, edit the brief's `Status:` to `chosen: option <k>` |
 | `implementation-planner` | `Spec: <path>` · `Brainstorm: <path>` · `mode:` if the user already said | Requirements review, or the Plan summary | Relay the review; answer with `SendMessage` |
 | `implementation-planner` corrections | `SendMessage`: what to change. The plan must be `draft` | Plan summary with "Changed since" | Run `check-plan.mjs`; ask for approval |
+
+Why a new agent for an amendment: it needs the spec file and the gap, not the discovery context, and the
+pass-1 agent's cache has expired by then, so resuming it writes its whole context again (SPEC-11: 362K tokens
+rewritten, a 211K context, the most expensive agent of the run).
 
 Approving: the user may edit the `Status:` line, or tell you to. Write `approved` only on an
 explicit yes for that file. Never infer approval from "looks good so far".

@@ -216,7 +216,7 @@ d('GET /agents/:id/versions', () => {
       systemPrompt: 'x',
     });
 
-    const service = new AgentsService({ agents: new AgentsRepository(db), llm: async () => { throw new Error('unused'); } });
+    const service = new AgentsService({ agents: new AgentsRepository(db), docs: { listPaths: async () => [] }, llm: async () => { throw new Error('unused'); } });
     const [{ id: defaultWs }] = await db
       .select({ id: t.workspaces.id })
       .from(t.workspaces)

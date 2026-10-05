@@ -17,7 +17,6 @@ export const keys = {
   pulls: (repoId: Id) => ["pulls", repoId] as const,
   /** Every repo's PR list (prefix) — the rollups change when any run settles. */
   allPulls: () => ["pulls"] as const,
-  repoContext: (repoId: Id) => ["context", repoId] as const,
   repoIntelState: (repoId: Id) => ["repo-intel-state", repoId] as const,
 
   pr: {
@@ -44,6 +43,16 @@ export const keys = {
   skillAgents: (id: Id) => ["skill", id, "agents"] as const,
   /** A repo's convention candidates + last scan (the Conventions page). */
   conventions: (repoId: Id) => ["conventions", repoId] as const,
+  /** A repo's onboarding tour + generation state (one cache entry; the page polls it while generating). */
+  onboardingTour: (repoId: Id) => ["onboarding-tour", repoId] as const,
   /** An agent's skill bindings (order + per-agent switch). */
   agentSkills: (agentId: Id) => ["agent-skills", agentId] as const,
+  /** A repo's project documents (list); a prefix of the single-document keys below. */
+  projectDocs: (repoId: Id) => ["project-docs", repoId] as const,
+  /** One project document's content. */
+  projectDoc: (repoId: Id, path: Id) => ["project-docs", repoId, path] as const,
+  /** An agent's attached documents for one repo (+ the ones inherited through skills). */
+  agentContext: (agentId: Id, repoId: Id) => ["agent-context", agentId, repoId] as const,
+  /** A skill's attached documents for one repo. */
+  skillContext: (skillId: Id, repoId: Id) => ["skill-context", skillId, repoId] as const,
 };

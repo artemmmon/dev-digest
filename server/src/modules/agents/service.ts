@@ -1,14 +1,17 @@
 import type {
   Agent,
+  AgentContext,
   AgentSkillLink,
   AgentVersion,
   CiFailOn,
+  ContextAttachmentInput,
   ModelInfo,
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
 import type { AgentsServiceDeps } from './ports.js';
-import { ValidationError } from '../../platform/errors.js';
+import { NotFoundError, ValidationError } from '../../platform/errors.js';
+import { assertAttachablePaths } from '../_shared/context-docs.js';
 import { toAgentDto, toAgentVersionDto, normalizeAppliesTo } from './helpers.js';
 
 /**
@@ -202,6 +205,40 @@ export class AgentsService {
     const resolvedOrder = order ?? existing.length;
     await this.repo.linkSkill(agentId, skillId, resolvedOrder);
     return this.skillLinks(agentId);
+  }
+
+  /** Own documents plus the read-only ones reached through enabled skills. Undefined = no such agent. */
+  async getContext(workspaceId: string, agentId: string, repoId: string): Promise<AgentContext | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    const [paths, inheritedRows] = await Promise.all([
+      this.repo.contextPaths(agentId, repoId),
+      this.repo.inheritedContextDocs(agentId, repoId),
+    ]);
+    const taken = new Set(paths);
+    const inherited: AgentContext['inherited'] = [];
+    for (const row of inheritedRows) {
+      // Directly attached paths win; the first skill (binding order) owns a shared path.
+      if (taken.has(row.path)) continue;
+      taken.add(row.path);
+      inherited.push({ path: row.path, skill_id: row.skillId, skill_name: row.skillName });
+    }
+    return { paths, inherited };
+  }
+
+  /** Replace the agent's document list for one repo. Undefined = no such agent. */
+  async setContext(
+    workspaceId: string,
+    agentId: string,
+    input: ContextAttachmentInput,
+  ): Promise<AgentContext | undefined> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) return undefined;
+    const available = await this.deps.docs.listPaths(workspaceId, input.repo_id);
+    if (!available) throw new NotFoundError('Repository not found');
+    assertAttachablePaths(input.paths, await this.repo.contextPaths(agentId, input.repo_id), available);
+    const ok = await this.repo.setContextDocs(workspaceId, agentId, input.repo_id, input.paths);
+    return ok ? this.getContext(workspaceId, agentId, input.repo_id) : undefined;
   }
 
   /** An agent may only link skills of its own workspace. */

@@ -46,7 +46,12 @@ computes `"1Critical"` — no separator — so the component needs an explicit
 
 **Read-only, seeded data only.** Flows must not trigger a model call or mutate
 anything: the suite runs with no API key. Use `acme/payments-api`, PR #482 and the
-seeded agents.
+seeded agents. The one exception is flow 12 (onboarding tour): it generates a tour for
+the fixture repo `devdigest-fixtures/tour-sample` through the stub LLM provider
+(`DEVDIGEST_LLM_STUB`), which answers from `fixtures/llm-stub.json` — no network, no
+key. A new flow that needs a model answer follows that pattern: add the answer for its
+`schemaName` to the stub file and use the fixture repo, never `acme/payments-api`. See
+[`../README.md`](../README.md#onboarding-tour-flow-12).
 
 **Add a `wait --load networkidle` after a route change** before asserting on
 fetched content, or the step races the request.
@@ -66,8 +71,9 @@ fetched content, or the step races the request.
 ## Before you commit
 
 - Run the hermetic stack: `../scripts/e2e.sh` (own Postgres :5433, API :3101, web
-  :3100). Stop your dev web server first — both write `client/.next`, and the e2e
-  run leaves the dev server serving stale chunks.
+  :3100). Its web server writes to `client/.next-e2e`, so your dev web server keeps
+  working. The script restores `client/next-env.d.ts` and `client/tsconfig.json`,
+  which `next dev` rewrites, when it exits.
 - `npm run lint && npm run typecheck` — the runner is TypeScript too.
 - Keep coverage typological: one flow per main journey. A new edge case usually
   belongs in a component test, not here.

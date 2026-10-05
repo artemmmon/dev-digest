@@ -1,5 +1,14 @@
-import type { Skill, SkillAgentUse, SkillImportPreview, SkillInput, SkillVersion } from '@devdigest/shared';
-import { ValidationError } from '../../platform/errors.js';
+import type {
+  ContextAttachmentInput,
+  Skill,
+  SkillAgentUse,
+  SkillContext,
+  SkillImportPreview,
+  SkillInput,
+  SkillVersion,
+} from '@devdigest/shared';
+import { NotFoundError, ValidationError } from '../../platform/errors.js';
+import { assertAttachablePaths } from '../_shared/context-docs.js';
 import { MAX_IMPORT_BYTES, URL_FETCH_TIMEOUT_MS } from './constants.js';
 import { toSkillDto, toSkillVersionDto, normalizeAppliesTo } from './helpers.js';
 import { parseSkillImport } from './import-parser.js';
@@ -16,6 +25,8 @@ export type UpdateSkillInput = Partial<
 > & {
   /** What changed; stored with the new version when the body changes. */
   message?: string;
+  /** Replaces the skill's document list for one repo; never changes the skill version. */
+  context?: ContextAttachmentInput;
 };
 
 export class SkillsService {
@@ -67,7 +78,23 @@ export class SkillsService {
     return this.toDto(workspaceId, row);
   }
 
+  /** The skill's own documents for one repo. Undefined = no such skill. */
+  async getContext(workspaceId: string, id: string, repoId: string): Promise<SkillContext | undefined> {
+    if (!(await this.store.getById(workspaceId, id))) return undefined;
+    return { paths: await this.store.contextPaths(id, repoId) };
+  }
+
   async update(workspaceId: string, id: string, patch: UpdateSkillInput): Promise<Skill | undefined> {
+    if (patch.context) {
+      if (!(await this.store.getById(workspaceId, id))) return undefined;
+      const available = await this.deps.docs.listPaths(workspaceId, patch.context.repo_id);
+      if (!available) throw new NotFoundError('Repository not found');
+      assertAttachablePaths(
+        patch.context.paths,
+        await this.store.contextPaths(id, patch.context.repo_id),
+        available,
+      );
+    }
     const row = await this.store.update(workspaceId, id, {
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.description !== undefined ? { description: patch.description } : {}),
@@ -75,6 +102,9 @@ export class SkillsService {
       ...(patch.body !== undefined ? { body: patch.body } : {}),
       ...(patch.applies_to !== undefined ? { appliesTo: normalizeAppliesTo(patch.applies_to) } : {}),
       ...(patch.message !== undefined ? { message: patch.message } : {}),
+      ...(patch.context
+        ? { context: { repoId: patch.context.repo_id, paths: patch.context.paths } }
+        : {}),
     });
     return row && this.toDto(workspaceId, row);
   }

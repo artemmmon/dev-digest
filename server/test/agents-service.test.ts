@@ -95,12 +95,28 @@ class InMemoryAgentStore implements AgentStore {
   async skillIdsInWorkspace(_ws: string, ids: string[]) {
     return new Set(ids.filter((id) => this.knownSkills.has(id)));
   }
+  contextDocs = new Map<string, string[]>();
+  async contextPaths(agentId: string, repoId: string) {
+    return this.contextDocs.get(`${agentId}:${repoId}`) ?? [];
+  }
+  async setContextDocs(ws: string, agentId: string, repoId: string, paths: string[]) {
+    if (!(await this.getById(ws, agentId))) return false;
+    this.contextDocs.set(`${agentId}:${repoId}`, paths);
+    return true;
+  }
+  async inheritedContextDocs() {
+    return [];
+  }
+  async contextUsedBy() {
+    return new Map<string, number>();
+  }
 }
 
 function setup() {
   const agents = new InMemoryAgentStore();
   const service = new AgentsService({
     agents,
+    docs: { listPaths: async () => [] },
     llm: async () => new MockLLMProvider('openai', { models: [{ id: 'gpt-x', provider: 'openai' }] }),
   });
   return { agents, service };
@@ -218,6 +234,7 @@ describe('AgentsService', () => {
 
     const broken = new AgentsService({
       agents: new InMemoryAgentStore(),
+      docs: { listPaths: async () => [] },
       llm: async () => {
         throw new Error('OPENAI_API_KEY is not configured');
       },

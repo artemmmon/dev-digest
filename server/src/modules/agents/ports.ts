@@ -1,4 +1,5 @@
 import type { CiFailOn, LLMProvider, Provider, ReviewStrategy } from '@devdigest/shared';
+import type { ProjectDocsLister } from '../_shared/ports.js';
 
 /** Ports of the agents module (onion-architecture: core declares, outer ring implements). */
 
@@ -84,6 +85,13 @@ export interface ResolvedSkill {
   appliesTo: string[] | null;
 }
 
+/** A document an agent receives through an enabled skill (read-only on the agent). */
+export interface InheritedContextDoc {
+  path: string;
+  skillId: string;
+  skillName: string;
+}
+
 /** Workspace-scoped agent persistence (agents, agent_versions, agent_skills). */
 export interface AgentStore {
   list(workspaceId: string): Promise<AgentRecord[]>;
@@ -110,10 +118,32 @@ export interface AgentStore {
   resolvedSkills(agentId: string): Promise<ResolvedSkill[]>;
   /** The subset of `skillIds` that exist in the workspace. */
   skillIdsInWorkspace(workspaceId: string, skillIds: string[]): Promise<Set<string>>;
+  /** Attached document paths of an agent for one repo, ordered by `position`. */
+  contextPaths(agentId: string, repoId: string): Promise<string[]>;
+  /**
+   * Replace the agent's document list for one repo, position = index (atomic, agent row-locked).
+   * Bumps the agent version and snapshots it only when the ordered list differs.
+   * False = no such agent in the workspace.
+   */
+  setContextDocs(
+    workspaceId: string,
+    agentId: string,
+    repoId: string,
+    paths: string[],
+  ): Promise<boolean>;
+  /**
+   * Documents reached through skills (binding AND skill enabled), ordered by binding order
+   * then position. Skills' applies-to patterns are ignored.
+   */
+  inheritedContextDocs(agentId: string, repoId: string): Promise<InheritedContextDoc[]>;
+  /** path → number of distinct agents of the workspace that receive it (direct or through a skill). */
+  contextUsedBy(workspaceId: string, repoId: string): Promise<Map<string, number>>;
 }
 
 export interface AgentsServiceDeps {
   agents: AgentStore;
   /** Lazy LLM client by provider id (needs a stored key). */
   llm: (provider: Provider) => Promise<LLMProvider>;
+  /** Document paths of a repository (the `project-context` service satisfies it structurally). */
+  docs: ProjectDocsLister;
 }

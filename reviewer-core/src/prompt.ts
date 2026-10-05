@@ -47,6 +47,17 @@ export const INTENT_SCOPE_RULE =
   "lists out of scope or unrelated to its in-scope goals. Scope never lowers severity " +
   'and never justifies omitting a finding; judge the code on its merits.';
 
+// Trusted instruction — OUTSIDE the project-context fences, like INTENT_SCOPE_RULE.
+// Makes the model cite the document it relied on so a reader can trace a finding.
+export const PROJECT_CONTEXT_RULE =
+  'When a finding relies on a project-context document above, name that document\'s path in the finding.';
+
+/** One repository document attached as project context (untrusted text). */
+export interface ProjectContextDoc {
+  path: string;
+  text: string;
+}
+
 export interface PromptParts {
   /** Agent's system prompt (trusted). */
   system: string;
@@ -54,8 +65,12 @@ export interface PromptParts {
   skills?: string[];
   /** Relevant memory items (trusted, curated). */
   memory?: string[];
-  /** Project-context spec chunks (untrusted content). */
-  specs?: string[];
+  /**
+   * Project-context documents (untrusted content), in prompt order. Each is
+   * fenced on its own; the path goes inside the fence. Empty/undefined →
+   * section (and `PROJECT_CONTEXT_RULE`) omitted.
+   */
+  projectContext?: ProjectContextDoc[];
   /**
    * Repo skeleton / map (T3): top-ranked symbols by signature, token-budgeted.
    * Untrusted (derived from repo code) — delimiter-wrapped. Rendered before
@@ -110,8 +125,10 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
       ? parts.memory.map((m) => `- ${m}`).join('\n')
       : undefined;
   const specsBlock =
-    parts.specs && parts.specs.length > 0
-      ? parts.specs.map((s, i) => wrapUntrusted(`spec-${i}`, s)).join('\n\n')
+    parts.projectContext && parts.projectContext.length > 0
+      ? parts.projectContext
+          .map((d) => wrapUntrusted('project-context', `### ${d.path}\n${d.text}`))
+          .join('\n\n')
       : undefined;
 
   const prDescription =
@@ -139,7 +156,9 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
   if (parts.repoMap && parts.repoMap.trim().length > 0) {
     userSections.push(`## Repo skeleton\n${wrapUntrusted('repo-map', parts.repoMap)}`);
   }
-  if (specsBlock) userSections.push(`## Project context\n${specsBlock}`);
+  if (specsBlock) {
+    userSections.push(`## Project context\n${specsBlock}\n\n${PROJECT_CONTEXT_RULE}`);
+  }
   if (parts.callers && parts.callers.trim().length > 0) {
     userSections.push(
       `## Callers of changed symbols\n${wrapUntrusted('callers', parts.callers)}`,

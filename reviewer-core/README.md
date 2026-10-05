@@ -39,7 +39,7 @@ trusted from the model. `review/run.ts` orchestrates the run (single-pass by
 default).
 
 The engine also accepts optional prompt slots the **course lessons** start
-feeding it — `skills` (L02, fed by the server: one `### Skill: <name>` block per enabled skill), `memory` (L07), `specs` (L05), `callers`,
+feeding it — `skills` (L02, fed by the server: one `### Skill: <name>` block per enabled skill), `memory` (L07), `projectContext` (L05: `{ path, text }[]`, each document fenced on its own under one `## Project context` heading, followed by the trusted, un-fenced `PROJECT_CONTEXT_RULE` asking the model to name the document a finding relies on), `callers`,
 `intent` (L03: the derived-intent block, fenced and capped at 1500 chars,
 rendered right after `## PR description` and followed by the trusted,
 un-fenced `INTENT_SCOPE_RULE` — a finding's `scope` tag never changes its

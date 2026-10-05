@@ -1,17 +1,67 @@
 {
-  "title": "Onboarding Tour",
-  "sections": "Sections",
-  "sectionCount": "{count} sections",
-  "regenerate": "Regenerate",
-  "regenerating": "Regenerating…",
-  "unknownError": "Unknown error",
-  "generate": {
-    "title": "Generate onboarding tour",
-    "body": "DevDigest indexes the repo and specs, then writes a 5-section guided tour: overview, architecture, key modules, getting started, and conventions & gotchas.",
-    "cta": "Generate onboarding tour",
-    "generating": "Generating…"
+  "page": {
+    "crumb": "Onboarding Tour",
+    "repoFallback": "Repository",
+    "loading": "Loading the onboarding tour",
+    "loadError": "Couldn't load the onboarding tour"
   },
-  "loadError": {
-    "title": "Couldn’t load the onboarding tour"
+  "notCloned": {
+    "title": "This repository has not been cloned yet",
+    "body": "The onboarding tour is written from the local checkout. Clone the repository first."
+  },
+  "empty": {
+    "title": "Generate onboarding tour",
+    "body": "DevDigest indexes the repo and writes a guided tour: architecture, critical paths, how to run, a reading order, and first tasks.",
+    "cta": "Generate onboarding tour"
+  },
+  "generating": {
+    "title": "Generating onboarding tour…"
+  },
+  "error": {
+    "unknown": "The onboarding tour could not be generated.",
+    "retry": "Retry"
+  },
+  "header": {
+    "heading": "Onboarding for",
+    "subtitle": "Generated from index of {count, number} files · generated {time}",
+    "stale": "Repository changed since this tour was generated",
+    "limitedIndex": "Limited index — file suggestions are less precise",
+    "regenerate": "Regenerate",
+    "regenerating": "Regenerating…"
+  },
+  "copy": {
+    "action": "Copy as Markdown",
+    "done": "Copied",
+    "failed": "Couldn't copy to the clipboard"
+  },
+  "nav": {
+    "label": "On this page"
+  },
+  "sections": {
+    "architecture_overview": "Architecture overview",
+    "critical_paths": "Critical paths",
+    "how_to_run": "How to run locally",
+    "guided_reading": "Guided reading path",
+    "first_tasks": "First tasks",
+    "empty": "Nothing found for this section",
+    "open": "Open",
+    "openFile": "Open {path} on GitHub"
+  },
+  "run": {
+    "warning": "Commands are generated from repository files — read them before running",
+    "copyStep": "Copy command {step}",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy",
+    "source": "Source"
+  },
+  "tasks": {
+    "complexity": {
+      "low": "Low complexity",
+      "medium": "Medium complexity",
+      "high": "High complexity"
+    }
+  },
+  "footer": {
+    "line": "Model {model} · {tokensIn, number} tokens in · {tokensOut, number} tokens out · Cost {cost}"
   }
 }

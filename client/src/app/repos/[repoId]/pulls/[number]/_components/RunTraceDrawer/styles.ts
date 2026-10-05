@@ -109,6 +109,17 @@ export const s = {
   specsWrap: { display: "flex", gap: 6, flexWrap: "wrap" } satisfies CSSProperties,
   specsNone: { color: "var(--text-muted)" } satisfies CSSProperties,
   spec: { fontSize: 12, color: "var(--text-secondary)" } satisfies CSSProperties,
+  docList: { display: "flex", flexDirection: "column", gap: 4, minWidth: 0 } satisfies CSSProperties,
+  docItem: { display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 } satisfies CSSProperties,
+  docPath: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  docTotal: { fontSize: 12, color: "var(--text-muted)", marginTop: 2 } satisfies CSSProperties,
   statsRow: { display: "flex", gap: 10 } satisfies CSSProperties,
   rawPre: {
     margin: 0,

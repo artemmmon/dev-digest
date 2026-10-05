@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type {
@@ -121,8 +121,44 @@ export class SkillsRepository implements SkillStore {
           })
           .onConflictDoNothing();
       }
+      if (row && patch.context) {
+        await repo.replaceContextDocs(id, patch.context.repoId, patch.context.paths);
+      }
       return row && toRecord(row);
     });
+  }
+
+  /** Delete + insert the skill's list for one repo, position = index. Caller holds the skill row lock. */
+  private async replaceContextDocs(skillId: string, repoId: string, paths: string[]): Promise<void> {
+    await this.db
+      .delete(t.skillContextDocs)
+      .where(and(eq(t.skillContextDocs.skillId, skillId), eq(t.skillContextDocs.repoId, repoId)));
+    if (paths.length > 0) {
+      await this.db
+        .insert(t.skillContextDocs)
+        .values(paths.map((path, position) => ({ skillId, repoId, path, position })));
+    }
+  }
+
+  async contextPaths(skillId: string, repoId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ path: t.skillContextDocs.path })
+      .from(t.skillContextDocs)
+      .where(and(eq(t.skillContextDocs.skillId, skillId), eq(t.skillContextDocs.repoId, repoId)))
+      .orderBy(asc(t.skillContextDocs.position));
+    return rows.map((r) => r.path);
+  }
+
+  async contextPathsFor(skillIds: string[], repoId: string): Promise<Map<string, string[]>> {
+    const out = new Map<string, string[]>();
+    if (skillIds.length === 0) return out;
+    const rows = await this.db
+      .select({ skillId: t.skillContextDocs.skillId, path: t.skillContextDocs.path })
+      .from(t.skillContextDocs)
+      .where(and(inArray(t.skillContextDocs.skillId, skillIds), eq(t.skillContextDocs.repoId, repoId)))
+      .orderBy(asc(t.skillContextDocs.skillId), asc(t.skillContextDocs.position));
+    for (const r of rows) out.set(r.skillId, [...(out.get(r.skillId) ?? []), r.path]);
+    return out;
   }
 
   async listVersions(workspaceId: string, id: string): Promise<SkillVersionRecord[] | undefined> {

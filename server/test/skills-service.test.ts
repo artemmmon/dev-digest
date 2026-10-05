@@ -56,7 +56,8 @@ class InMemorySkillStore implements SkillStore {
         createdAt: new Date(),
       });
     }
-    const { message: _message, ...fields } = patch;
+    const { message: _message, context, ...fields } = patch;
+    if (context) this.contextDocs.set(`${id}:${context.repoId}`, context.paths);
     Object.assign(s, fields);
     return s;
   }
@@ -70,6 +71,18 @@ class InMemorySkillStore implements SkillStore {
   }
   async deleteById(ws: string, id: string) {
     return (await this.getById(ws, id)) ? this.skills.delete(id) : false;
+  }
+  contextDocs = new Map<string, string[]>();
+  async contextPaths(skillId: string, repoId: string) {
+    return this.contextDocs.get(`${skillId}:${repoId}`) ?? [];
+  }
+  async contextPathsFor(skillIds: string[], repoId: string) {
+    const out = new Map<string, string[]>();
+    for (const id of skillIds) {
+      const paths = this.contextDocs.get(`${id}:${repoId}`);
+      if (paths && paths.length > 0) out.set(id, paths);
+    }
+    return out;
   }
 }
 
@@ -101,7 +114,7 @@ function setup(remote: RemoteFileFetcher = noRemote, archive: ArchiveReader = no
   const skills = new InMemorySkillStore();
   const usage = new FakeUsage();
   const tokenizer = { count: (text: string) => text.split(/\s+/).filter(Boolean).length };
-  return { skills, usage, service: new SkillsService({ skills, archive, remote, usage, tokenizer }) };
+  return { skills, usage, service: new SkillsService({ skills, archive, remote, usage, tokenizer, docs: { listPaths: async () => [] } }) };
 }
 
 const NEW = {

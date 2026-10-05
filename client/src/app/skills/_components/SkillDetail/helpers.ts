@@ -9,3 +9,8 @@ export function parseTab(value: string | null, fallback: SkillTab): SkillTab {
 export function approxTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
+
+/** Two ordered lists are the same only element by element (never `!==` on the arrays). */
+export function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}

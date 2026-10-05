@@ -183,11 +183,21 @@
     "deleteConfirm": "Delete skill \"{name}\"? Agents that use it lose it. This cannot be undone.",
     "tabs": {
       "config": "Config",
+      "context": "Context",
       "preview": "Preview",
       "stats": "Stats",
       "versions": "Versioning"
     },
     "discardConfirm": "Discard your unsaved changes?"
+  },
+  "contextTab": {
+    "title": "Project context to use",
+    "attachedCount": "{count} attached",
+    "repo": "Repository",
+    "inherits": "Any agent using this skill inherits these documents.",
+    "loadError": "Could not load the project context.",
+    "serializesAs": "Serializes as",
+    "noRepo": "Select a repository to attach project context"
   },
   "config": {
     "title": "Configuration",

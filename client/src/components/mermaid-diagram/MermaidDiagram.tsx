@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTheme } from "@/lib/theme";
 
 let seq = 0;
 
@@ -22,6 +23,7 @@ function looksLikeMermaid(src: string): boolean {
 export function MermaidDiagram({ chart }: { chart: string }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const [state, setState] = React.useState<"pending" | "ok" | "invalid">("pending");
+  const { theme } = useTheme();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -34,7 +36,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     (async () => {
       try {
         const mermaid = (await import("mermaid")).default;
-        mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict" });
+        mermaid.initialize({ startOnLoad: false, theme: theme === "light" ? "default" : "dark", securityLevel: "strict" });
         // parse first; suppressErrors → returns false (no throw, no DOM bomb).
         const valid = await mermaid.parse(src, { suppressErrors: true });
         if (cancelled) return;
@@ -53,7 +55,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     return () => {
       cancelled = true;
     };
-  }, [chart]);
+  }, [chart, theme]);
 
   // Not a (valid) diagram → render nothing rather than a broken box.
   if (state === "invalid") return null;

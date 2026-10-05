@@ -9,7 +9,9 @@ import {
   vector,
   index,
   uniqueIndex,
+  check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { workspaces } from './core';
 import { repos } from './repos';
 
@@ -124,3 +126,20 @@ export const onboarding = pgTable('onboarding', {
   json: jsonb('json').notNull(),
   generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+/** Generation state of the onboarding tour — one row per repo (SPEC-11). */
+export const onboardingGenerations = pgTable(
+  'onboarding_generations',
+  {
+    repoId: uuid('repo_id')
+      .primaryKey()
+      .references(() => repos.id, { onDelete: 'cascade' }),
+    status: text('status').$type<'idle' | 'running' | 'failed'>().notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    error: text('error'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    statusCk: check('onboarding_generations_status_ck', sql`${t.status} in ('idle', 'running', 'failed')`),
+  }),
+);
