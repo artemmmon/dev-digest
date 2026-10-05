@@ -2,23 +2,22 @@
 // PreToolUse guard for the spec-creator agent (.claude/agents/spec-creator.md).
 // Exit 0 = allow, exit 2 = block (stderr goes back to the agent).
 //
-// Default-deny: the agent declares `disallowedTools`, not a `tools` allowlist (it must keep Figma
-// read tools reachable), so every tool the session has would otherwise be open to it.
-// Allows:
-//   - the read-only tools in READ_ONLY_TOOLS;
+// The agent's `tools:` allowlist decides which tools it has; this hook runs only for
+// Write, Edit, Agent and MCP tools (the matcher in the frontmatter) and checks what an allowlist
+// cannot:
+//   - MCP calls only to Figma read tools (`get_*`): the allowlist names the whole Figma server;
 //   - the Agent tool only to start a `researcher` (read-only, one question each);
 //   - Write/Edit of `specs/*.md` and `<package>/specs/*.md` only;
 //   - spec files only while they are `Status: draft`, before and after the change
 //     (approval is the user's);
 //   - one exception, the amendment: an `approved` spec may be changed when the change itself
 //     turns it back into `Status: draft`, so the user approves it again. Implemented and legacy
-//     specs stay read-only;
-//   - MCP calls only to Figma read tools (`get_*`).
+//     specs stay read-only.
+// Any other tool is not this hook's business: it exits 0, so a harness tool is never blocked here.
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 const PACKAGES = ['server', 'client', 'reviewer-core', 'e2e', 'mcp'];
-const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob', 'Skill', 'ToolSearch', 'TodoWrite'];
 // The subagent tool is `Agent`; older builds call it `Task`.
 const AGENT_TOOLS = ['Agent', 'Task'];
 const RESEARCH_AGENT = 'researcher';
@@ -75,8 +74,6 @@ if (tool.startsWith('mcp__')) {
   block(`MCP tool "${tool}" is not allowed. Only Figma read tools (get_*) are.`);
 }
 
-if (READ_ONLY_TOOLS.includes(tool)) process.exit(0);
-
 if (AGENT_TOOLS.includes(tool)) {
   if (args.subagent_type === RESEARCH_AGENT) process.exit(0);
   block(
@@ -85,12 +82,7 @@ if (AGENT_TOOLS.includes(tool)) {
   );
 }
 
-if (tool !== 'Write' && tool !== 'Edit') {
-  block(
-    `tool "${tool}" is not allowed. You may use ${READ_ONLY_TOOLS.join(', ')}, Figma read tools, ` +
-      `Agent for "${RESEARCH_AGENT}", and Write/Edit inside the spec folders. Put anything else into your report.`,
-  );
-}
+if (tool !== 'Write' && tool !== 'Edit') process.exit(0);
 
 const root = realpathSync(process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd());
 const rawPath = args.file_path;

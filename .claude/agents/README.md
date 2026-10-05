@@ -8,7 +8,7 @@ file. To add an agent, give it a row here.
 
 | Agent | Responsibility | Model | Tools (allowed / denied) | Writes files |
 |---|---|---|---|---|
-| [spec-creator](spec-creator.md) | Writes one feature spec (problem, user stories, EARS acceptance criteria, edge cases, inputs with provenance, untrusted inputs) from the user's sources; analyzes the design for gaps, edge cases, module interactions and UX improvements and asks before writing | opus | Read, Grep, Glob, Skill, ToolSearch, Write, Edit, Figma read tools, and Agent for `researcher` only: no `tools` allowlist (it would hide the Figma tools), so a default-deny `PreToolUse` hook is the allowlist · preloads `spec-authoring`, `security` · denied Bash, NotebookEdit, WebSearch, WebFetch · a `PostToolUse` hook runs the spec check after each write | yes (`specs/*.md`, `<package>/specs/*.md`, `Status: draft` only) |
+| [spec-creator](spec-creator.md) | Writes one feature spec (problem, user stories, EARS acceptance criteria, edge cases, inputs with provenance, untrusted inputs) from the user's sources; analyzes the design for gaps, edge cases, module interactions and UX improvements and asks before writing | opus | Read, Grep, Glob, Skill, ToolSearch, Write, Edit, Figma read tools, and Agent for `researcher` only: a `tools` allowlist plus a `PreToolUse` hook on Write, Edit, Agent and MCP calls · preloads `spec-authoring`, `security` · denied Bash, NotebookEdit, WebSearch, WebFetch · a `PostToolUse` hook runs the spec check after each write | yes (`specs/*.md`, `<package>/specs/*.md`, `Status: draft` only) |
 | [brainstorm](brainstorm.md) | Compares ways to build an approved spec or a fix: 3–5 options scored in a weighted matrix with a sensitivity check, or a short brief when only one way is viable; recommends one | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch, Skill, Write, Edit · preloads `onion-architecture`, `frontend-architecture` · denied NotebookEdit, Agent · a `PreToolUse` hook limits Write/Edit to its brief | yes (`docs/plans/NN-*.brainstorm.md`, `Status: awaiting choice` only) |
 | [researcher](researcher.md) | Answers one concrete question from the repo, external sources or both | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch, AskUserQuestion (filtered out when run as a subagent), Skill · denied Write, Edit, NotebookEdit | no |
 | [implementation-planner](implementation-planner.md) | Reviews the requirements (questions, recommendations, execution mode), then turns them into a Development Plan that honors modules, skills, INSIGHTS.md and architecture rules, and cites every spec id. Writes no specs | opus | Read, Grep, Glob, Bash, Skill, AskUserQuestion (filtered out when run as a subagent), Write, Edit · preloads `onion-architecture`, `frontend-architecture`, `engineering-insights` · denied NotebookEdit, Agent, WebSearch, WebFetch · a `PreToolUse` hook limits Write/Edit to its plan; a `PostToolUse` hook runs the plan check | yes (`docs/plans/NN-*.md`, `Status: draft` only) |
@@ -35,13 +35,14 @@ the diff, and never with `--fix`. None of them commits, pushes or opens PRs. For
 `gh pr create` and `gh pr merge`, the `pr-self-review` hook in `.claude/settings.json` blocks the
 command whoever runs it.
 
-`spec-creator` has no Bash at all. Its scope is enforced, not only instructed. It declares
-`disallowedTools` rather than a `tools` allowlist, which leaves every other tool of the session
-open, so the hook [spec-creator-guard.mjs](../hooks/spec-creator-guard.mjs), declared in the
-agent's frontmatter with the matcher `*`, denies by default. It allows Read, Grep, Glob, Skill,
-ToolSearch and TodoWrite; the Agent tool only with `subagent_type: researcher`; Write/Edit only in `specs/*.md` and `<package>/specs/*.md`, only on a
-spec that is `Status: draft` and still is after the change (the hook applies the edit in memory
-and checks the result); and MCP calls only to Figma read tools (`get_*`). One exception is the amendment: an `approved`
+`spec-creator` has no Bash at all. Its scope is enforced, not only instructed. Like the other
+agents it has a `tools` allowlist (Read, Grep, Glob, Skill, ToolSearch, Write, Edit, Agent and the
+Figma server `mcp__plugin_design_figma`); the hook [spec-creator-guard.mjs](../hooks/spec-creator-guard.mjs),
+declared in its frontmatter with the matcher `Write|Edit|Agent|Task|mcp__.*`, checks what an
+allowlist cannot: the Agent tool only with `subagent_type: researcher`; Write/Edit only in
+`specs/*.md` and `<package>/specs/*.md`, only on a spec that is `Status: draft` and still is after
+the change (the hook applies the edit in memory and checks the result); and MCP calls only to
+Figma read tools (`get_*`). Any other tool passes the hook untouched. One exception is the amendment: an `approved`
 spec may be edited when the edit itself turns it back into a draft. A second hook,
 `PostToolUse` on Write/Edit, runs
 [check-spec.mjs](../skills/spec-authoring/assets/check-spec.mjs) `--hook` and returns the spec's

@@ -32,16 +32,9 @@ function run(root, tool_name, tool_input = {}) {
 const allowed = (r) => assert.equal(r.code, 0, r.stderr);
 const blocked = (r) => assert.equal(r.code, 2, 'expected the guard to block');
 
-test('read-only tools are allowed', () => {
+test('tools other than Write, Edit, Agent and MCP are not this hook\'s business', () => {
   const root = project();
-  for (const tool of ['Read', 'Grep', 'Glob', 'Skill', 'ToolSearch']) allowed(run(root, tool));
-});
-
-test('every other tool is blocked by default', () => {
-  const root = project({ 'specs/10-probe.md': DRAFT });
-  for (const tool of ['Artifact', 'Bash', 'CronCreate', 'RemoteTrigger', 'WebFetch', 'SendMessage', '']) {
-    blocked(run(root, tool, { file_path: 'specs/10-probe.md' }));
-  }
+  for (const tool of ['Read', 'Grep', 'Skill', 'SubagentHandback', 'SendMessage', '']) allowed(run(root, tool));
 });
 
 test('Agent: only the researcher may be started', () => {
