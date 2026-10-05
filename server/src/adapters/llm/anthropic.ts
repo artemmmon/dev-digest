@@ -100,19 +100,27 @@ export class AnthropicProvider implements LLMProvider {
     let lastRaw = '';
 
     for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-      const res = await withRetry(() =>
-        withTimeout(
-          this.client.messages.create({
-            model: req.model,
-            system: system || undefined,
-            messages,
-            max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
-            output_config: {
-              format: { type: 'json_schema', schema: jsonSchema.schema as Record<string, unknown> },
-            },
-          }),
-          req.timeoutMs ?? DEFAULT_TIMEOUT,
-        ),
+      const res = await withRetry(
+        () =>
+          withTimeout(
+            this.client.messages.create(
+              {
+                model: req.model,
+                system: system || undefined,
+                messages,
+                max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
+                output_config: {
+                  format: {
+                    type: 'json_schema',
+                    schema: jsonSchema.schema as Record<string, unknown>,
+                  },
+                },
+              },
+              req.transportRetries !== undefined ? { maxRetries: req.transportRetries } : undefined,
+            ),
+            req.timeoutMs ?? DEFAULT_TIMEOUT,
+          ),
+        req.transportRetries !== undefined ? { retries: req.transportRetries } : {},
       );
       tokensIn += res.usage.input_tokens;
       tokensOut += res.usage.output_tokens;

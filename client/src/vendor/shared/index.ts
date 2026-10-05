@@ -4,8 +4,9 @@
  * Exports (Zod schemas + inferred TS types):
  *  - contracts/findings   Review, Finding, Severity, Verdict, FindingAction, trifecta
  *  - contracts/brief      Intent, BlastRadius, Risks, PrHistory, SmartDiff, PrBrief
- *  - contracts/knowledge  Conformance, Onboarding, EvalRun/EvalCase, MemoryItem,
+ *  - contracts/knowledge  Conformance, EvalRun/EvalCase, MemoryItem,
  *                         Skill/CommunitySkill, ConventionCandidate, Agent
+ *  - contracts/onboarding-tour  Tour, TourRead, TourGeneration (five-section onboarding tour)
  *  - contracts/trace      RunTrace, RunEvent, RunLogLine (single-document trace)
  *  - contracts/platform   Settings, ConnTestResult, Repo, PrMeta/PrDetail, …
  *  - contracts/project-context  ProjectDocument(List), ContextDocRecord, Agent/SkillContext
@@ -20,6 +21,7 @@ export * from './contracts/findings';
 export * from './contracts/review-api';
 export * from './contracts/brief';
 export * from './contracts/knowledge';
+export * from './contracts/onboarding-tour';
 export * from './contracts/trace';
 export * from './contracts/platform';
 export * from './contracts/project-context';
