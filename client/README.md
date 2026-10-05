@@ -26,15 +26,18 @@ flowchart TD
   ONB["/onboarding<br/>add repo"] -->|"POST /repos"| API[("Fastify API")]
   PULLS --> PR["/pulls/:number<br/>review detail<br/>(overview · diff · findings)"]
 
-  AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config · skills)"]
-  SKILLS["/skills<br/>card grid · preview drawer (?skill=) · create (?create=1)"] --> SKILL["/skills/:id<br/>config · preview · stats · versioning (?tab=)"]
+  CTX["/repos/:repoId/context<br/>Project Context (read-only)"]
+  AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config · skills · context)"]
+  SKILLS["/skills<br/>card grid · preview drawer (?skill=) · create (?create=1)"] --> SKILL["/skills/:id<br/>config · context · preview · stats · versioning (?tab=)"]
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state<br/>GET /pulls/:id/reviews (lazy, FINDINGS hover popover)"| API
   PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff<br/>POST /pulls/:id/review · /pulls/:id/intent · /findings/:id/(accept|dismiss)"| API
+  CTX -->|"GET /repos/:id/context · /repos/:id/context/content"| API
+  AGENT -->|"GET · PUT /agents/:id/context · GET /repos/:id/context"| API
   AGENTS -->|"/agents · /agents/:id · /agents/:id/skills"| API
   SKILLS -->|"/skills · /skills/:id/enabled · /skills/import/preview"| API
-  SKILL -->|"/skills/:id · /skills/:id/versions · /skills/:id/agents"| API
+  SKILL -->|"/skills/:id · /skills/:id/versions · /skills/:id/agents · GET /skills/:id/context"| API
   SETTINGS -->|"/settings · /providers"| API
 ```
 

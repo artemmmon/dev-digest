@@ -20,6 +20,9 @@ import { Row, Stat } from "../atoms";
 export function TraceBody({ trace, findings }: { trace: RunTrace; findings: FindingRecord[] }) {
   const t = useTranslations("runs");
   const stats = trace.stats;
+  // Stored traces from before project context have no records: `specs_read` paths are shown instead.
+  const docs = trace.context_docs ?? [];
+  const docTokens = docs.reduce((sum, d) => sum + (d.status === "read" ? d.tokens : 0), 0);
   return (
     <>
       <TraceSection icon="Settings" title={t("trace.configuration")}>
@@ -38,17 +41,39 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
             <span>{t("trace.config.items", { count: trace.memory_pulled.length })}</span>
           </Row>
           <Row label={t("trace.config.specsRead")}>
-            <div style={s.specsWrap}>
-              {trace.specs_read.length === 0 ? (
-                <span style={s.specsNone}>{t("trace.config.none")}</span>
-              ) : (
-                trace.specs_read.map((sp, i) => (
-                  <span key={i} className="mono" style={s.spec}>
-                    {sp}
-                  </span>
-                ))
-              )}
-            </div>
+            {docs.length > 0 ? (
+              <div style={s.docList}>
+                {docs.map((d) => (
+                  <div key={d.path} style={s.docItem}>
+                    <span className="mono" style={s.docPath}>
+                      {d.path}
+                    </span>
+                    {d.status === "read" ? (
+                      <Badge color="var(--accent)" bg="var(--accent-bg)" mono>
+                        {t("trace.prompt.tokens", { count: d.tokens })}
+                      </Badge>
+                    ) : (
+                      <Badge color="var(--warn)" bg="var(--warn-bg)">
+                        {t(`trace.config.docStatus.${d.status}`)}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+                {docTokens > 0 && <div style={s.docTotal}>{t("trace.config.contextTotal", { count: docTokens })}</div>}
+              </div>
+            ) : (
+              <div style={s.specsWrap}>
+                {trace.specs_read.length === 0 ? (
+                  <span style={s.specsNone}>{t("trace.config.none")}</span>
+                ) : (
+                  trace.specs_read.map((sp, i) => (
+                    <span key={i} className="mono" style={s.spec}>
+                      {sp}
+                    </span>
+                  ))
+                )}
+              </div>
+            )}
           </Row>
         </div>
       </TraceSection>

@@ -7,7 +7,8 @@
  *  - contracts/knowledge  Conformance, Onboarding, EvalRun/EvalCase, MemoryItem,
  *                         Skill/CommunitySkill, ConventionCandidate, Agent
  *  - contracts/trace      RunTrace, RunEvent, RunLogLine (single-document trace)
- *  - contracts/platform   Settings, ConnTestResult, Repo, PrMeta/PrDetail, SpecFile, …
+ *  - contracts/platform   Settings, ConnTestResult, Repo, PrMeta/PrDetail, …
+ *  - contracts/project-context  ProjectDocument(List), ContextDocRecord, Agent/SkillContext
  *  - contracts/languages  ext -> language table, generated/junk/lockfile/scaffold patterns
  *  - adapters             adapter interfaces + ModelInfo
  *
@@ -21,6 +22,7 @@ export * from './contracts/brief';
 export * from './contracts/knowledge';
 export * from './contracts/trace';
 export * from './contracts/platform';
+export * from './contracts/project-context';
 export * from './contracts/why';
 export * from './contracts/eval-ci';
 export * from './contracts/observability';

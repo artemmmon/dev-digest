@@ -1,24 +1,62 @@
 {
   "title": "Project Context",
-  "chunks": "{count} chunks",
-  "reindex": "Re-index",
-  "indexing": "Indexing…",
-  "resync": "Resync",
-  "resyncing": "Resyncing…",
-  "indexStatus": "Index status: {status}",
-  "loadError": "Couldn’t load specs",
-  "kb": "{kb}kb",
+  "tokens": "≈ {tokens} tokens",
+  "tokensShort": "{tokens} tokens",
+  "usedBy": "Used by {count, plural, one {# agent} other {# agents}}",
+  "overCap": "over {cap} soft cap",
+  "type": {
+    "specs": "specs",
+    "docs": "docs",
+    "insights": "insights"
+  },
+  "notCloned": {
+    "title": "Repository not cloned yet",
+    "body": "This repository has no local checkout yet, so its documents cannot be listed. They appear once the repository has been cloned."
+  },
   "empty": {
-    "title": "No spec files yet",
-    "body": "Drop your PRDs, tech specs, and acceptance criteria under .devdigest/specs/. Every agent and the PR brief read them as grounding context."
+    "title": "No documents found",
+    "body": "No markdown files match {pattern}. Add documents under specs/, docs/ or insights/ in the repository, then refresh."
   },
-  "mode": {
-    "preview": "preview",
-    "edit": "edit"
+  "list": {
+    "orderHint": "Order matters: earlier documents appear earlier in the assembled Project context block. Toggle to attach.",
+    "filterPlaceholder": "Filter documents…",
+    "noMatch": "No documents match “{q}”",
+    "toggleLabel": "Attach {path}",
+    "detachLabel": "Detach {path}",
+    "moveHandle": "Move {path}",
+    "dragHandle": "Drag to reorder, or press ArrowUp or ArrowDown",
+    "preview": "Preview",
+    "previewLabel": "Preview {path}",
+    "missing": "missing",
+    "viaSkill": "via skill {name}",
+    "untrustedNote": "Injected as an untrusted block into every run."
   },
-  "editor": {
-    "loadError": "Couldn’t load spec",
-    "save": "Save",
-    "saving": "Saving…"
+  "drawer": {
+    "attach": "Attach",
+    "attached": "Attached"
+  },
+  "content": {
+    "loading": "Loading document",
+    "errorTitle": "Couldn’t load the document",
+    "loadError": "The document could not be loaded. Try again.",
+    "status": {
+      "read": "This document has no content to show.",
+      "missing": "This document is no longer in the repository checkout.",
+      "too_large": "This document is too large to read, so it is not sent to the model.",
+      "unreadable": "This document cannot be read as text, so it is not sent to the model."
+    }
+  },
+  "page": {
+    "crumb": "Project Context",
+    "repoFallback": "repository",
+    "heading": "Project Context",
+    "pattern": "Pattern",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "refreshLabel": "Refresh the document list",
+    "loadError": "Couldn’t load the project documents",
+    "listLabel": "Project documents",
+    "selectPrompt": "Select a document to read it.",
+    "docCount": "{count, plural, one {# document} other {# documents}}"
   }
 }

@@ -6,10 +6,12 @@ import {
   boolean,
   jsonb,
   primaryKey,
+  index,
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { now } from './_shared';
 import { workspaces } from './core';
+import { repos } from './repos';
 
 export const skills = pgTable('skills', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -46,4 +48,24 @@ export const skillVersions = pgTable(
     createdAt: now(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.skillId, t.version] }) }),
+);
+
+/** Project documents attached to a skill for one repo; same shape as `agent_context_docs`. */
+export const skillContextDocs = pgTable(
+  'skill_context_docs',
+  {
+    skillId: uuid('skill_id')
+      .notNull()
+      .references(() => skills.id, { onDelete: 'cascade' }),
+    repoId: uuid('repo_id')
+      .notNull()
+      .references(() => repos.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.skillId, t.repoId, t.path] }),
+    // the PK leads with skill_id; this one serves the FK cascade from repos
+    repoIdx: index('skill_context_docs_repo_idx').on(t.repoId),
+  }),
 );

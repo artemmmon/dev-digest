@@ -148,6 +148,13 @@
       "when": 1790410323195,
       "tag": "0020_orange_johnny_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791144260200,
+      "tag": "0021_warm_green_goblin",
+      "breakpoints": true
     }
   ]
 }

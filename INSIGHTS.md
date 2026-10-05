@@ -35,6 +35,10 @@ is gone. To catch new drift, re-read README claims against `server/src/db/seed.t
 `.env.example` after every lesson merge.
 Where: `README.md:73`, `.gitignore:5`.
 
+### 2026-10-05 — `docs/agent-prompts/README.md` still calls Project context "untrusted spec chunks"
+After SPEC-10 the `## Project context` section holds one fenced block per attached document (`### <path>` first line) followed by the trusted `PROJECT_CONTEXT_RULE`, not "spec chunks"; the slot is `projectContext`, not `specs`. doc-writer may not edit `docs/agent-prompts/**`, so the line is left stale. Fix it by hand when touching that file; `docs/project-context.md` has the current shape.
+Where: docs/agent-prompts/README.md:48, reviewer-core/src/prompt.ts:159
+
 ## Codebase Patterns
 
 ### 2026-09-15 — `vendor/shared` copies have diverged
@@ -294,6 +298,20 @@ the stream-start value (8–30), and 441 of 673 requests had no final line. `ret
 maximum per request and otherwise estimates output as characters ÷ 4. The format is internal and
 undocumented: re-check after a Claude Code update.
 Where: .claude/skills/workflow-retro/assets/retro.mjs:90, .claude/skills/workflow-retro/references/reading.md:37
+
+### 2026-10-04 — spec-creator guard blocks `SubagentHandback`, so its reports never arrive
+A background `spec-creator` ends with "ended without delivering a report" on every pass: the guard
+is default-deny and `SubagentHandback` is not in `READ_ONLY_TOOLS`. The spec file is still written.
+Until the tool is added to the allowlist, take the report from the agent's transcript with a
+targeted `jq` (last assistant text block), never a full read; asking it to resend only burns tokens.
+Where: .claude/hooks/spec-creator-guard.mjs:21
+
+### 2026-10-04 — Supersedes "spec-creator guard blocks `SubagentHandback`, so its reports never arrive"
+Fixed the same day by dropping default-deny: `spec-creator` now has a `tools:` allowlist like the
+other agents and the guard runs only for `Write|Edit|Agent|Task|mcp__.*`. Do not write a `*` guard
+that blocks unknown tools for a background agent: harness tools such as `SubagentHandback` are not
+in any list you will think of. Figma stays reachable through the server entry in `tools:`.
+Where: .claude/agents/spec-creator.md:4, .claude/hooks/spec-creator-guard.mjs:5
 
 ## Recurring Errors & Fixes
 

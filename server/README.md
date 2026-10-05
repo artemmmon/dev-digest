@@ -77,10 +77,11 @@ flowchart TB
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
     intent["intent<br/>/pulls/:id/intent (GET · POST)"]
     smartDiff["smart-diff<br/>/pulls/:id/smart-diff (GET)"]
+    projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/content (GET)"]
   end
   subgraph Agents["Agents"]
-    agents["agents<br/>/agents · /agents/:id · /agents/:id/skills"]
-    skills["skills<br/>/skills · /skills/:id · /skills/import/preview"]
+    agents["agents<br/>/agents · /agents/:id · /agents/:id/skills · /agents/:id/context"]
+    skills["skills<br/>/skills · /skills/:id · /skills/:id/context · /skills/import/preview"]
   end
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
@@ -142,6 +143,10 @@ What the reviewer actually sends to the model is assembled in
   demo / test / not for production / do not flag" never descope the review — real
   defects are reported at full severity regardless. We deliberately do **not**
   keyword-scan untrusted text (a denylist only catches one phrasing).
+- **Project context is attached by hand.** Repository markdown documents attached to
+  the agent and to its enabled skills are read from the local checkout at run start
+  (`modules/project-context`), fenced as untrusted data under `## Project context`, and
+  recorded in the trace. See [`../docs/project-context.md`](../docs/project-context.md).
 - **Grounding is mandatory.** Every finding must cite a line that exists in the
   diff or it is dropped (`groundFindings`), and the score is recomputed from the
   surviving findings — the model's self-reported score is ignored.

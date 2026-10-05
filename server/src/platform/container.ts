@@ -50,6 +50,9 @@ import { AstGrepSourceParser } from '../adapters/astgrep/source-parser.js';
 import { FsRepoFiles } from '../adapters/repo-files/fs.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
+import { FsProjectDocReader } from '../adapters/project-docs/fs.js';
+import type { ProjectDocReader } from '../modules/project-context/ports.js';
+import { ProjectContextService } from '../modules/project-context/service.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -117,6 +120,8 @@ export class Container {
   private _sourceParser?: SourceParser;
   private _repoFiles?: RepoFiles;
   private _tokenizer?: Tokenizer;
+  private _projectDocReader?: ProjectDocReader;
+  private _projectContextService?: ProjectContextService;
   private _priceBook?: PriceBook;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
@@ -204,6 +209,7 @@ export class Container {
       // Structural port onto the intent service (L03) — reviews never imports
       // `modules/intent` directly; the container is the only file that knows both.
       intent: this.intentService,
+      projectContext: this.projectContextService,
     };
   }
 
@@ -289,6 +295,23 @@ export class Container {
   }
 
   /** Token counter (js-tiktoken) for the repo-map budget search. */
+  /** Bounded, root-confined reader for project documents (SPEC-10). */
+  get projectDocReader(): ProjectDocReader {
+    return (this._projectDocReader ??= new FsProjectDocReader());
+  }
+
+  /** Project documents of a repo's checkout; also the port agents, skills and reviews use. */
+  get projectContextService(): ProjectContextService {
+    return (this._projectContextService ??= new ProjectContextService({
+      repos: this.reposRepo,
+      git: this.git,
+      reader: this.projectDocReader,
+      tokenizer: this.tokenizer,
+      agents: this.agentsRepo,
+      skills: this.skillsRepo,
+    }));
+  }
+
   get tokenizer(): Tokenizer {
     if (this.overrides.tokenizer) return this.overrides.tokenizer;
     this._tokenizer ??= new TiktokenTokenizer();

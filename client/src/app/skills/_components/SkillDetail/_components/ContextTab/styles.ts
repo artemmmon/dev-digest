@@ -1,0 +1,45 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for the skill Context tab. */
+export const s = {
+  tab: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" } satisfies CSSProperties,
+  scroll: { flex: 1, minHeight: 0, overflow: "auto", padding: "22px 28px 24px" } satisfies CSSProperties,
+  inner: { maxWidth: 720 } satisfies CSSProperties,
+  header: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } satisfies CSSProperties,
+  h2: { fontSize: 16, fontWeight: 700, margin: 0 } satisfies CSSProperties,
+  repo: { fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" } satisfies CSSProperties,
+  repoName: { color: "var(--text-secondary)" } satisfies CSSProperties,
+  inherits: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px", lineHeight: 1.5 } satisfies CSSProperties,
+  serialize: { marginTop: 14 } satisfies CSSProperties,
+  serializeLabel: {
+    fontSize: 10.5,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    color: "var(--text-muted)",
+    textTransform: "uppercase",
+    marginBottom: 6,
+  } satisfies CSSProperties,
+  serializePre: {
+    margin: 0,
+    padding: "11px 14px",
+    fontSize: 11.5,
+    lineHeight: 1.7,
+    color: "var(--text-secondary)",
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+  } satisfies CSSProperties,
+  footer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    padding: "12px 28px",
+    borderTop: "1px solid var(--border)",
+    background: "var(--bg-primary)",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  invalid: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+} as const;

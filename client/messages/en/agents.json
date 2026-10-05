@@ -50,6 +50,7 @@
     "tabs": {
       "config": "Config",
       "skills": "Skills",
+      "context": "Context",
       "evals": "Evals",
       "stats": "Stats",
       "ci": "CI"
@@ -115,6 +116,13 @@
     "dragLocked": "Only enabled skills can be reordered",
     "moveHandle": "Move {name}",
     "noMatch": "No skills match “{q}”."
+  },
+  "context": {
+    "title": "Project context",
+    "attachedCount": "{attached} of {total} attached",
+    "repo": "Repository",
+    "loadError": "Could not load the project context.",
+    "noRepo": "Select a repository to attach project context"
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."

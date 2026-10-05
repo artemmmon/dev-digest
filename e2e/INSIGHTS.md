@@ -96,4 +96,8 @@ adding a flow step for it; `FileCard.test.tsx` covers the chip precisely instead
 ever needs it, seed a PR file whose chip label is long/distinctive (`yaml`, `dart`), not `ts`/`js`.
 Where: `specs/05-pr-diff.flow.json`, `../client/src/components/diff-viewer/FileCard/FileCard.tsx`.
 
+### 2026-10-04 — SPEC-10 NFR-11 (project-context e2e flow) is deferred
+No flow covers Project Context yet. A flow needs a model that answers without a real LLM, but no stub model provider is reachable from a running API, and the seeded repo has no checkout (`clonePath: null`), so document discovery has nothing to read. Plan 06 deferred both to a follow-up plan, so NFR-11 is NOT met. Before adding the flow: add a stub provider the API can select by env, and a fixture checkout for the seeded repo.
+Where: `../server/src/db/seed.ts:318`, `../specs/10-project-context.md` (NFR-11).
+
 ## Session Notes

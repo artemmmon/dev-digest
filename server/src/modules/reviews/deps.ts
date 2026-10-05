@@ -1,4 +1,5 @@
 import type {
+  ContextDocRecord,
   GitClient,
   LLMProvider,
   PrIntent,
@@ -25,6 +26,22 @@ export interface IntentPort {
   ): Promise<{ intent: PrIntent; stale: boolean } | null>;
 }
 
+/**
+ * Structural port onto the project-context service — reviews reaches it through this narrow
+ * interface, not `modules/project-context`'s concrete class.
+ */
+export interface ProjectContextPort {
+  /**
+   * The documents attached to the agent and to the given skills, in prompt order (first
+   * occurrence of a path wins), and one record per attached path for the run trace.
+   */
+  resolveForRun(input: {
+    repo: RunRepo;
+    agentId: string;
+    skillIds: string[];
+  }): Promise<{ documents: Array<{ path: string; text: string }>; records: ContextDocRecord[] }>;
+}
+
 /** Everything the review service and the run executor collaborate with — narrow ports, no Container. */
 export interface ReviewDeps {
   reviews: ReviewStore;
@@ -41,6 +58,8 @@ export interface ReviewDeps {
   tokenizer: { count(text: string): number };
   /** The PR's derived intent (L03) — shared pre-work, reused across every agent in the batch. */
   intent: IntentPort;
+  /** Repository documents attached to the agent and its skills (untrusted text for the prompt). */
+  projectContext: ProjectContextPort;
 }
 
 /** The repo a PR belongs to — enough to run git against its clone. */

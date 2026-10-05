@@ -6,6 +6,7 @@ import { api } from "../api";
 import { keys } from "../query-keys";
 import type {
   AgentSkillLink,
+  ContextAttachmentInput,
   Skill,
   SkillAgentUse,
   SkillImportPreview,
@@ -73,6 +74,8 @@ export interface UpdateSkillInput {
     body: string;
     applies_to: string[] | null;
     message: string;
+    /** The skill's whole project-document list for one repo; saved with the skill, no new version. */
+    context: ContextAttachmentInput;
   }>;
 }
 
@@ -80,10 +83,16 @@ export function useUpdateSkill() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, patch }: UpdateSkillInput) => api.put<Skill>(`/skills/${id}`, patch),
-    onSuccess: (data) => {
+    onSuccess: (data, { patch }) => {
       qc.invalidateQueries({ queryKey: keys.skills() });
       qc.invalidateQueries({ queryKey: keys.skillVersions(data.id) });
       qc.setQueryData(keys.skill(data.id), data);
+      if (patch.context) {
+        // the attachment list and "used by N agents" moved; show the saved list now, then confirm it
+        qc.setQueryData(keys.skillContext(data.id, patch.context.repo_id), { paths: patch.context.paths });
+        qc.invalidateQueries({ queryKey: keys.skillContext(data.id, patch.context.repo_id) });
+        qc.invalidateQueries({ queryKey: keys.projectDocs(patch.context.repo_id) });
+      }
     },
   });
 }

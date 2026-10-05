@@ -59,6 +59,10 @@ architecture decision (the two copies stop being literally byte-identical, thoug
 semantically identical), so it needs sign-off before implementing, not just for someone to hit next.
 Where: `../scripts/shared-contracts.sh`, `src/vendor/shared/index.ts`, `../server/src/vendor/shared/contracts/platform.ts:2` (`import { Provider } from './knowledge.js'`, one of several internal `.js` cross-imports needing the same treatment).
 
+### 2026-10-05 — Repository markdown in previews still loads remote images
+`DocContent` renders project documents through the kit `Markdown` (react-markdown, no raw HTML), but the primitive overrides only `p`, `strong`, `code` and `a`, so `![](https://…)` becomes a real `<img>` and the browser fetches it when you open a preview or the Project Context page. To stop it, add an `img` component override to the primitive (render the alt text or a link) — the primitive is also used by skill previews, `FindingCard` and `CommentCard`, so check them first.
+Where: client/src/vendor/ui/primitives/Markdown.tsx:31, client/src/components/context-docs/DocContent.tsx:37
+
 ## Codebase Patterns
 
 ### 2026-09-15 — Local `vendor/shared` lags behind the server
@@ -490,6 +494,13 @@ Vitest/TanStack Query internals, not confirmed beyond the observed stack)**.
 Where: `src/lib/hooks/reviews.test.tsx:181` (`usePrRunTracking` describe block).
 
 ## Open Questions
+
+### 2026-10-04 — Context tabs with no active repository are undefined
+The agent and skill editors are not repo-scoped, but both Context tabs list one repo's documents (`useActiveRepo()`). Neither SPEC-10 nor the design says what the tab shows when `reposLoaded` is true and `activeRepo` is null, so both tabs render nothing there. Needs a decision (empty state with a link to Repos?), then replace the `return null`. Where: src/app/skills/_components/SkillDetail/_components/ContextTab/ContextTab.tsx:24 and src/app/agents/[id]/_components/AgentEditor/_components/ContextTab/ContextTab.tsx:20
+
+### 2026-10-04 — Supersedes "Context tabs with no active repository are undefined"
+Decided in SPEC-10 AC-73 to AC-78: with `reposLoaded` true and `activeRepo` null, both Context tabs show the kit `EmptyState` (Folder icon, "Select a repository to attach project context", no button); the skill tab keeps only its heading and drops the Save/Discard footer. `SkillDetail` keys the attachment draft by `activeRepo?.id ?? null`, not the raw `repoId`, because `repoId` can be a stale `localStorage` id that matches no repository and would otherwise reach `useSkillContext` and the save patch. Do not edit the old entry.
+Where: `src/app/skills/_components/SkillDetail/SkillDetail.tsx:56`
 
 ## Session Notes
 

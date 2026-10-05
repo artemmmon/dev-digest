@@ -6,6 +6,7 @@
   "agents": "Agents",
   "skills": "Skills",
   "conventions": "Conventions",
+  "context": "Project Context",
   "settings": "Settings",
   "addRepo": "Add repository"
 }
