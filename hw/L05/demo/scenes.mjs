@@ -110,7 +110,13 @@ export default function scenes(stage) {
         await sleep(ms * 0.3);
         const [x, y] = web.pos; await web.glide(x - 420, y, 1200);   // over the skeleton
       });
-      if (!dry) await focus().waitFor({ timeout: 120000 });           // the brief has arrived
+      if (!dry) {
+        // The empty-state card (and its button) goes away once the brief is stored. Do not wait on the
+        // Review focus block: it is not rendered when the model returns no items, and assertBrief() below
+        // is what reports that case.
+        await generate().waitFor({ state: 'detached', timeout: 120000 });
+        await footer().waitFor({ timeout: 10000 });
+      }
       still('dry-s1-end');
       await sleep(1500);
       await stop();

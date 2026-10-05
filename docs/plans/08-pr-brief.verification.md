@@ -46,7 +46,7 @@ Every id below has its own row in the verifier's matrix; rows are grouped here b
 | S1 – S12 `.change` | Each plan step's change is in the code | met | per step, see the plan |
 | S1 – S7, S9 – S11 `.done` | Step checks | met | `./scripts/check-changed.sh` 11 of 11 |
 | S8.done | `curl …/pulls/<id>/brief` answers `{"brief":null,…}` | cannot verify → checked by hand | see below |
-| S12.done | Opening `…?tab=diff&file=…&line=…` shows the file open with the accent border | cannot verify → partly checked by hand | see below |
+| S12.done | Opening `…?tab=diff&file=…&line=…` shows the file open with the accent border | cannot verify → checked by hand | see below |
 | M1, M2, V1 – V4 | Contracts in sync, no schema change, package checks | met | `check-changed.sh`; no change under `server/src/db/` |
 | P1, P2, S*.files, I1 – I3 | Status lines, planned files, planned INSIGHTS entries | met | `check-plan.mjs --implemented` |
 | unplanned-change | No changed file outside the plan | gap | see below |

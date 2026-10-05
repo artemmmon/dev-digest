@@ -45,7 +45,8 @@
     "baseUrl": "http://localhost:3110",
     "apiUrl": "http://localhost:3111",
     "repoId": "0ec42231-7c58-4ab1-845d-0d8e355af9a3",
-    "testPr": 11
+    "testPr": 11,
+    "prBranch": "emdash/hw-05-l9xs9"
   },
   "neverClick": [
     "Run Review",
