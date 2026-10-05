@@ -11,12 +11,19 @@ export const s = {
     overflow: "hidden",
     background: "var(--bg-elevated)",
   } satisfies CSSProperties,
+  /** The file a jump landed on: accent border, like the focused finding card in the design. */
+  fileCardFocused: {
+    border: "1px solid var(--accent)",
+    boxShadow: "0 0 0 1px var(--accent)",
+  } satisfies CSSProperties,
   fileHeader: {
     display: "flex",
     alignItems: "center",
     gap: 10,
     padding: "10px 12px",
     cursor: "pointer",
+    // A jump scrolls the header into view: leave room for the sticky PR header.
+    scrollMarginTop: "var(--pr-header-h, 0px)",
   } satisfies CSSProperties,
   fileIcon: { color: "var(--text-muted)" } satisfies CSSProperties,
   filePath: {
@@ -66,6 +73,10 @@ export const s = {
     color: "var(--text-muted)",
     userSelect: "none",
     flexShrink: 0,
+  } satisfies CSSProperties,
+  lineHighlight: {
+    background: "var(--accent-bg)",
+    boxShadow: "inset 0 0 0 1px var(--accent)",
   } satisfies CSSProperties,
   lineText: {
     flex: 1,

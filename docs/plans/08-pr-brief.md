@@ -1,5 +1,5 @@
 # Development Plan: PR Brief (Why + Risk brief on the Overview tab)
-Status: approved
+Status: implemented
 Spec: specs/12-pr-brief.md
 Brainstorm: docs/plans/08-pr-brief.brainstorm.md
 Execution mode: multi-agent (chosen by the user)

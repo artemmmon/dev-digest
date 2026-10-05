@@ -43,6 +43,10 @@ import type { BlastDeps } from '../modules/blast/ports.js';
 import type { ReviewDeps } from '../modules/reviews/deps.js';
 import { IntentRepository } from '../modules/intent/repository.js';
 import type { IntentDeps } from '../modules/intent/ports.js';
+import { BriefRepository } from '../modules/brief/repository.js';
+import type { BriefDeps, BriefLog } from '../modules/brief/ports.js';
+import { BlastService } from '../modules/blast/service.js';
+import { classifyFile } from '../modules/smart-diff/index.js';
 import { IntentService } from '../modules/intent/service.js';
 import { SettingsRepository } from '../modules/settings/repository.js';
 import { RepoRepository } from '../modules/repos/index.js';
@@ -118,6 +122,7 @@ export class Container {
   private _pullsRepo?: PullsRepository;
   private _smartDiffRepo?: SmartDiffRepository;
   private _blastRepo?: BlastRepository;
+  private _briefRepo?: BriefRepository;
   private _settingsRepo?: SettingsRepository;
   private _reposRepo?: RepoRepository;
   private _repoIntel?: RepoIntel;
@@ -244,6 +249,31 @@ export class Container {
           // persistentOnly: the blast route never parses the clone, even if the index row flips after its state read.
           this.repoIntel.getBlastRadius(repoId, files, { persistentOnly: true }),
       },
+    };
+  }
+
+  get briefRepo(): BriefRepository {
+    return (this._briefRepo ??= new BriefRepository(this.db));
+  }
+
+  /**
+   * Collaborators of the brief service. The brief reads the intent and blast radius through
+   * their services, so it needs the app's logger for the blast service: the route passes
+   * `app.log` and builds ONE `BriefService` (it holds the in-flight map).
+   */
+  briefDeps(log: BriefLog): BriefDeps {
+    return {
+      store: this.briefRepo,
+      intent: this.intentService,
+      blast: new BlastService({ ...this.blastDeps, log }),
+      documents: this.projectContextService,
+      roleOf: classifyFile,
+      github: () => this.github(),
+      llm: (provider) => this.llm(provider),
+      resolveModel: (workspaceId) => resolveFeatureModel(this.settingsRepo, workspaceId, 'risk_brief'),
+      systemPrompt: () => renderPrompt('brief.system.md', {}),
+      tokenizer: this.tokenizer,
+      log,
     };
   }
 

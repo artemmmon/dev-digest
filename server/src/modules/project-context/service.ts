@@ -98,6 +98,32 @@ export class ProjectContextService {
     return { documents, records };
   }
 
+  /**
+   * The documents some agent of the repo receives, as brief candidates: ordered by how many
+   * agents attach each (descending), then by path. Each is read through the root-confined reader;
+   * a document that is missing, too large or unreadable is skipped, so this never throws for one.
+   * `[]` for a repo outside the workspace or one that is not cloned.
+   */
+  async candidateDocuments(
+    workspaceId: string,
+    repoId: string,
+  ): Promise<{ path: string; text: string; tokens: number }[]> {
+    const repo = await this.deps.repos.getById(workspaceId, repoId);
+    if (!repo?.clonePath) return [];
+    const usedBy = await this.deps.agents.contextUsedBy(workspaceId, repoId);
+    const ordered = [...usedBy.entries()].sort(
+      (a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0),
+    );
+    const root = this.deps.git.clonePathFor(repo);
+    const out: { path: string; text: string; tokens: number }[] = [];
+    for (const [path] of ordered) {
+      const read = await this.deps.reader.read(root, path, MAX_DOCUMENT_BYTES);
+      if (read.status !== 'read') continue;
+      out.push({ path, text: read.text, tokens: this.deps.tokenizer.count(read.text) });
+    }
+    return out;
+  }
+
   /** The repo's project-document paths, sorted. `undefined` = repo not in the workspace. */
   private async discover(
     workspaceId: string,

@@ -3,7 +3,10 @@
     "intent": "Intent",
     "blast": "Blast radius",
     "risks": "Risks",
-    "history": "PR history"
+    "history": "PR history",
+    "label": "PR Brief",
+    "riskAreas": "Risk areas",
+    "reviewFocus": "Review focus — read these first"
   },
   "noRisks": "No notable risks flagged.",
   "noHistory": "No prior PRs overlap these files.",
@@ -15,5 +18,55 @@
     "blame": "blame",
     "noHistory": "No history available for this line.",
     "noCommits": "No commits found for this line."
+  },
+  "empty": {
+    "title": "No brief yet",
+    "body": "Generate a Why+Risk brief for this PR.",
+    "generate": "Generate brief"
+  },
+  "refresh": "Re-run the brief for this PR",
+  "stale": "Generated for {sha}, the PR has new commits",
+  "verdictHint": "Verdict, findings and score come from the latest agent review; what / why / risks / review-focus come from the brief.",
+  "notice": {
+    "without": "Generated without: {names}",
+    "intentStale": "Intent is from an older commit",
+    "trimmed": "Trimmed to fit the input budget: {names}",
+    "name": {
+      "intent": "intent",
+      "intent_stale": "intent",
+      "blast": "blast radius",
+      "issue": "linked issue",
+      "specs": "project documents",
+      "description": "description",
+      "specs_trimmed": "project documents",
+      "issue_trimmed": "linked issue",
+      "description_trimmed": "description",
+      "callers_trimmed": "blast radius callers",
+      "hunks_trimmed": "hunk headers",
+      "files_trimmed": "file list"
+    }
+  },
+  "footer": {
+    "meta": "{sha} · {provider} · {model} · {tokensIn} in / {tokensOut} out",
+    "cost": " · {cost}"
+  },
+  "risk": {
+    "why": "Why this is a risk: {title}",
+    "references": "File references",
+    "jumpTo": "Open {file} in Files changed"
+  },
+  "focus": {
+    "jumpTo": "Open {file}:{line} in Files changed"
+  },
+  "fileNotInDiff": "File not in this PR's diff",
+  "error": {
+    "loadTitle": "Couldn't load the brief",
+    "loadBody": "The brief for this PR didn't load. Check that the API is running, then retry.",
+    "generateTitle": "Couldn't generate the brief",
+    "generateBody": "The brief could not be generated. Try again in a moment.",
+    "regenerate": "The brief could not be re-run. Showing the previous brief.",
+    "noKey": "The {provider} provider has no API key configured.",
+    "noKeyUnknown": "The selected provider has no API key configured.",
+    "settingsLink": "Open Settings"
   }
 }

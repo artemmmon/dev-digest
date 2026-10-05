@@ -1,6 +1,6 @@
 # Spec: PR Brief
 Spec ID: SPEC-12
-Status: approved
+Status: implemented
 Supersedes: none
 Packages: server, client
 Sources: user brief (course homework L05 "PR Why + Risk Brief", with its P1/P2/P3 criteria) · five screenshots of the reference build (Overview with the brief, Files changed after a Review focus click) · design files in client/docs/design (screen_pr_detail, findings, diff, blast, data, artboards) · specs/08-intent-layer.md · specs/09-smart-diff.md · specs/10-project-context.md · docs/blast-radius.md · user answers to the discovery questions (Q1–Q13 option 1 each, proposals P1–P9 accepted)

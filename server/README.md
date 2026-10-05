@@ -78,6 +78,7 @@ flowchart TB
     intent["intent<br/>/pulls/:id/intent (GET · POST)"]
     smartDiff["smart-diff<br/>/pulls/:id/smart-diff (GET)"]
     blast["blast<br/>/pulls/:id/blast (GET)"]
+    brief["brief<br/>/pulls/:id/brief (GET · POST)"]
     projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/content (GET)"]
     onboarding["onboarding<br/>/repos/:id/onboarding (GET) · /repos/:id/onboarding/generate (POST, 202)"]
   end
@@ -94,6 +95,11 @@ flowchart TB
   end
   HEALTH["/health (liveness) · /health/ready (DB ping → 200/503)"]
 ```
+
+`GET /pulls/:id/brief` returns `{ brief, stale, current_head_sha }` and never calls a model;
+`POST /pulls/:id/brief` generates (or regenerates) the brief with one model call and returns
+the `PrBrief` (10 per minute; a second request for the same PR joins the running one). See
+[`../docs/pr-brief.md`](../docs/pr-brief.md).
 
 `POST /repos/:id/onboarding/generate` answers `202` and runs the tour generation in the
 background (one model request, 180 s deadline; `409 generation_in_progress` while one

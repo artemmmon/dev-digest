@@ -1,5 +1,8 @@
 import type { UnifiedDiff } from '@devdigest/shared';
 import { INTENT_LIMITS } from '@devdigest/shared';
+import { extractHunkHeaders } from '../_shared/hunks.js';
+
+export { extractHunkHeaders };
 
 /**
  * Hunk-header extraction (D11): only the `@@ … @@ <context>` lines, never diff
@@ -7,25 +10,13 @@ import { INTENT_LIMITS } from '@devdigest/shared';
  * `hunkHeaderChars`), at most `maxFiles` files.
  */
 
-const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@.*$/;
-/** Same as HUNK_HEADER, capturing the optional old/new line counts. */
+/** A hunk header, capturing the optional old/new line counts. */
 const HUNK_COUNTS = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/;
 const FILE_HEADER = /^diff --git a\/(.+?) b\/(.+)$/;
 
 export interface FileHunkHeaders {
   path: string;
   headers: string[];
-}
-
-/** Pull the `@@ … @@` header lines out of one file's patch text (`pr_files.patch`). */
-export function extractHunkHeaders(patch: string): string[] {
-  const headers: string[] = [];
-  for (const line of patch.split('\n')) {
-    if (!HUNK_HEADER.test(line)) continue;
-    headers.push(line.slice(0, INTENT_LIMITS.hunkHeaderChars));
-    if (headers.length >= INTENT_LIMITS.maxHunkHeadersPerFile) break;
-  }
-  return headers;
 }
 
 /** Build the per-file hunk-header list from `pr_files` rows. */
