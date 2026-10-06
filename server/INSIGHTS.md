@@ -416,6 +416,10 @@ Where: server/src/modules/onboarding/repository.ts:36, server/src/app.ts:88
 The brief reads the blast radius through `BlastService`, which wants a logger, so the container cannot hold it as a lazy getter. `container.briefDeps(app.log)` builds the ports (and a `BlastService` with that log); `modules/brief/routes.ts` makes ONE `BriefService` from it because the service holds the in-flight `Map<prId, Promise>` that turns a double click into one model call (one process, no DB lock). `domain.ts` is core, so `BRIEF_ANSWER_LIMITS` lives there and `constants.ts` re-exports it.
 Where: server/src/platform/container.ts:264, server/src/modules/brief/routes.ts:17
 
+### 2026-10-06 — Testing a fire-and-forget run: wait on the store's `complete`/`fail`, then on the log line
+`OnboardingService.start` returns before the run ends, and `run` logs its outcome AFTER `store.complete/fail` returns. An in-memory store that resolves an `ended()` promise inside `complete/fail` lets a test await the run with no sleep, but a test that then reads the log races it (`logs.find(...)` was undefined) — wait for the line with `vi.waitFor`. Concurrent `claim` exclusivity is proved only against real Postgres (`Promise.all` of 10 claims, 5 rounds, over a fresh row and over an idle/failed row): an in-memory fake cannot show it.
+Where: server/test/onboarding-service.test.ts:201, server/test/onboarding.it.test.ts:107
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

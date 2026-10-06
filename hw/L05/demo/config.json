@@ -46,7 +46,8 @@
     "apiUrl": "http://localhost:3111",
     "repoId": "0ec42231-7c58-4ab1-845d-0d8e355af9a3",
     "testPr": 11,
-    "prBranch": "emdash/hw-05-l9xs9"
+    "prBranch": "emdash/hw-05-l9xs9",
+    "prUrl": "https://github.com/artemmmon/dev-digest/pull/19"
   },
   "neverClick": [
     "Run Review",

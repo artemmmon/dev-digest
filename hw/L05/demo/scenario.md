@@ -1,6 +1,6 @@
 # Demo dev-digest-L05 — shooting script (HW5 PR Brief)
 
-~2.5 min (narration 1,500 chars ≈ 1.8 min + gaps and the wait for the model in scene 1). Filmed by `demo-film`
+~2 min (filmed: 2 min 02 s; narration 1,584 chars, 14 cues). Filmed by `demo-film`
 from `cues.json`; this file is the human view. Narration is Ukrainian, everything else English.
 
 ## Assumptions
@@ -33,6 +33,7 @@ summary, Risk areas and Review focus; hold until the brief arrives (15–25 s).
 **Say (s1-01):** «П’ята домашка — PR Brief. Відкриваю тестовий пул-реквест, вкладку Overview. Брифу ще немає, є кнопка Generate brief.»
 **Say (s1-02):** «Натискаю її. Сервер збирає готові факти: опис, intent, blast radius і список файлів із заголовками змін — і робить один виклик моделі.»
 **Say (s1-03):** «Поки триває генерація, на місці брифу скелетон, а кнопка вимкнена, тож другий виклик не піде.»
+**Say (s1-04):** «Виклик моделі триває секунд двадцять. І ось бриф з’явився на місці порожнього блоку.»
 
 ## 2. The finished brief — 35 s
 **Show:** the PR Brief banner (summary paragraph, verdict "Request changes", "PR SCORE"), the notice "Generated without: …",
@@ -74,7 +75,7 @@ file are open, the file card has the accent border, the line is highlighted for 
 
 | Step (`hw5-task.md`) | Scene | Cue |
 |---|---|---|
-| 1 open the test PR → Overview → show and click Generate brief | 1 | s1-01, s1-02 |
+| 1 open the test PR → Overview → show and click Generate brief | 1 | s1-01 … s1-04 |
 | 2 the finished brief: summary, Risk areas, Review focus, Intent, Blast radius | 2 | s2-01 … s2-04 |
 | 3 click a Review focus item → Files changed on that file | 3 | s3-01 |
 | 4 reload → the brief is there, no new generation | 4 | s4-01 |
@@ -96,6 +97,7 @@ file are open, the file card has the accent border, the line is highlighted for 
 - Blast radius on PR #11 is the "no indexed symbols" state, not a caller map: step 2 of the task says "if you have them".
 
 ## Unverified claims
+- "The model call takes about twenty seconds" (s1-04): it took 20 s in the filmed take (click at 10.8 s, brief at 31.2 s) and 23 s in a trial; it varies.
 - "The button is disabled, so a second call will not go" (s1-03): the button is disabled on screen; that a second
   request joins the first is true of the server code, not shown.
 - "Stored in the database, no new generation" (s4-01): `scenes.mjs` compares `generated_at` before and after the

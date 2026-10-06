@@ -54,7 +54,12 @@ export default function scenes(stage) {
   const footer = () => p().getByText(/deepseek-v4-flash/).first();
   const risks = () => p().getByRole('region', { name: 'Risk areas' });
   const focus = () => p().getByRole('region', { name: /^Review focus/ });
-  const focusItem = () => focus().getByRole('button', { name: FOCUS_FILE }).or(focus().getByRole('button').first()).first();
+  // The item for FOCUS_FILE when the model named that file, else the first item. `.or()` would pick whichever
+  // comes first in the DOM, so decide by count.
+  const focusItem = async () => {
+    const named = focus().getByRole('button', { name: FOCUS_FILE });
+    return (await named.count()) ? named.first() : focus().getByRole('button').first();
+  };
 
   // Park an element at `frac` of the viewport height inside its scroll container.
   const park = async (loc, frac = 0.3) => {
@@ -110,6 +115,8 @@ export default function scenes(stage) {
         await sleep(ms * 0.3);
         const [x, y] = web.pos; await web.glide(x - 420, y, 1200);   // over the skeleton
       });
+      // Covers the wait for the model (about 20 s from the click); the brief lands near the end of the line.
+      await cue('s1-04', async ms => { await sleep(ms); });
       if (!dry) {
         // The empty-state card (and its button) goes away once the brief is stored. Do not wait on the
         // Review focus block: it is not rendered when the model returns no items, and assertBrief() below
@@ -142,17 +149,17 @@ export default function scenes(stage) {
         await web.glideTo(footer(), 900);
       });
       await cue('s2-03', async ms => {
-        await park(p().getByText('Intent', { exact: true }).first(), 0.3);
+        await park(p().getByText('Intent', { exact: true }).first(), 0.45);
         await web.glideTo(p().getByText('Intent', { exact: true }).first(), 900);
         await sleep(ms * 0.25);
         await web.glideTo(p().getByText('No indexed symbols in the changed files.'), 1200);
       });
       still('dry-s2-cards');
       await cue('s2-04', async ms => {
-        await park(risks(), 0.25);
+        await park(risks(), 0.42);
         await web.glideTo(risks().getByRole('button').first(), 1000);
         await sleep(ms * 0.3);
-        await web.glideTo(focusItem(), 1100);
+        await web.glideTo(await focusItem(), 1100);
       });
       still('dry-s2-lists');
       await sleep(600);
@@ -167,7 +174,7 @@ export default function scenes(stage) {
       await record('s3');
       await cue('s3-01', async ms => {
         await sleep(ms * 0.12);
-        await web.clickOn(focusItem(), 900);
+        await web.clickOn(await focusItem(), 900);
         await p().waitForURL(/tab=diff/, { timeout: 10000 });
         await web.prep();
         if (dry) { await sleep(700); shot('dry-s3-diff'); }
@@ -205,26 +212,37 @@ export default function scenes(stage) {
     async s5() {
       if (!prUrl || !prBranch) throw new Error('s5 needs config.web.prUrl and config.web.prBranch (the HW5 pull request)');
       const blob = f => `${prUrl.replace(/\/pull\/\d+.*$/, '')}/blob/${prBranch}/${f}`;
+      // web.wheel takes ms PER STEP: spread `px` over `dur` ms in 6 px steps.
+      const scroll = (px, dur) => web.wheel(px, 6, Math.max(8, Math.round(dur / (px / 6))));
+      // GitHub never reaches networkidle quickly: wait for the DOM, then for the rendered Markdown.
+      const doc = async f => {
+        await web.open(blob(f), { wait: 'domcontentloaded', settle: 300 });
+        await p().locator('article, .markdown-body').first().waitFor({ timeout: 15000 }).catch(() => {});
+      };
       await web.up();
-      await web.open(blob(DOCS[0]));
+      await doc(DOCS[0]);
       await web.glide(1000, 400, 300);
       still('dry-s5-spec');
       await record('s5');
+      // Each next document is opened ~2 s before its own line starts, so the line never begins over the old page.
+      const LEAD = 2000;
       await cue('s5-01', async ms => {
-        await sleep(ms * 0.45);
-        await web.wheel(900, 60, ms * 0.4);
+        await sleep(ms * 0.35);
+        await scroll(700, ms * 0.35);
+        await sleep(Math.max(0, ms * 0.3 - LEAD));
+        await doc(DOCS[1]);
+        if (dry) shot('dry-s5-plan');
       });
       await cue('s5-02', async ms => {
-        await web.open(blob(DOCS[1]));
-        if (dry) shot('dry-s5-plan');
-        await sleep(ms * 0.2);
-        await web.wheel(900, 60, ms * 0.45);
+        await sleep(ms * 0.1);
+        await scroll(700, ms * 0.4);
+        await sleep(Math.max(0, ms * 0.5 - LEAD));
+        await doc(DOCS[2]);
+        if (dry) shot('dry-s5-verification');
       });
       await cue('s5-03', async ms => {
-        await web.open(blob(DOCS[2]));
-        if (dry) shot('dry-s5-verification');
-        await sleep(ms * 0.3);
-        await web.wheel(500, 50, ms * 0.4);
+        await sleep(ms * 0.2);
+        await scroll(400, ms * 0.4);
       });
       await sleep(800);
       await stop();
@@ -240,7 +258,7 @@ export default function scenes(stage) {
         await web.glideTo(footer(), 1100);                 // tokens and cost of the request
         await sleep(ms * 0.25);
         await park(focus(), 0.4);
-        await web.glideTo(focusItem(), 1100);              // file and line the server checked
+        await web.glideTo(await focusItem(), 1100);              // file and line the server checked
       });
       await sleep(800);
       await stop();
