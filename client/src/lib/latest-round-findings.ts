@@ -1,4 +1,4 @@
-import type { FindingRecord, ReviewRecord } from "@devdigest/shared";
+import type { FindingRecord, ReviewRecord, Verdict } from "@devdigest/shared";
 import { SEVERITY_LIST } from "@/lib/severity-counts";
 
 /**
@@ -12,14 +12,48 @@ import { SEVERITY_LIST } from "@/lib/severity-counts";
  * to the newest review alone.
  */
 export function latestRoundFindings(reviews: ReviewRecord[] | undefined): FindingRecord[] {
-  const newest = reviews?.find((r) => r.kind === "review");
-  if (!newest) return [];
-  const round = newest.batch_id
-    ? reviews!.filter((r) => r.kind === "review" && r.batch_id === newest.batch_id)
-    : [newest];
   const order = (f: FindingRecord) => {
     const i = SEVERITY_LIST.indexOf(f.severity as (typeof SEVERITY_LIST)[number]);
     return i === -1 ? SEVERITY_LIST.length : i;
   };
-  return round.flatMap((r) => r.findings).sort((a, b) => order(a) - order(b));
+  return latestRound(reviews)
+    .flatMap((r) => r.findings)
+    .sort((a, b) => order(a) - order(b));
+}
+
+/** The reviews of the latest round (see `latestRoundFindings`); empty when the PR has no review. */
+function latestRound(reviews: ReviewRecord[] | undefined): ReviewRecord[] {
+  const newest = reviews?.find((r) => r.kind === "review");
+  if (!newest) return [];
+  return newest.batch_id
+    ? reviews!.filter((r) => r.kind === "review" && r.batch_id === newest.batch_id)
+    : [newest];
+}
+
+/** Verdicts from the most to the least severe — the order the banner picks one from a round. */
+const VERDICT_SEVERITY: readonly Verdict[] = ["request_changes", "comment", "approve"];
+
+export interface LatestRoundSummary {
+  /** The most severe verdict of the round; null when none of its reviews carries one. */
+  verdict: Verdict | null;
+  findingsCount: number;
+  /** CRITICAL findings that are not dismissed. */
+  blockers: number;
+}
+
+/**
+ * Headline of the latest review round for the PR Brief banner, or null when the PR has no
+ * review. Uses the same round rule as `latestRoundFindings`.
+ */
+export function latestRoundSummary(reviews: ReviewRecord[] | undefined): LatestRoundSummary | null {
+  const round = latestRound(reviews);
+  if (round.length === 0) return null;
+  const verdicts = round.map((r) => r.verdict).filter((v): v is Verdict => v != null);
+  const verdict = VERDICT_SEVERITY.find((v) => verdicts.includes(v)) ?? null;
+  const findings = round.flatMap((r) => r.findings);
+  return {
+    verdict,
+    findingsCount: findings.length,
+    blockers: findings.filter((f) => f.severity === "CRITICAL" && !f.dismissed_at).length,
+  };
 }

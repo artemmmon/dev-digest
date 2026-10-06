@@ -33,7 +33,7 @@ flowchart TD
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state<br/>GET /pulls/:id/reviews (lazy, FINDINGS hover popover)"| API
-  PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff · /pulls/:id/blast<br/>POST /pulls/:id/review · /pulls/:id/intent · /repos/:id/resync · /findings/:id/(accept|dismiss)"| API
+  PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff · /pulls/:id/blast · /pulls/:id/brief<br/>POST /pulls/:id/review · /pulls/:id/intent · /pulls/:id/brief · /repos/:id/resync · /findings/:id/(accept|dismiss)"| API
   TOUR -->|"GET /repos/:id/onboarding (polled while running)<br/>POST /repos/:id/onboarding/generate · GET /repos/:id/index-state"| API
   CTX -->|"GET /repos/:id/context · /repos/:id/context/content"| API
   AGENT -->|"GET · PUT /agents/:id/context · GET /repos/:id/context"| API
@@ -50,6 +50,11 @@ chips, a confidence badge and a Derive / Re-derive intent action
 Beside it sits the `BlastRadiusCard` (`src/lib/hooks/blast.ts`, `_components/OverviewTab/_components/BlastRadiusCard`):
 the precomputed repo-intel map of what the PR's changed symbols reach (callers, endpoints, cron jobs) as a
 tree or a plain-SVG graph, with a degraded-index notice and a Resync action.
+Above them sits the `PrBriefBlock` (`src/lib/hooks/brief.ts`, `_components/OverviewTab/_components/PrBriefBlock`):
+a Generate brief empty state, then the stored brief's summary, the latest review round's verdict and score,
+a missing-data notice and a provenance footer. Below the two cards, `RiskAreas` and `ReviewFocus` list the
+brief's risks and read-first lines; a click opens the Files changed tab at `?tab=diff&file=…&line=…`
+(`pulls/[number]/use-diff-jump.ts`). See [`../docs/pr-brief.md`](../docs/pr-brief.md).
 A `FindingCard` with `kind: 'out_of_scope'` shows an "Outside PR scope" badge.
 
 The Onboarding Tour page (`/repos/:repoId/onboarding`, `src/app/repos/[repoId]/onboarding/_components/TourView`)

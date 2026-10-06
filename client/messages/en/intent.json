@@ -3,7 +3,7 @@
     "label": "Intent",
     "inScope": "In scope",
     "outOfScope": "Out of scope",
-    "riskAreas": "Risk areas",
+    "riskAreas": "Risk signals",
     "incidental": "Incidental changes (treated as out of scope)",
     "tier": {
       "high": "High",

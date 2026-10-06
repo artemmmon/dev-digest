@@ -9,6 +9,7 @@ export * from "./reviews";
 export * from "./trace";
 export * from "./repo-intel";
 export * from "./intent";
+export * from "./brief";
 export * from "./blast";
 export * from "./project-context";
 export * from "./onboarding-tour";

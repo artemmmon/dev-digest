@@ -201,7 +201,7 @@ export const RiskSeverity = z.enum(['high', 'medium', 'low']);
 export type RiskSeverity = z.infer<typeof RiskSeverity>;
 
 export const Risk = z.object({
-  kind: z.string(),
+  kind: RiskAreaKind,
   title: z.string(),
   explanation: z.string(),
   severity: RiskSeverity,
@@ -265,11 +265,60 @@ export const SmartDiff = z.object({
 });
 export type SmartDiff = z.infer<typeof SmartDiff>;
 
+// ---- Review focus ----
+/** One place a reviewer should look first: a changed file and a new-side line in it. */
+export const ReviewFocusItem = z.object({
+  file: z.string(),
+  line: z.number().int().positive(),
+  reason: z.string(),
+});
+export type ReviewFocusItem = z.infer<typeof ReviewFocusItem>;
+
+/** What a stored brief had to leave out or could not read. */
+export const BriefMissing = z.enum([
+  'intent',
+  'intent_stale',
+  'blast',
+  'issue',
+  'specs',
+  'description',
+  'specs_trimmed',
+  'issue_trimmed',
+  'description_trimmed',
+  'callers_trimmed',
+  'hunks_trimmed',
+  'files_trimmed',
+]);
+export type BriefMissing = z.infer<typeof BriefMissing>;
+
 // ---- Composed PR Brief (pr_brief.json) ----
+/**
+ * `intent`, `blast` and `history` are optional legacy members: the brief module
+ * never writes them (the Overview tab reads Intent and Blast from their own endpoints).
+ */
 export const PrBrief = z.object({
-  intent: Intent,
-  blast: BlastRadius,
-  risks: Risks,
-  history: PrHistory,
+  summary: z.string(),
+  risks: z.array(Risk),
+  review_focus: z.array(ReviewFocusItem),
+  head_sha: z.string(),
+  generated_at: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  tokens_in: z.number().int(),
+  tokens_out: z.number().int(),
+  /** The provider's own estimate (as Intent stores it); null when the price is unknown. */
+  cost_usd: z.number().nullable(),
+  missing: z.array(BriefMissing),
+  intent: Intent.optional(),
+  blast: BlastRadius.optional(),
+  history: PrHistory.optional(),
 });
 export type PrBrief = z.infer<typeof PrBrief>;
+
+/** GET /pulls/:id/brief response. */
+export const PrBriefResponse = z.object({
+  brief: PrBrief.nullable(),
+  stale: z.boolean(),
+  current_head_sha: z.string(),
+});
+export type PrBriefResponse = z.infer<typeof PrBriefResponse>;

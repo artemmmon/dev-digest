@@ -20,6 +20,7 @@ export function CodeLine({
   commenting,
   lineFindings,
   findings,
+  highlighted,
 }: {
   ln: Line;
   path: string;
@@ -28,6 +29,8 @@ export function CodeLine({
   /** This line's matched findings (Smart Diff), not the whole PR's. */
   lineFindings?: FindingRecord[];
   findings?: DiffFindingApi;
+  /** The jump target line — drawn with the accent for a moment. */
+  highlighted?: boolean;
 }) {
   const t = useTranslations("shell");
   const [hover, setHover] = React.useState(false);
@@ -50,10 +53,11 @@ export function CodeLine({
   return (
     <div
       style={cs.rowWrap}
+      data-new-line={ln.newNo ?? undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div style={{ ...lineRowFor(ln.kind), position: "relative" }}>
+      <div style={{ ...lineRowFor(ln.kind), position: "relative", ...(highlighted ? s.lineHighlight : null) }}>
         {worst && (
           <span
             style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: SEV[worst].c }}

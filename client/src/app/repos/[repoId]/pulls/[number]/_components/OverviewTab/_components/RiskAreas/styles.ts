@@ -1,0 +1,70 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  row: { display: "flex", gap: 8, flexWrap: "wrap" } satisfies CSSProperties,
+  pill: (expanded: boolean, color: string): CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "stretch",
+    borderRadius: 7,
+    overflow: "hidden",
+    border: `1px solid ${expanded ? color : "var(--border)"}`,
+    background: expanded ? "var(--bg-hover)" : "transparent",
+  }),
+  pillMain: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    alignItems: "flex-start",
+    padding: "5px 9px",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    textAlign: "left",
+  } satisfies CSSProperties,
+  pillTitle: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  pillRef: { fontSize: 10.5, color: "var(--accent-text)" } satisfies CSSProperties,
+  expand: {
+    display: "grid",
+    placeItems: "center",
+    width: 26,
+    border: "none",
+    borderLeft: "1px solid var(--border)",
+    background: "transparent",
+    cursor: "pointer",
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  chevron: (expanded: boolean): CSSProperties => ({
+    transform: expanded ? "rotate(180deg)" : "none",
+    transition: "transform .15s",
+  }),
+  panel: {
+    marginTop: 10,
+    padding: "10px 12px",
+    borderRadius: 7,
+    border: "1px solid var(--border)",
+    background: "var(--bg-surface)",
+  } satisfies CSSProperties,
+  explanation: {
+    fontSize: 12.5,
+    lineHeight: 1.55,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  refs: {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    marginTop: 8,
+  } satisfies CSSProperties,
+  empty: {
+    margin: 0,
+    fontSize: 13,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+} as const;

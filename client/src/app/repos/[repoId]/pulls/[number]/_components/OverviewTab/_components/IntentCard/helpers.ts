@@ -1,6 +1,5 @@
 /* helpers.ts — pure mapping helpers for IntentCard: enum → icon and enum → i18n key.
    No JSX, no hooks — kept testable and out of the component body. */
-import type { IconName } from "@devdigest/ui";
 import type {
   IntentBasis,
   IntentConfidenceTier,
@@ -10,22 +9,8 @@ import type {
   RiskAreaKind,
 } from "@devdigest/shared";
 
-const RISK_ICON: Record<RiskAreaKind, IconName> = {
-  auth: "Shield",
-  dependency: "Boxes",
-  migration: "Database",
-  ci_config: "Workflow",
-  secrets_config: "Lock",
-  performance: "Zap",
-  api_contract: "Link",
-  data: "Layers",
-  other: "AlertTriangle",
-};
-
-/** Icon chip for a risk-area kind (both `origin: 'rule'` and `'model'` chips render the same way). */
-export function riskAreaIcon(kind: RiskAreaKind): IconName {
-  return RISK_ICON[kind] ?? "AlertTriangle";
-}
+// Shared with the PR Brief block: promoted to the Overview tab on its second consumer.
+export { riskAreaIcon, shortSha } from "../../helpers";
 
 export function tierMessageKey(tier: IntentConfidenceTier): `card.tier.${IntentConfidenceTier}` {
   return `card.tier.${tier}`;
@@ -56,9 +41,4 @@ export function riskAreaMessageKey(kind: RiskAreaKind): `card.riskArea.${RiskAre
 /** Linked sources that never reached the classifier prompt — what `missing_context` refers to. */
 export function missingContextSources(sources: IntentSource[]): IntentSource[] {
   return sources.filter((source) => source.status !== "used");
-}
-
-/** First 7 chars of a head SHA for the stale note, or null if there is none to show. */
-export function shortSha(sha: string | null | undefined): string | null {
-  return sha ? sha.slice(0, 7) : null;
 }

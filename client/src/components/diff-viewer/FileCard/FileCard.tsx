@@ -17,6 +17,7 @@ import {
   type DiffCommentApi,
 } from "../comments";
 import { partitionFindings, type DiffFindingApi } from "../findings";
+import { focusKey, type DiffFocus } from "../focus";
 import { unstyledButton } from "@/lib/interactive";
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
@@ -38,17 +39,52 @@ export function FileCard({
   file,
   commenting,
   findings,
+  focus,
 }: {
   file: PrFile;
   commenting?: DiffCommentApi;
   findings?: DiffFindingApi;
+  focus?: DiffFocus;
 }) {
   const t = useTranslations("shell");
   const chip = React.useMemo(() => fileChip(file.path), [file.path]);
-  const [open, setOpen] = React.useState(
-    !chip?.generated && (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
-  );
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
+
+  const isFocused = focus?.path === file.path;
+  const key = focusKey(focus);
+  const defaultOpen =
+    !chip?.generated && (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES;
+  // A hand toggle is kept together with the focus it was made under, so a new
+  // jump always opens the file again, and the user can still collapse it after.
+  const [toggle, setToggle] = React.useState<{ key: string; open: boolean } | null>(null);
+  const open = (toggle?.key === key ? toggle.open : null) ?? (isFocused || defaultOpen);
+
+  // The jump line counts only when this file really shows it on its new side.
+  const focusLine =
+    isFocused && focus?.line != null && lines.some((l) => l.newNo === focus.line)
+      ? focus.line
+      : null;
+
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const headerRef = React.useRef<HTMLButtonElement>(null);
+  // Highlight lasts about 2 s: the timer records which focus has faded.
+  const [fadedKey, setFadedKey] = React.useState<string | null>(null);
+  const highlightLine = fadedKey === key ? null : focusLine;
+
+  React.useEffect(() => {
+    if (!isFocused) return;
+    // `line` is a validated positive integer, so the selector cannot be bent.
+    const target =
+      (focusLine != null
+        ? cardRef.current?.querySelector<HTMLElement>(`[data-new-line="${focusLine}"]`)
+        : null) ?? headerRef.current;
+    // jsdom has no scrollIntoView.
+    target?.scrollIntoView?.({ block: "center" });
+    if (focusLine == null) return;
+    const timer = setTimeout(() => setFadedKey(key), 2000);
+    return () => clearTimeout(timer);
+    // Scroll once per jump, not on every re-render of the card.
+  }, [isFocused, focusLine, key]);
 
   // Keys the rendered lines can host a thread/finding on — shared by both slots.
   const renderedKeys = React.useMemo(() => {
@@ -81,11 +117,16 @@ export function FileCard({
     : 0;
 
   return (
-    <div style={s.fileCard}>
+    <div
+      ref={cardRef}
+      style={isFocused ? { ...s.fileCard, ...s.fileCardFocused } : s.fileCard}
+      data-focused={isFocused ? "true" : undefined}
+    >
       <button
+        ref={headerRef}
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setToggle({ key, open: !open })}
         style={{ ...unstyledButton, ...s.fileHeader, width: "100%" }}
       >
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
@@ -147,6 +188,7 @@ export function FileCard({
                 commenting={commenting}
                 lineFindings={forLine(ln, matchedFindings)}
                 findings={findings}
+                highlighted={highlightLine != null && ln.newNo === highlightLine}
               />
             ))
           )}

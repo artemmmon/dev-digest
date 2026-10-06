@@ -347,6 +347,14 @@ width>` and `preserveAspectRatio="xMinYMin meet"`: it scales down with the card 
 `minWidth: 0` on the grid-item `<section>`; the card's own `minWidth: 0` is not enough.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastGraph/helpers.ts:112`
 
+### 2026-10-05 — A jump that Back must undo uses `router.push`; `useSearchParamState` replaces the history entry
+`useSearchParamState` / `useSearchParamsUpdate` call `router.replace`, so a tab switch through them leaves no Back step. The PR Brief's jump to Files changed (`?tab=diff&file=&line=`) must be undoable (Back returns to Overview), so `useDiffJump` builds all three parameters into one URL and calls `router.push`. Use it for any cross-tab jump; keep the replace-based setters for in-place state.
+Where: src/app/repos/[repoId]/pulls/[number]/use-diff-jump.ts:21, src/lib/use-search-param-state.ts:32
+
+### 2026-10-05 — Open state that a URL focus must override: derive it, keep the hand toggle with the focus it was made under
+`FileCard` and `RoleGroup` open from `toggle?.key === focusKey ? toggle.open : null) ?? (isFocused || default)` where `toggle = { key, open }` is set on click. A new `?file=&line=` changes the key, so the old collapse is ignored and the file opens again; the user can still collapse it. A `useEffect` that syncs `open` from the prop would fight the click and trip the react-hooks lint. The only effect is the scroll (`scrollIntoView?.` is absent in jsdom) plus a 2 s timer that records which focus has faded.
+Where: src/components/diff-viewer/FileCard/FileCard.tsx:60, src/components/diff-viewer/focus.ts:10
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -456,6 +464,10 @@ Where: `src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.test.t
 ### 2026-10-05 — Onboarding Tour: scrolling is found from the DOM, not a ref to the shell's scroll box
 The shell's scroll container is not exposed to pages, so `useActiveSection` walks up from the tour wrapper to the first ancestor with `overflow-y: auto|scroll` that really overflows (same trick as the design file) and falls back to `window`. jsdom has no `Element.prototype.scrollTo` and no layout, so the hook calls `scrollTo?.()` and a test must stub `scrollTo`/`getBoundingClientRect` to prove a jump or the active item.
 Where: src/app/repos/[repoId]/onboarding/_components/TourView/hooks/useActiveSection.ts:28
+
+### 2026-10-05 — In-flight state of a mutation must outlive its tab: key it and read `useIsMutating`
+`useMutation().isPending` belongs to one observer: a tab component that unmounts and remounts (PR Overview → Files changed → back) sees `false` while the POST still runs, so Generate/refresh re-enable (spec 12 AC-7). Give the mutation a `mutationKey`, derive `generating` from `useIsMutating({ mutationKey })`, and put the cache refresh in the hook-level `onSettled` (mutation-level options fire for an orphaned run; `mutate(…, { onSuccess })` callbacks do not).
+Where: src/lib/hooks/brief.ts:43
 
 ## Recurring Errors & Fixes
 

@@ -8,7 +8,13 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@devdigest/ui";
 import type { PrFile, SmartDiffRole } from "@devdigest/shared";
-import { DiffViewer, type DiffCommentApi, type DiffFindingApi } from "@/components/diff-viewer";
+import {
+  DiffViewer,
+  focusKey,
+  type DiffCommentApi,
+  type DiffFindingApi,
+  type DiffFocus,
+} from "@/components/diff-viewer";
 import { unstyledButton } from "@/lib/interactive";
 import { ROLE_META } from "../../constants";
 import { countFilesWithFindings } from "../../helpers";
@@ -20,6 +26,7 @@ export function RoleGroup({
   commenting,
   findings,
   showCounter,
+  focus,
 }: {
   role: SmartDiffRole;
   files: PrFile[];
@@ -27,10 +34,17 @@ export function RoleGroup({
   findings?: DiffFindingApi;
   /** False while no review has run yet — the count would only ever read 0. */
   showCounter: boolean;
+  /** The group that holds this file opens, whatever its default. */
+  focus?: DiffFocus;
 }) {
   const t = useTranslations("prReview");
   const meta = ROLE_META[role];
-  const [open, setOpen] = React.useState(meta.defaultOpen);
+  // Derived, not synced by an effect: a hand toggle is kept with the focus it was made
+  // under, so a new jump opens the group again and the user can still collapse it.
+  const holdsFocus = !!focus && files.some((f) => f.path === focus.path);
+  const key = focusKey(focus);
+  const [toggle, setToggle] = React.useState<{ key: string; open: boolean } | null>(null);
+  const open = (toggle?.key === key ? toggle.open : null) ?? (holdsFocus || meta.defaultOpen);
   const [hovered, setHovered] = React.useState(false);
   const count = React.useMemo(
     () => countFilesWithFindings(files, findings?.findings ?? []),
@@ -42,7 +56,7 @@ export function RoleGroup({
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setToggle({ key, open: !open })}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ ...unstyledButton, ...s.header(hovered, open), width: "100%" }}
@@ -61,7 +75,7 @@ export function RoleGroup({
           <span style={s.filesCount}>{t("smartDiff.filesCount", { count: files.length })}</span>
         </span>
       </button>
-      {open && <DiffViewer files={files} commenting={commenting} findings={findings} />}
+      {open && <DiffViewer files={files} commenting={commenting} findings={findings} focus={focus} />}
     </div>
   );
 }

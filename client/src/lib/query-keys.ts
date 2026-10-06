@@ -28,6 +28,7 @@ export const keys = {
     activeRuns: (prId: Id) => ["pr", prId, "active-runs"] as const,
     comments: (prId: Id) => ["pr", prId, "comments"] as const,
     intent: (prId: Id) => ["pr", prId, "intent"] as const,
+    brief: (prId: Id) => ["pr", prId, "brief"] as const,
     smartDiff: (prId: Id) => ["pr", prId, "smart-diff"] as const,
     blast: (prId: Id) => ["pr", prId, "blast"] as const,
   },

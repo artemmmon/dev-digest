@@ -23,6 +23,7 @@ import { ApiError } from "@/lib/api";
 import { githubPrUrl } from "@/lib/github-urls";
 import { useSearchParamState } from "@/lib/use-search-param-state";
 import { useElementHeight } from "./use-element-height";
+import { parseDiffFocus } from "./helpers";
 
 export default function PRDetailPage() {
   const t = useTranslations("prReview");
@@ -38,6 +39,8 @@ export default function PRDetailPage() {
   const { data: pr, isLoading: detailLoading, isError, error, refetch } = usePullDetail(prId);
   const isLoading = pullsLoading || (prId != null && detailLoading);
   const { data: reviews } = usePrReviews(prId);
+  // The list's score for this PR (null until reviewed): the PR Brief banner shows the same number.
+  const score = pulls?.find((p) => p.number === Number(number))?.score ?? null;
 
   // Live run tracking is SERVER-SOURCED (agent_runs status='running'): survives
   // navigation AND reload, and self-clears via polling when runs finish.
@@ -45,6 +48,9 @@ export default function PRDetailPage() {
 
   const [tab, setTab] = useSearchParamState("tab", "overview");
   const [traceRunId, setTraceRunId] = useSearchParamState("trace", null);
+  // A jump from the PR Brief lands here as ?tab=diff&file=<path>&line=<n>.
+  const [focusFile] = useSearchParamState("file", null);
+  const [focusLine] = useSearchParamState("line", null);
 
   // The route measures its own header and publishes the height as `--pr-header-h` on
   // the wrapper it renders, so a sticky element further down the page (Smart Diff's
@@ -119,6 +125,12 @@ export default function PRDetailPage() {
     );
   }
 
+  const focus = parseDiffFocus(
+    focusFile,
+    focusLine,
+    pr.files.map((f) => f.path),
+  );
+
   return (
     <>
       <div
@@ -149,6 +161,9 @@ export default function PRDetailPage() {
               repoFullName={repoFullName}
               prBody={pr.body}
               headSha={pr.head_sha}
+              reviews={runs}
+              score={score}
+              filePaths={pr.files.map((f) => f.path)}
             />
           )}
 
@@ -177,6 +192,7 @@ export default function PRDetailPage() {
               canComment={pr.status === "open"}
               repoFullName={repoFullName}
               headSha={pr.head_sha}
+              focus={focus}
             />
           )}
         </div>

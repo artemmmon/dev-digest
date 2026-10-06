@@ -4,7 +4,12 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { SectionLabel, Button, Icon } from "@devdigest/ui";
 import type { PrFile } from "@devdigest/shared";
-import { DiffViewer, type DiffCommentApi, type DiffFindingApi } from "@/components/diff-viewer";
+import {
+  DiffViewer,
+  type DiffCommentApi,
+  type DiffFindingApi,
+  type DiffFocus,
+} from "@/components/diff-viewer";
 import {
   usePrComments,
   useCreatePrComment,
@@ -29,6 +34,8 @@ interface DiffTabProps {
   canComment?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** A file of this PR (and a line) to open and scroll to — set by a jump from the Overview. */
+  focus?: DiffFocus;
 }
 
 export function DiffTab({
@@ -38,6 +45,7 @@ export function DiffTab({
   canComment,
   repoFullName,
   headSha,
+  focus,
 }: DiffTabProps) {
   const t = useTranslations("shell");
   const tp = useTranslations("prReview");
@@ -161,7 +169,7 @@ export function DiffTab({
       </div>
 
       {useOriginal ? (
-        <DiffViewer files={files} commenting={commenting} findings={findingsApi} />
+        <DiffViewer files={files} commenting={commenting} findings={findingsApi} focus={focus} />
       ) : (
         <>
           {!hasReview && (
@@ -179,6 +187,7 @@ export function DiffTab({
                 commenting={commenting}
                 findings={findingsApi}
                 showCounter={hasReview}
+                focus={focus}
               />
             ))}
           </div>
