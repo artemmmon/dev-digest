@@ -1,0 +1,81 @@
+{
+  "label": "strict-r2",
+  "git_sha": "703a59e",
+  "dirty": true,
+  "times": 2,
+  "vitestArgs": [
+    "agents/architecture-reviewer/architecture-reviewer.eval.ts",
+    "-t",
+    "calculation placed"
+  ],
+  "tests": {
+    "/Users/artemmmon/emdash/worktrees/dev-digest-34d88e8b/emdash-lesson-06-zf2dn/evals/agents/architecture-reviewer/architecture-reviewer.eval.ts > agent:architecture-reviewer > finds the calculation placed in the service instead of the domain, with its documented rule": {
+      "nodeid": "/Users/artemmmon/emdash/worktrees/dev-digest-34d88e8b/emdash-lesson-06-zf2dn/evals/agents/architecture-reviewer/architecture-reviewer.eval.ts > agent:architecture-reviewer > finds the calculation placed in the service instead of the domain, with its documented rule",
+      "label": "finds the calculation placed in the service instead of the domain, with its documented rule",
+      "pass": {
+        "passed": 2,
+        "total": 2,
+        "rate": 1
+      },
+      "practices": {
+        "reports a finding for the discount arithmetic written inline in `DiscountService.applyDiscount` in server/src/modules/discounts/service.ts, instead of in `domain.ts` or a pure helper beside the service": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "that finding's `rule` names the documented onion-architecture placement rule: the 'Where does X go?' row for a business rule / calculation (`domain.ts` or a pure helper beside the service)": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "that finding has the severity WARNING, not CRITICAL (placement inside a ring is WARNING in severity.md)": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "does not raise a separate finding about the boolean flag parameters or the magic numbers as such: they are code style, not a violation of a documented rule": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        }
+      },
+      "metrics": {
+        "durationMs": {
+          "mean": 51758,
+          "stddev": 5164.707929786543,
+          "min": 48106,
+          "max": 55410,
+          "n": 2
+        },
+        "inputTokens": {
+          "mean": 4213.5,
+          "stddev": 109.60155108391487,
+          "min": 4136,
+          "max": 4291,
+          "n": 2
+        },
+        "outputTokens": {
+          "mean": 11115,
+          "stddev": 868.3271272970803,
+          "min": 10501,
+          "max": 11729,
+          "n": 2
+        },
+        "numTurns": {
+          "mean": 14.5,
+          "stddev": 2.1213203435596424,
+          "min": 13,
+          "max": 16,
+          "n": 2
+        },
+        "toolCallCount": {
+          "mean": 13.5,
+          "stddev": 2.1213203435596424,
+          "min": 12,
+          "max": 15,
+          "n": 2
+        }
+      }
+    }
+  }
+}

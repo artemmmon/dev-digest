@@ -165,3 +165,40 @@ describe("skill and agent cases", () => {
     expect(empty, "a case with neither would pass without asserting anything").toEqual([]);
   });
 });
+
+describe("CI workflows", () => {
+  const dir = join(REPO_ROOT, ".github", "workflows");
+  const files = existsSync(dir) ? readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)) : [];
+  // Comments are not configuration: a file may explain why it avoids pull_request_target.
+  const text = (f: string) =>
+    readFileSync(join(dir, f), "utf8")
+      .split("\n")
+      .filter((l) => !/^\s*#/.test(l))
+      .join("\n");
+
+  test("there are workflows to check", () => {
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  test.each(files)("%s declares its permissions and grants none that write", (f) => {
+    const t = text(f);
+    expect(t, "no top-level `permissions:`: the token would get the repository default").toMatch(/^permissions:/m);
+    const writes = t.split("\n").filter((l) => /^\s+[a-z-]+:\s*write\s*$/.test(l));
+    expect(writes, "a write permission needs a reason and an explicit entry here").toEqual([]);
+  });
+
+  test.each(files)("%s does not use pull_request_target", (f) => {
+    // It runs with the base repository's secrets and write token on a fork's code.
+    expect(text(f)).not.toMatch(/pull_request_target/);
+  });
+
+  test.each(files)("%s: a job that uses a secret on pull_request refuses a fork's PR", (f) => {
+    const t = text(f);
+    const usesSecret = /\$\{\{\s*secrets\.(?!GITHUB_TOKEN)/.test(t);
+    const onPullRequest = /^\s{2}pull_request:/m.test(t);
+    if (!usesSecret || !onPullRequest) return;
+    expect(t, "a secret is used on pull_request with no fork guard").toMatch(
+      /github\.event\.pull_request\.head\.repo\.full_name\s*==\s*github\.repository/,
+    );
+  });
+});

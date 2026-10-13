@@ -1,0 +1,89 @@
+{
+  "label": "strict",
+  "git_sha": "703a59e",
+  "dirty": true,
+  "times": 2,
+  "vitestArgs": [
+    "agents/architecture-reviewer/architecture-reviewer.eval.ts"
+  ],
+  "tests": {
+    "/Users/artemmmon/emdash/worktrees/dev-digest-34d88e8b/emdash-lesson-06-zf2dn/evals/agents/architecture-reviewer/architecture-reviewer.eval.ts > agent:architecture-reviewer > finds both violations in the checkout diff, rates them and cites a documented rule": {
+      "nodeid": "/Users/artemmmon/emdash/worktrees/dev-digest-34d88e8b/emdash-lesson-06-zf2dn/evals/agents/architecture-reviewer/architecture-reviewer.eval.ts > agent:architecture-reviewer > finds both violations in the checkout diff, rates them and cites a documented rule",
+      "label": "finds both violations in the checkout diff, rates them and cites a documented rule",
+      "pass": {
+        "passed": 2,
+        "total": 2,
+        "rate": 1
+      },
+      "practices": {
+        "reports a finding for `import type { FastifyReply } from \"fastify\"` in server/src/modules/checkout/domain/checkout.ts: a web-framework type imported into the domain layer": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "reports a finding for `new PgCheckoutRepository()` in server/src/modules/checkout/service.ts: a concrete repository constructed inside the service instead of being injected from the DI container / composition root": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "gives the FastifyReply-in-domain finding the severity CRITICAL (a Fastify import in application code is an `onion-layer-violation`, which severity.md lists as CRITICAL)": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "gives the `new PgCheckoutRepository()` finding a severity of CRITICAL or WARNING, not SUGGESTION": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "the FastifyReply finding has a non-empty `rule` that names a documented rule: `onion-layer-violation`, or the onion-architecture checklist item 'no DB/Fastify/SDK/adapters import in application code'": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "the `new PgCheckoutRepository()` finding has a non-empty `rule` that names a documented rule: `onion-layer-violation`, or an onion-architecture checklist item about the service taking ports / the composition root assembling it": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        }
+      },
+      "metrics": {
+        "durationMs": {
+          "mean": 64383.5,
+          "stddev": 32444.18044118236,
+          "min": 41442,
+          "max": 87325,
+          "n": 2
+        },
+        "inputTokens": {
+          "mean": 4203.5,
+          "stddev": 94.04520189781083,
+          "min": 4137,
+          "max": 4270,
+          "n": 2
+        },
+        "outputTokens": {
+          "mean": 14014.5,
+          "stddev": 7288.149593689745,
+          "min": 8861,
+          "max": 19168,
+          "n": 2
+        },
+        "numTurns": {
+          "mean": 14.5,
+          "stddev": 4.949747468305833,
+          "min": 11,
+          "max": 18,
+          "n": 2
+        },
+        "toolCallCount": {
+          "mean": 13.5,
+          "stddev": 4.949747468305833,
+          "min": 10,
+          "max": 17,
+          "n": 2
+        }
+      }
+    }
+  }
+}

@@ -23,13 +23,21 @@
 # Gate: `static` needs no key and no model, so it is the only job that should be a required check.
 # The model jobs are advisory (a model-backed case is probabilistic); read the job summary.
 #
-# Trigger: manual for now. To run on pull requests (step 3 of the rollout) add to `on:`
-#   pull_request:
-#     paths: ['.claude/**', '**/AGENTS.md', '**/CLAUDE.md', 'evals/**', '.github/workflows/evals.yml']
-# and keep `pull_request`, never `pull_request_target`: a fork's PR must not receive the secret.
+# Triggers: a pull request that touches the harness, and a manual dispatch (Actions -> evals).
+# A fork's pull request gets no secret from GitHub, and the model job is skipped for it by an
+# explicit `if` as well, so that it stays skipped if the trigger is ever changed. `static` needs no
+# key and runs for every PR. This file uses `pull_request`, never `pull_request_target`, and only
+# `contents: read`; evals/src/harness-static.test.ts fails the build if that changes.
 name: evals
 
 on:
+  pull_request:
+    paths:
+      - '.claude/**'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
+      - 'evals/**'
+      - '.github/workflows/evals.yml'
   workflow_dispatch:
     inputs:
       scope:
@@ -151,7 +159,10 @@ jobs:
   model-evals:
     name: model evals · ${{ matrix.tier }} (OpenRouter)
     needs: detect
-    if: needs.detect.outputs.tiers != '[]'
+    # Never for a fork's pull request: it must not be able to spend the key or read it.
+    if: >-
+      needs.detect.outputs.tiers != '[]' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:

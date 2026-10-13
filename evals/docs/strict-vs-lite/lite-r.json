@@ -1,0 +1,76 @@
+{
+  "label": "lite-r",
+  "git_sha": "703a59e",
+  "dirty": true,
+  "times": 2,
+  "vitestArgs": [
+    "agents/architecture-reviewer-lite/architecture-reviewer-lite.eval.ts",
+    "-t",
+    "reports nothing"
+  ],
+  "tests": {
+    "/Users/artemmmon/emdash/worktrees/dev-digest-34d88e8b/emdash-lesson-06-zf2dn/evals/agents/architecture-reviewer-lite/architecture-reviewer-lite.eval.ts > agent:architecture-reviewer-lite > reports nothing for a diff that breaks no documented rule": {
+      "nodeid": "/Users/artemmmon/emdash/worktrees/dev-digest-34d88e8b/emdash-lesson-06-zf2dn/evals/agents/architecture-reviewer-lite/architecture-reviewer-lite.eval.ts > agent:architecture-reviewer-lite > reports nothing for a diff that breaks no documented rule",
+      "label": "reports nothing for a diff that breaks no documented rule",
+      "pass": {
+        "passed": 2,
+        "total": 2,
+        "rate": 1
+      },
+      "practices": {
+        "does not report a finding about the nested conditionals, the boolean flag parameters or the magic numbers in `applyDiscount`: those are code-style observations, not violations of a documented architecture rule": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "every finding it reports, if any, has a non-empty `rule` that names a documented rule; none is justified only by a general design opinion such as single responsibility, readability or maintainability": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "reports no CRITICAL or WARNING finding: this diff violates no documented rule": {
+          "passed": 2,
+          "total": 2,
+          "rate": 1
+        }
+      },
+      "metrics": {
+        "durationMs": {
+          "mean": 54718.5,
+          "stddev": 14369.116900491832,
+          "min": 44558,
+          "max": 64879,
+          "n": 2
+        },
+        "inputTokens": {
+          "mean": 4216,
+          "stddev": 106.06601717798213,
+          "min": 4141,
+          "max": 4291,
+          "n": 2
+        },
+        "outputTokens": {
+          "mean": 11411.5,
+          "stddev": 3087.935313441653,
+          "min": 9228,
+          "max": 13595,
+          "n": 2
+        },
+        "numTurns": {
+          "mean": 13,
+          "stddev": 2.8284271247461903,
+          "min": 11,
+          "max": 15,
+          "n": 2
+        },
+        "toolCallCount": {
+          "mean": 12,
+          "stddev": 2.8284271247461903,
+          "min": 10,
+          "max": 14,
+          "n": 2
+        }
+      }
+    }
+  }
+}

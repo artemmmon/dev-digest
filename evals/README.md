@@ -460,7 +460,8 @@ n<5 prints an "indicative only" caveat). `--label` saves the aggregate to
 ### `eval:delta` — version vs version (the canonical loop)
 
 The primary "before vs after a change" workflow. **Capture the baseline label BEFORE you edit** —
-there is no way to reconstruct it afterwards short of reverting.
+there is no way to reconstruct it afterwards short of reverting. A worked example with the spread
+shown, two versions of one agent: [docs/strict-vs-lite.md](docs/strict-vs-lite.md).
 
 ```bash
 pnpm eval:repeat skills/onion-architecture -n 5 --label baseline   # BEFORE the edit
@@ -590,6 +591,8 @@ both), `flaky` (pass rate strictly 20–80% within a config), `cost_regression` 
 tokens > 125% of baseline), `missing_data` (a config has zero records for a test/practice).
 
 ## Which change → which run
+
+The root [`AGENTS.md`](../AGENTS.md) carries the short form of this table ("Evals"); this is the full one.
 
 | Change | Run |
 |--------|-----|
