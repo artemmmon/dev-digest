@@ -9,9 +9,10 @@
 
 import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, test } from "vitest";
 import { cases } from "../workflow/review-workflow.cases.js";
-import { AGENTS_DIR, REPO_ROOT, SKILLS_DIR } from "./artifacts/paths.js";
+import { AGENTS_DIR, EVALS_DIR, REPO_ROOT, SKILLS_DIR } from "./artifacts/paths.js";
 
 /** Root AGENTS.md + the AGENTS.md of every top-level package that has one. */
 function agentsFiles(): string[] {
@@ -135,5 +136,32 @@ describe("workflow cases", () => {
         (c.practices?.length ?? 0);
       expect(checks, `${c.name} has no expectation`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("skill and agent cases", () => {
+  // evals/skills/<n>/<n>.cases.ts and evals/agents/<n>/<n>.cases.ts
+  const caseFiles = ["skills", "agents"].flatMap((tier) => {
+    const dir = join(EVALS_DIR, tier);
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .flatMap((d) =>
+        readdirSync(join(dir, d.name))
+          .filter((f) => f.endsWith(".cases.ts"))
+          .map((f) => join(tier, d.name, f)),
+      );
+  });
+
+  test("there are case files to check", () => {
+    expect(caseFiles.length).toBeGreaterThan(0);
+  });
+
+  test.each(caseFiles)("%s: every case can fail (it has grounding or practices)", async (rel) => {
+    const mod = (await import(pathToFileURL(join(EVALS_DIR, rel)).href)) as {
+      cases: Array<{ name: string; grounding?: string[]; practices?: string[] }>;
+    };
+    const empty = mod.cases.filter((c) => !c.grounding?.length && !c.practices?.length).map((c) => c.name);
+    expect(empty, "a case with neither would pass without asserting anything").toEqual([]);
   });
 });

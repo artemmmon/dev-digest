@@ -140,6 +140,10 @@ type Task = (prompt: string, artifact: string, opts?: RunOptions) => Promise<Res
 
 function runQualityCases(artifact: string, cases: QualityCase[], task: Task): void {
   for (const c of cases) {
+    // Both are optional in the type; a case with neither runs a paid session and asserts nothing.
+    if (!c.grounding?.length && !c.practices?.length) {
+      throw new Error(`quality case "${c.name}" has neither grounding nor practices: it could not fail`);
+    }
     test(c.name, async () => {
       const threshold = c.threshold ?? DEFAULT_THRESHOLD;
       const result = await task(c.prompt, artifact, { maxTurns: c.maxTurns });
