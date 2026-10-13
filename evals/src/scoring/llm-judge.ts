@@ -32,13 +32,29 @@ function parseVerdict(text: string): Verdict["results"] {
   return obj.results;
 }
 
+/**
+ * Score the judge's reply against the practices that were ASKED. A practice the judge did not
+ * return a verdict for has not been judged, so it counts as a FAIL: otherwise a reply that covers
+ * one of three practices, all PASS, would score 1.0. A result is matched by its practice text, or
+ * by position when the judge returned exactly as many results as there were practices; `passed`
+ * counts only when it is the boolean `true` (the string "false" is not a pass).
+ */
+export function scoreVerdict(practices: string[], results: Verdict["results"]): Verdict {
+  const sameCount = results.length === practices.length;
+  const judged: Verdict["results"] = practices.map((practice, i) => {
+    const r = results.find((x) => x?.practice === practice) ?? (sameCount ? results[i] : undefined);
+    if (!r) return { practice, passed: false, evidence: "(not judged: the judge returned no verdict for this practice)" };
+    return { practice, passed: r.passed === true, evidence: typeof r.evidence === "string" ? r.evidence : "" };
+  });
+  const total = judged.length || 1;
+  const passed = judged.filter((r) => r.passed).length;
+  return { results: judged, passed, total, score: passed / total };
+}
+
 /** Judge an output against a list of practices. Model defaults to the stronger judge family. */
 export async function llmJudge(output: string, practices: string[], model = EVAL_JUDGE_MODEL): Promise<Verdict> {
   const listed = practices.map((p, i) => `${i + 1}. ${p}`).join("\n");
   const prompt = `${JUDGE_RUBRIC}\n\n## PRACTICES\n${listed}\n\n## OUTPUT\n${output}\n\nReturn the JSON now.`;
   const res = await runContent(prompt, { allowedTools: [], maxTurns: 1, model });
-  const results = parseVerdict(res.text);
-  const total = results.length || 1;
-  const passed = results.filter((r) => r.passed).length;
-  return { results, passed, total, score: passed / total };
+  return scoreVerdict(practices, parseVerdict(res.text));
 }
