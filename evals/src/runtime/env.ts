@@ -22,6 +22,10 @@ const BACKEND = process.env.EVAL_BACKEND ?? "subscription";
  *   URL must have NO trailing slash. Override OPENROUTER_BASE_URL to point at a local LiteLLM
  *   proxy (e.g. http://localhost:4000) when routing to models that need Anthropic<->OpenAI
  *   translation.
+ *   Every model alias the harness can resolve is pinned to EVAL_MODEL as well. The project's
+ *   subagents declare `model: sonnet` / `model: opus` in their frontmatter, and an alias that is
+ *   left alone resolves to a Claude model id: that session would bill a Claude model on OpenRouter
+ *   instead of the model under test, or fail outright at the proxy.
  */
 export function subscriptionEnv(): Record<string, string> {
   const env = { ...process.env } as Record<string, string>;
@@ -32,6 +36,15 @@ export function subscriptionEnv(): Record<string, string> {
     env.ANTHROPIC_BASE_URL = (process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api").replace(/\/$/, "");
     env.ANTHROPIC_AUTH_TOKEN = key;
     env.ANTHROPIC_API_KEY = ""; // blank, not deleted — stops the SDK falling back to Anthropic auth
+
+    const model = process.env.EVAL_MODEL;
+    if (model) {
+      env.ANTHROPIC_DEFAULT_OPUS_MODEL = model;
+      env.ANTHROPIC_DEFAULT_SONNET_MODEL = model;
+      env.ANTHROPIC_DEFAULT_HAIKU_MODEL = model;
+      env.ANTHROPIC_SMALL_FAST_MODEL = model;
+      env.CLAUDE_CODE_SUBAGENT_MODEL = model;
+    }
     return env;
   }
 

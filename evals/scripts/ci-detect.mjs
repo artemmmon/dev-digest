@@ -6,7 +6,11 @@
  *
  *   .claude/skills/<name>/**   OR  evals/skills/<name>/**   → run evals/skills/<name>  (content tier)
  *   .claude/agents/<name>.md   OR  evals/agents/<name>/**   → run evals/agents/<name>  (tool tier)
- *   CLAUDE.md / .claude/CLAUDE.md / any agent / engine change → run the workflow tier
+ *   any CLAUDE.md / AGENTS.md, any SKILL.md, any agent, settings.json, the workflow cases or the
+ *   engine → run the workflow tier (it measures the live harness: routing, nested rules, skills)
+ *
+ * EVAL_ALL=1 ignores the diff and selects every skill and agent that has evals, plus the workflow
+ * tier (a manual full run).
  *
  * A changed artifact with NO written evals is NOT a failure: it is reported on the `skipped_*`
  * outputs so the job can print a visible "SKIP <name> (no evals)" line instead of going red.
@@ -22,6 +26,8 @@ import { fileURLToPath } from "node:url";
 const EVALS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = join(EVALS_DIR, "..");
 
+const ALL = process.env.EVAL_ALL === "1";
+
 const changed = (process.env.CHANGED_FILES ?? "")
   .split("\n")
   .map((s) => s.trim())
@@ -34,6 +40,20 @@ function hasEvals(tier, name) {
   return readdirSync(dir).some((f) => f.endsWith(".eval.ts"));
 }
 
+/** Names of every folder under evals/<tier>/ that has a *.eval.ts. */
+function allWithEvals(tier) {
+  const dir = join(EVALS_DIR, tier);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((n) => hasEvals(tier, n)).sort();
+}
+
+/** A skill that only has skill-creator evals (evals/evals.json) cannot run in CI: say so by name. */
+function hasCreatorEvalsOnly(name) {
+  return (
+    !hasEvals("skills", name) && existsSync(join(REPO_ROOT, ".claude", "skills", name, "evals", "evals.json"))
+  );
+}
+
 /** Collect distinct artifact names touched under a `.claude` and/or `evals` prefix. */
 function touched(reClaude, reEvals) {
   const names = new Set();
@@ -44,14 +64,13 @@ function touched(reClaude, reEvals) {
   return [...names].sort();
 }
 
-const skillNames = touched(
-  /^\.claude\/skills\/([^/]+)\//,
-  /^evals\/skills\/([^/]+)\//,
-);
-const agentNames = touched(
-  /^\.claude\/agents\/([^/]+)\.md$/,
-  /^evals\/agents\/([^/]+)\//,
-);
+const skillNames = ALL
+  ? allWithEvals("skills")
+  : touched(/^\.claude\/skills\/([^/]+)\//, /^evals\/skills\/([^/]+)\//);
+// .claude/agents/README.md is the catalogue, not an agent.
+const agentNames = ALL
+  ? allWithEvals("agents")
+  : touched(/^\.claude\/agents\/(?!README\.md$)([^/]+)\.md$/, /^evals\/agents\/([^/]+)\//);
 
 const skills = skillNames.filter((n) => hasEvals("skills", n));
 const skippedSkills = skillNames.filter((n) => !hasEvals("skills", n));
@@ -59,15 +78,22 @@ const agents = agentNames.filter((n) => hasEvals("agents", n));
 const skippedAgents = agentNames.filter((n) => !hasEvals("agents", n));
 
 // The workflow tier measures the LIVE harness, so anything that changes it re-triggers it:
-// the root or .claude CLAUDE.md, any agent definition, the workflow cases, or the engine itself.
-const runWorkflow = changed.some(
-  (f) =>
-    f === "CLAUDE.md" ||
-    f === ".claude/CLAUDE.md" ||
-    /^\.claude\/agents\/.+\.md$/.test(f) ||
-    /^evals\/workflow\//.test(f) ||
-    /^evals\/src\//.test(f),
-);
+//   - any CLAUDE.md or AGENTS.md (root, .claude/, or a package's own: server/, client/, ...).
+//     The CLAUDE.md files are symlinks to AGENTS.md, so the edit shows up on AGENTS.md;
+//   - a skill's SKILL.md (its description decides whether it is picked);
+//   - any agent definition, .claude/settings.json;
+//   - the workflow cases or the engine itself.
+const runWorkflow =
+  ALL ||
+  changed.some(
+    (f) =>
+      /(^|\/)(CLAUDE|AGENTS)\.md$/.test(f) ||
+      /^\.claude\/skills\/[^/]+\/SKILL\.md$/.test(f) ||
+      /^\.claude\/agents\/(?!README\.md$).+\.md$/.test(f) ||
+      /^\.claude\/settings(\.local)?\.json$/.test(f) ||
+      /^evals\/workflow\//.test(f) ||
+      /^evals\/src\//.test(f),
+  );
 
 const out = process.env.GITHUB_OUTPUT;
 const write = (k, v) => (out ? appendFileSync(out, `${k}=${v}\n`) : console.log(`${k}=${v}`));
@@ -80,9 +106,15 @@ write("skipped_agents", skippedAgents.join(" "));
 
 // Human-readable summary in the step log.
 console.error("── eval change detection ──");
-console.error(`changed files : ${changed.length}`);
+console.error(ALL ? "mode          : all (EVAL_ALL=1)" : `changed files : ${changed.length}`);
 console.error(`skills → run  : ${skills.join(", ") || "(none)"}`);
 console.error(`agents → run  : ${agents.join(", ") || "(none)"}`);
 console.error(`workflow tier : ${runWorkflow ? "run" : "skip"}`);
-if (skippedSkills.length) console.error(`SKIP skills (no evals): ${skippedSkills.join(", ")}`);
+for (const n of skippedSkills) {
+  console.error(
+    hasCreatorEvalsOnly(n)
+      ? `SKIP skill ${n}: only evals/evals.json (skill-creator format), not runnable in CI`
+      : `SKIP skill ${n}: no evals`,
+  );
+}
 if (skippedAgents.length) console.error(`SKIP agents (no evals): ${skippedAgents.join(", ")}`);

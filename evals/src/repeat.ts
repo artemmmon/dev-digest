@@ -8,6 +8,10 @@
  *
  * --label saves the aggregate to results/repeat-<label>.json so two labeled series can be diffed
  * with `pnpm eval:delta baseline candidate`.
+ *
+ * --fail-below <rate> makes the process exit 1 when any test's pass rate is under <rate> (0..1),
+ * when a run crashed, or when no records were produced. Without it the exit code is always 0, so
+ * a CI job would be green whatever the cases did. 0.5 with two runs means "one of two must pass".
  */
 
 import { mkdirSync, writeFileSync, existsSync, statSync, readdirSync } from "node:fs";
@@ -75,11 +79,13 @@ async function main(): Promise<void> {
   const MAX_TIMES = 2;
   let times = MAX_TIMES;
   let label: string | undefined;
+  let failBelow: number | undefined;
   const vitestArgs: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "-n" || a === "--times") times = Number(argv[++i]);
     else if (a === "--label") label = argv[++i];
+    else if (a === "--fail-below") failBelow = Number(argv[++i]);
     else vitestArgs.push(a);
   }
   if (vitestArgs.length === 0 || !Number.isFinite(times) || times < 1) {
@@ -90,6 +96,10 @@ async function main(): Promise<void> {
     console.error(`  ${DIM}capping -n ${times} → ${MAX_TIMES} (token economy)${RESET}`);
     times = MAX_TIMES;
   }
+  if (failBelow !== undefined && !(failBelow >= 0 && failBelow <= 1)) {
+    console.error("--fail-below takes a rate between 0 and 1");
+    process.exit(1);
+  }
   vitestArgs.splice(0, vitestArgs.length, ...resolveEvalPatterns(vitestArgs));
 
   const startLine = recordCount();
@@ -97,11 +107,13 @@ async function main(): Promise<void> {
   const nCases = countTests(vitestArgs);
   console.log(`\nRepeat: ${vitestArgs.join(" ")}`);
   console.log(`  ${nCases ?? "?"} test case(s) × ${times} runs  (full traces in results/outputs/)\n`);
+  let crashed = 0;
   for (let i = 1; i <= times; i++) {
     const captured = await runVitestOnce(`run ${i}/${times}`, vitestArgs);
     const fresh = loadRecords(line);
     line = recordCount();
     if (fresh.length === 0) {
+      crashed++;
       console.log(`  run ${i}/${times}  ${RED}no records — run crashed${RESET}`);
       if (captured) console.log(captured.split("\n").slice(-6).join("\n"));
       continue;
@@ -128,6 +140,20 @@ async function main(): Promise<void> {
     writeFileSync(file, JSON.stringify({ label, git_sha: git.sha, dirty: git.dirty, times, vitestArgs, tests }, null, 2));
     console.log(`\n${GREEN}Saved as '${label}'${RESET} -> ${file}`);
     console.log(`Compare with: pnpm eval:delta <baseline-label> ${label}`);
+  }
+
+  if (failBelow !== undefined) {
+    const low = nodeids.filter((id) => tests[id].pass.rate < failBelow);
+    if (crashed > 0 || nodeids.length === 0 || low.length > 0) {
+      const why = [
+        crashed > 0 ? `${crashed} run(s) crashed` : "",
+        nodeids.length === 0 ? "no records" : "",
+        low.length > 0 ? `${low.length} case(s) under ${pct(failBelow)}` : "",
+      ].filter(Boolean);
+      console.log(`\n${RED}Gate failed:${RESET} ${why.join(", ")}`);
+      process.exit(1);
+    }
+    console.log(`\n${GREEN}Gate passed:${RESET} every case at or above ${pct(failBelow)}`);
   }
 }
 

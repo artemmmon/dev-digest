@@ -186,62 +186,48 @@ workflow cases:
 > checkout is disposable); locally, prefer the Anthropic path or a throwaway clone for the workflow
 > tier.
 
-### Wiring it into GitHub Actions (per-PR)
+### Running it in GitHub Actions
 
-The engine is CI-ready: bring the proxy up as a step, wait for it, run the tier, tear it down. Put
-the OpenRouter key in the repo's **Actions secrets** as `OPENROUTER_API_KEY` (Settings → Secrets and
-variables → Actions). Create `.github/workflows/<name>.yml` in your repo:
+`.github/workflows/evals.yml` is the CI entry. Today it runs **manually** (Actions → evals → Run
+workflow); adding a `pull_request:` trigger is one block, documented at the top of the file. Use
+`pull_request`, never `pull_request_target`: a fork's PR must not receive the secret.
 
-```yaml
-name: evals
-on:
-  pull_request:
-    paths: ['evals/**', '.claude/**', 'CLAUDE.md']   # only when the harness/artifacts change
+| Job | Needs a key | What it does | Gate |
+|-----|-------------|--------------|------|
+| `what changed` | no | `git diff base...HEAD` → `scripts/ci-detect.mjs` → skills, agents, workflow flag | — |
+| `static checks` | no | `pnpm typecheck` + `pnpm eval:static` | the only job to mark **required** |
+| `model evals` | `OPENROUTER_API_KEY` | LiteLLM proxy up → skills → agents → workflow groups 1/2/3/5 → group 4 (advisory) → report | advisory |
 
-permissions:
-  contents: read
+What a change runs (the detector, pinned by `src/ci-detect.test.ts`):
 
-jobs:
-  workflow-evals:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: evals
-    env:
-      EVAL_BACKEND: openrouter
-      OPENROUTER_BASE_URL: http://localhost:4000
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # repo Actions secret
-      EVAL_MODEL: google/gemini-2.5-flash
-      EVAL_JUDGE_MODEL: google/gemini-2.5-flash
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 10 }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: evals/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+| Changed | Runs |
+|---------|------|
+| `.claude/skills/<n>/**` or `evals/skills/<n>/**` | `evals/skills/<n>`, if it has a `*.eval.ts` |
+| `.claude/agents/<n>.md` or `evals/agents/<n>/**` | `evals/agents/<n>`, and the workflow tier |
+| any `CLAUDE.md` / `AGENTS.md` (root, `.claude/`, `server/`, `client/`, …), a `SKILL.md`, `.claude/settings.json`, `evals/workflow/**`, `evals/src/**` | the workflow tier |
 
-      # --- the engine ---
-      - run: docker compose -f proxy/docker-compose.yml up -d   # OPENROUTER_API_KEY from job env
-      - run: pnpm proxy:wait                                     # block until the proxy answers
-      - run: pnpm eval:workflow                                  # or eval:agents / eval:skills / eval
-      - if: failure()
-        run: docker compose -f proxy/docker-compose.yml logs --tail 100
-      - if: always()
-        run: docker compose -f proxy/docker-compose.yml down
-```
+A skill or agent without runnable evals is printed as `SKIP`, not failed. A skill that has only
+`evals/evals.json` (skill-creator format) is named as such: CI cannot run that format.
 
-Notes:
-- ubuntu runners ship Docker + `docker compose`, so no extra setup is needed.
-- The proxy container reads `OPENROUTER_API_KEY` straight from the job `env` (which is fed by the
-  secret) — you don't pass it to `docker compose` explicitly.
-- Because tool tiers cost real tokens, gate on `paths:` (only when the harness/artifacts change) and
-  keep the case count small. For a stricter gate, split into a required `eval:agents`/`eval:skills`
-  job and a non-blocking `eval:workflow` job (activation flakiness, above).
+**Model.** One run: the `model` and `judge_model` inputs. For good: repository variables
+`EVAL_MODEL` and `EVAL_JUDGE_MODEL`. Fallback: `deepseek/deepseek-v4-flash`. The judge follows the
+model unless set. Under `EVAL_BACKEND=openrouter`, `src/runtime/env.ts` also pins
+`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL` and
+`CLAUDE_CODE_SUBAGENT_MODEL` to `EVAL_MODEL`: the project's subagents declare `model: sonnet` /
+`opus`, and an alias left alone would resolve to a Claude model on OpenRouter.
+
+**Gate.** `eval:repeat` and `eval:workflow:repeat` take `--fail-below <rate>`: exit 1 when a case's
+pass rate over the runs is below it, a run crashed, or nothing was recorded. Without the flag the
+exit code is always 0. CI uses `0.5` with two runs: a case passes if one of two runs does, and the
+summary shows a 🟡 for a case that passed once.
+
+**Output.** `pnpm eval:report` prints the green/red checklist of the newest runs and, in CI, appends
+it to the job summary. `evals/results` is uploaded as the `eval-results` artifact (14 days).
+
+**First run on a new model is a calibration, not a gate.** The numbers in this README (strict 4/4 vs
+lite 1/4, control 0/6 vs treatment 6/6) were measured on `claude-haiku-5-5` with a `claude-sonnet-5-5`
+judge. A non-Claude model can do a subagent's work inline instead of dispatching it (see "Which cheap
+model"), which turns group 4 red for a reason that is about the model.
 
 ## Module layout — `src/` (the engine)
 
@@ -434,7 +420,8 @@ answer says instead. And `Bash` can appear in `toolsUsed` although it is not on 
 
 **Static checks, no model.** `pnpm eval:static` checks that every `AGENTS.md` is ≤ 100 lines, that
 each `CLAUDE.md` is a symlink to it, that the paths it names exist, and that every file, skill and
-subagent a workflow case names exists. Run it before a workflow run; a case that expects a missing
+subagent a workflow case names exists, and (`src/ci-detect.test.ts`) that the CI change detector maps
+a change to the suites it should. Run it before a workflow run; a case that expects a missing
 file fails for a reason that has nothing to do with the model.
 
 ## Commands & parameters
@@ -448,7 +435,8 @@ pnpm eval:skills         # just skills/
 pnpm eval:agents         # just agents/
 pnpm eval:workflow       # just workflow/
 pnpm eval:workflow:repeat -n 2   # workflow/ twice; -n is capped at 2 (token economy)
-pnpm eval:static         # static harness checks + trace-assertion unit tests (no model, no tokens)
+pnpm eval:static         # static harness checks, trace-assertion and ci-detect unit tests (no model, no tokens)
+pnpm eval:report         # green/red checklist of the newest runs from results/records.jsonl (no model)
 pnpm vitest run skills/onion-architecture       # one artifact
 pnpm vitest run src/records/stats.test.ts       # the only non-model unit test (stats math)
 ```
@@ -456,7 +444,7 @@ pnpm vitest run src/records/stats.test.ts       # the only non-model unit test (
 ### `eval:repeat` — stability of one thing
 
 ```bash
-pnpm eval:repeat <vitest pattern> [-n times=5] [-t testNamePattern] [--label name]
+pnpm eval:repeat <vitest pattern> [-n times=5] [-t testNamePattern] [--label name] [--fail-below rate]
 pnpm eval:repeat skills/onion-architecture -n 5 --label baseline
 ```
 Runs the pattern N times, then prints per-test pass rate, a per-**practice** table
@@ -557,6 +545,7 @@ Cheap and orthogonal; the `TrendReporter` keeps writing test-level outcome rows 
 | `EVAL_MAX_TURNS` | `8` | max agent turns per case |
 | `EVAL_CONFIG` | `candidate` | `benchmark` sets this to `baseline` to skip artifact injection |
 | `EVAL_QUIET` | unset | suppress per-run trace spam during multi-run aggregation |
+| `EVAL_ALL` | unset | `1`, read by `scripts/ci-detect.mjs` only: select every skill and agent with evals, ignoring the diff |
 | `EVAL_CONTROL` | unset | `1`: also run a control for trace cases with `control: true`; `only`: run just the controls |
 
 ## Records, statistics, flags
