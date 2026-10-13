@@ -1,0 +1,236 @@
+# Harness evals — skills, subagents and the CLAUDE.md / AGENTS.md workflow (evals/).
+#
+# What runs is picked from the diff by evals/scripts/ci-detect.mjs:
+#   .claude/skills/<n>/**      -> evals/skills/<n>      (skills that have vitest evals)
+#   .claude/agents/<n>.md      -> evals/agents/<n>      (agents that have vitest evals)
+#   any CLAUDE.md / AGENTS.md, SKILL.md, agent, settings.json, evals/workflow, evals/src
+#                              -> the workflow tier (5 grouped sessions)
+# An artifact without runnable evals is printed as "SKIP" in the detect step, not failed.
+#
+# Models: every Claude Code session (and the judge) goes through OpenRouter, via the LiteLLM proxy
+# in evals/proxy/. Change the model without editing this file:
+#   - one run:   Actions -> evals -> Run workflow -> model / judge_model
+#   - for good:  Settings -> Secrets and variables -> Actions -> Variables: EVAL_MODEL, EVAL_JUDGE_MODEL
+#   - fallback:  deepseek/deepseek-v4-flash
+# The judge follows the model unless judge_model / EVAL_JUDGE_MODEL is set.
+#
+# Required secret: OPENROUTER_API_KEY. Put a credit limit on that key at OpenRouter: it is the
+# spending cap that holds whatever this file says.
+#
+# Gate: `static` needs no key and no model, so it is the only job that should be a required check.
+# The model jobs are advisory (a model-backed case is probabilistic); read the job summary.
+#
+# Trigger: manual for now. To run on pull requests (step 3 of the rollout) add to `on:`
+#   pull_request:
+#     paths: ['.claude/**', '**/AGENTS.md', '**/CLAUDE.md', 'evals/**', '.github/workflows/evals.yml']
+# and keep `pull_request`, never `pull_request_target`: a fork's PR must not receive the secret.
+name: evals
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'changed = what differs from base · all = every skill and agent that has evals, plus the workflow tier'
+        type: choice
+        options: [changed, all]
+        default: changed
+      base:
+        description: 'Branch to diff against when scope is "changed"'
+        type: string
+        default: main
+      model:
+        description: 'Model under test (OpenRouter slug). Empty = repo variable EVAL_MODEL, else deepseek/deepseek-v4-flash'
+        type: string
+        default: ''
+      judge_model:
+        description: 'Judge model. Empty = repo variable EVAL_JUDGE_MODEL, else the model under test'
+        type: string
+        default: ''
+      runs:
+        description: 'Runs per case (the eval tooling caps this at 2)'
+        type: choice
+        options: ['2', '1']
+        default: '2'
+      min_pass_rate:
+        description: 'A case fails the job when its pass rate over the runs is below this (0.5 = one of two must pass)'
+        type: string
+        default: '0.5'
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels its older run; two manual runs (say, two models side by side) do not
+# cancel each other.
+concurrency:
+  group: evals-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'pr' }}
+  cancel-in-progress: true
+
+env:
+  EVAL_MODEL: ${{ inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
+  EVAL_JUDGE_MODEL: ${{ inputs.judge_model || vars.EVAL_JUDGE_MODEL || inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
+  EVAL_RUNS: ${{ inputs.runs || '2' }}
+  EVAL_MIN_PASS_RATE: ${{ inputs.min_pass_rate || '0.5' }}
+
+jobs:
+  detect:
+    name: what changed
+    runs-on: ubuntu-latest
+    outputs:
+      skills: ${{ steps.detect.outputs.skills }}
+      agents: ${{ steps.detect.outputs.agents }}
+      run_workflow: ${{ steps.detect.outputs.run_workflow }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: detect
+        env:
+          BASE: ${{ github.base_ref || inputs.base || 'main' }}
+          SCOPE: ${{ inputs.scope || 'changed' }}
+        run: |
+          if [ "$SCOPE" = "all" ]; then
+            export EVAL_ALL=1
+          else
+            git fetch --no-tags origin "$BASE"
+            CHANGED_FILES="$(git diff --name-only "origin/$BASE...HEAD")"
+            export CHANGED_FILES
+          fi
+          node evals/scripts/ci-detect.mjs
+
+  static:
+    name: static checks (no model)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # AGENTS.md size and symlinks, every path an AGENTS.md names, every file / skill / subagent a
+      # workflow case expects, the trace assertions and the change detector.
+      - run: pnpm eval:static
+
+  model-evals:
+    name: model evals (OpenRouter)
+    needs: detect
+    if: needs.detect.outputs.skills != '[]' || needs.detect.outputs.agents != '[]' || needs.detect.outputs.run_workflow == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      EVAL_BACKEND: openrouter
+      OPENROUTER_BASE_URL: http://127.0.0.1:4000
+      # The key is NOT job-level: `pnpm install` runs dependency build scripts, and third-party
+      # actions run in this job. It is set on the steps that call the proxy or the model only.
+      SKILLS: ${{ needs.detect.outputs.skills }}
+      AGENTS: ${{ needs.detect.outputs.agents }}
+    steps:
+      - name: Require the OpenRouter key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::OPENROUTER_API_KEY is not set (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+          echo "model under test: $EVAL_MODEL"
+          echo "judge:            $EVAL_JUDGE_MODEL"
+          echo "runs per case:    $EVAL_RUNS  (gate: pass rate >= $EVAL_MIN_PASS_RATE)"
+
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      # Anthropic-protocol -> OpenRouter translator; the Agent SDK cannot reach DeepSeek directly.
+      - name: Start the proxy
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: docker compose -f proxy/docker-compose.yml up -d
+      - run: pnpm proxy:wait
+
+      - name: Skills with evals
+        if: needs.detect.outputs.skills != '[]'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          rc=0
+          for n in $(echo "$SKILLS" | jq -r '.[]'); do
+            pnpm eval:repeat "skills/$n" -n "$EVAL_RUNS" --fail-below "$EVAL_MIN_PASS_RATE" --label "ci-skill-$n" || rc=1
+          done
+          exit $rc
+
+      - name: Agents with evals
+        if: needs.detect.outputs.agents != '[]'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          rc=0
+          for n in $(echo "$AGENTS" | jq -r '.[]'); do
+            pnpm eval:repeat "agents/$n" -n "$EVAL_RUNS" --fail-below "$EVAL_MIN_PASS_RATE" --label "ci-agent-$n" || rc=1
+          done
+          exit $rc
+
+      # Groups 1, 2, 3, 5: doc routing, nested rules, guardrails, negatives. Behaviour a model of
+      # this class is expected to show.
+      - name: Workflow, routing and rules
+        if: needs.detect.outputs.run_workflow == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: >
+          pnpm eval:workflow:repeat -n "$EVAL_RUNS" -t "group [1235] "
+          --fail-below "$EVAL_MIN_PASS_RATE" --label ci-workflow
+
+      # Group 4 needs the model to call the Skill tool and to dispatch a subagent. A cheap non-Claude
+      # model may do that work inline instead (see evals/README.md, "Which cheap model"), which is a
+      # model finding, not a harness fault: advisory until a calibration run shows it holds.
+      - name: Workflow, skill and subagent dispatch (advisory)
+        if: needs.detect.outputs.run_workflow == 'true'
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: >
+          pnpm eval:workflow:repeat -n "$EVAL_RUNS" -t "group 4 "
+          --fail-below "$EVAL_MIN_PASS_RATE" --label ci-workflow-dispatch
+
+      - name: Report (job summary)
+        if: always()
+        run: pnpm eval:report --runs "$EVAL_RUNS"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results
+          retention-days: 14
+
+      - name: Proxy logs
+        if: failure()
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100
+      - name: Stop the proxy
+        if: always()
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: pnpm proxy:down
