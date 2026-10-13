@@ -28,7 +28,11 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
     "Answer directly and completely from the information given in the prompt.";
   const system = (opts.systemPrompt ?? "") + directive;
 
-  const client = new OpenAI({ apiKey: key, baseURL: BASE_URL, timeout: 90_000, maxRetries: 2 });
+  // A long report on a verbose model takes minutes: a 90 s timeout aborted the first attempt of a
+  // case that needs ~70 s on a fast day and ~150 s on a slow one, and three attempts then outlasted
+  // the test's own timeout. One retry, and a timeout that EVAL_REQUEST_TIMEOUT_MS can raise.
+  const timeout = Number(process.env.EVAL_REQUEST_TIMEOUT_MS ?? "180000");
+  const client = new OpenAI({ apiKey: key, baseURL: BASE_URL, timeout, maxRetries: 1 });
 
   const started = Date.now();
   let text = "";
