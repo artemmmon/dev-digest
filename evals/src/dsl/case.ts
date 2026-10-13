@@ -5,7 +5,7 @@
  * marked spot below, in this one file).
  */
 
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "vitest";
@@ -158,7 +158,10 @@ function runQualityCases(artifact: string, cases: QualityCase[], task: Task): vo
           logVerdict(c.name, verdict);
         }
       } finally {
-        record(c.name, { result, verdict, grounded, threshold });
+        // A judge that threw leaves no verdict: that is a fail, not "the session did not crash".
+        // (A gate failure leaves no verdict either, but record() already scores it as a fail.)
+        const judgeFailed = !!c.practices?.length && verdict === undefined && (grounded === undefined || grounded === 1);
+        record(c.name, { result, verdict, grounded, threshold, passed: judgeFailed ? false : undefined });
       }
 
       if (grounded !== undefined) {
@@ -177,13 +180,18 @@ export const runAgentCases = (agent: string, cases: AgentCase[]) => runQualityCa
 /** The same prompt with no harness: an empty folder, no on-disk config. Recorded, never asserted. */
 async function runControl(c: TraceCase): Promise<void> {
   const emptyCwd = mkdtempSync(join(tmpdir(), "eval-control-"));
-  const result = await runClaude(c.prompt, {
-    allowedTools: WORKFLOW_ALLOWED_TOOLS,
-    disallowedTools: WORKFLOW_DISALLOWED_TOOLS,
-    maxTurns: c.maxTurns,
-    cwd: emptyCwd,
-    settingSources: [],
-  });
+  let result: Result;
+  try {
+    result = await runClaude(c.prompt, {
+      allowedTools: WORKFLOW_ALLOWED_TOOLS,
+      disallowedTools: WORKFLOW_DISALLOWED_TOOLS,
+      maxTurns: c.maxTurns,
+      cwd: emptyCwd,
+      settingSources: [],
+    });
+  } finally {
+    rmSync(emptyCwd, { recursive: true, force: true });
+  }
   const label = `${c.name} [control]`;
   logTrace(label, result);
   const threshold = c.threshold ?? DEFAULT_THRESHOLD;
@@ -284,7 +292,15 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
             passed: misses.length === 0 && judged,
           });
         }
-        if (WORKFLOW_CONTROL && c.control && c.practices?.length) await runControl(c);
+        // The control is recorded, never asserted: a failure of the control session itself must
+        // not replace the treatment's own result below.
+        if (WORKFLOW_CONTROL && c.control && c.practices?.length) {
+          try {
+            await runControl(c);
+          } catch (e) {
+            console.warn(`control session failed for "${c.name}": ${e instanceof Error ? e.message : e}`);
+          }
+        }
         expect(misses, misses.join("\n")).toEqual([]);
         if (c.practices?.length) {
           expect(verdict, "nothing to judge: the session produced no answer text").toBeDefined();
@@ -295,12 +311,17 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         const tools = c.tools ?? ["Read", "Grep", "Glob"];
         const treatment = await workflowTask(c.prompt, { allowedTools: tools, maxTurns: c.maxTurns });
         const emptyCwd = mkdtempSync(join(tmpdir(), "eval-control-"));
-        const control = await runClaude(c.prompt, {
-          allowedTools: tools,
-          maxTurns: c.maxTurns,
-          cwd: emptyCwd,
-          settingSources: [],
-        });
+        let control: Result;
+        try {
+          control = await runClaude(c.prompt, {
+            allowedTools: tools,
+            maxTurns: c.maxTurns,
+            cwd: emptyCwd,
+            settingSources: [],
+          });
+        } finally {
+          rmSync(emptyCwd, { recursive: true, force: true });
+        }
         logTrace(`${c.name} [treatment]`, treatment);
         logTrace(`${c.name} [control]`, control);
         const treatmentRead = treatment.filesRead.some((f) => f.includes(c.expectFileRead));

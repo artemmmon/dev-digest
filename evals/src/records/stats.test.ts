@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from "vitest";
-import { calcStats, computeFlags } from "./stats.js";
+import { aggregate, calcStats, computeFlags, type EvalRecord } from "./stats.js";
 
 const series = (passed: number, total: number) => ({ passed, total, rate: total ? passed / total : 0 });
 
@@ -55,5 +55,39 @@ describe("computeFlags", () => {
     expect(computeFlags(series(5, 5), series(5, 5), { candTokens: 120, baseTokens: 100 })).not.toContain(
       "cost_regression",
     );
+  });
+});
+
+describe("aggregate", () => {
+  const row = (over: Partial<EvalRecord>): EvalRecord => ({
+    schema: 1,
+    run_id: "r",
+    git_sha: "x",
+    dirty: false,
+    config: "candidate",
+    nodeid: "f.eval.ts > case",
+    label: "case",
+    outcome: true,
+    practices: [],
+    num_turns: 1,
+    metrics: { durationMs: 1, inputTokens: 0, outputTokens: 0, toolCallCount: 0 },
+    trace: { tools: [], subagents: [], skills: [], reads: [] },
+    output_file: "o.md",
+    ...over,
+  });
+
+  test("a control row does not pool into its treatment's pass rate", () => {
+    const agg = aggregate([
+      row({ outcome: true }),
+      row({ outcome: false, control: true, label: "case [control]" }),
+      row({ outcome: true }),
+    ]);
+    expect(agg["f.eval.ts > case"].pass).toMatchObject({ passed: 2, total: 2 });
+    expect(agg["f.eval.ts > case"].label).toBe("case");
+  });
+
+  test("a series that has only control rows (EVAL_CONTROL=only) is kept", () => {
+    const agg = aggregate([row({ outcome: false, control: true }), row({ outcome: true, control: true })]);
+    expect(agg["f.eval.ts > case"].pass).toMatchObject({ passed: 1, total: 2 });
   });
 });

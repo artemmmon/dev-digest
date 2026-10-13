@@ -7,6 +7,7 @@
  * `results/` is gitignored and append-only — deleting it is always safe.
  */
 
+import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect } from "vitest";
@@ -23,8 +24,12 @@ const OUTPUTS = join(RESULTS_DIR, "outputs");
 const RUN_ID = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
 const { sha: GIT_SHA, dirty: DIRTY } = gitInfo();
 
-const slugify = (s: string): string =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "case";
+// The slug is cut to 80 characters, so two long labels that differ only at the end (a case and its
+// " [control]" run) would share one file; a short hash of the full label keeps them apart.
+const slugify = (s: string): string => {
+  const base = s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "case";
+  return `${base}-${createHash("sha1").update(s).digest("hex").slice(0, 6)}`;
+};
 
 export interface RecordData {
   result: Result;

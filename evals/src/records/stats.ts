@@ -53,6 +53,8 @@ export interface EvalRecord {
   metrics: { durationMs: number; inputTokens: number; outputTokens: number; toolCallCount: number };
   trace: { tools: string[]; subagents: string[]; skills: string[]; reads: string[] };
   output_file: string;
+  /** A trace case's control session (same test name as its treatment). Set by `extra` in record(). */
+  control?: boolean;
 }
 
 /** Count the lines currently in records.jsonl — a marker to slice "new since a run started". */
@@ -94,10 +96,19 @@ export interface NodeAggregate {
   };
 }
 
-/** Aggregate a flat record list into per-nodeid stats. Pass a single config's records. */
+/**
+ * Aggregate a flat record list into per-nodeid stats. Pass a single config's records.
+ *
+ * A control session shares its treatment's nodeid. When a nodeid has both, only the treatment rows
+ * count: a control is expected to fail what the harness fixes, and pooling it would drag the
+ * treatment's pass rate down. A nodeid that has only control rows (`EVAL_CONTROL=only`) is kept,
+ * which is what `eval:delta <control-label> <treatment-label>` pairs against.
+ */
 export function aggregate(records: EvalRecord[]): Record<string, NodeAggregate> {
+  const treated = new Set(records.filter((r) => !r.control).map((r) => r.nodeid));
   const byNode = new Map<string, EvalRecord[]>();
   for (const r of records) {
+    if (r.control && treated.has(r.nodeid)) continue;
     const arr = byNode.get(r.nodeid) ?? [];
     arr.push(r);
     byNode.set(r.nodeid, arr);
