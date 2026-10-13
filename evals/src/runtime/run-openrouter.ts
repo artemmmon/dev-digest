@@ -34,7 +34,6 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
   let text = "";
   let inputTokens = 0;
   let outputTokens = 0;
-  let isError = false;
   try {
     const res = await client.chat.completions.create({
       model: opts.model ?? EVAL_MODEL,
@@ -54,8 +53,10 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
     inputTokens = res.usage?.prompt_tokens ?? 0;
     outputTokens = res.usage?.completion_tokens ?? 0;
   } catch (err) {
-    isError = true;
-    text = err instanceof Error ? err.message : String(err);
+    // Not an answer: returned as text, a 429 or a timeout would be sent to the judge and counted
+    // as a failed practice. Throwing is what runClaude does when nothing usable was collected; the
+    // test fails, and eval:repeat sees the missing record.
+    throw new Error(`OpenRouter request failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
@@ -65,7 +66,7 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
     skillsInvoked: [],
     filesRead: [],
     numTurns: 1,
-    isError,
+    isError: false,
     metrics: { durationMs: Date.now() - started, inputTokens, outputTokens, toolCallCount: 0 },
   };
 }

@@ -110,6 +110,7 @@ async function main(): Promise<void> {
   console.log(`\nRepeat: ${vitestArgs.join(" ")}`);
   console.log(`  ${nCases ?? "?"} test case(s) × ${times} runs  (full traces in results/outputs/)\n`);
   let crashed = 0;
+  let short = 0;
   for (let i = 1; i <= times; i++) {
     const captured = await runVitestOnce(`run ${i}/${times}`, vitestArgs);
     const fresh = loadRecords(line);
@@ -120,9 +121,17 @@ async function main(): Promise<void> {
       if (captured) console.log(captured.split("\n").slice(-6).join("\n"));
       continue;
     }
-    const passed = fresh.filter((r) => r.outcome).length;
-    const mark = passed === fresh.length ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`;
-    console.log(`  run ${i}/${times}  ${mark} ${passed}/${fresh.length} cases`);
+    // Control sessions are expected to fail what the harness fixes; aggregate() leaves them out of
+    // the pass rate unless a run has only controls (EVAL_CONTROL=only), and so does this line.
+    const treated = fresh.some((r) => !r.control) ? fresh.filter((r) => !r.control) : fresh;
+    const passed = treated.filter((r) => r.outcome).length;
+    const mark = passed === treated.length ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`;
+    console.log(`  run ${i}/${times}  ${mark} ${passed}/${treated.length} cases`);
+    // A case that threw before it recorded leaves no row, and a missing row cannot fail a gate.
+    if (nCases && treated.length < nCases) {
+      short++;
+      console.log(`  ${RED}  ${nCases - treated.length} case(s) produced no record in run ${i}${RESET}`);
+    }
   }
 
   const records = loadRecords(startLine);
@@ -146,9 +155,10 @@ async function main(): Promise<void> {
 
   if (failBelow !== undefined) {
     const low = nodeids.filter((id) => tests[id].pass.rate < failBelow);
-    if (crashed > 0 || nodeids.length === 0 || low.length > 0) {
+    if (crashed > 0 || short > 0 || nodeids.length === 0 || low.length > 0) {
       const why = [
         crashed > 0 ? `${crashed} run(s) crashed` : "",
+        short > 0 ? `${short} run(s) had a case with no record` : "",
         nodeids.length === 0 ? "no records" : "",
         low.length > 0 ? `${low.length} case(s) under ${pct(failBelow)}` : "",
       ].filter(Boolean);
