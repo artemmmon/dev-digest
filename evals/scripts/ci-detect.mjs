@@ -19,7 +19,7 @@
  * to $GITHUB_OUTPUT. Pure filesystem + string work — no deps.
  */
 
-import { existsSync, readdirSync, appendFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, appendFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,6 +47,34 @@ function allWithEvals(tier) {
   return readdirSync(dir).filter((n) => hasEvals(tier, n)).sort();
 }
 
+/**
+ * Eval folders that import another artifact's cases or fixtures (`from "../<other>/..."`), for the
+ * names whose eval folder itself changed. architecture-reviewer-lite runs the cases that live in
+ * evals/agents/architecture-reviewer/, so a change there has to select it too. An edit to the
+ * artifact itself (`.claude/agents/<other>.md`) does not: the importer injects its own definition.
+ */
+function dependentsOf(tier, changedEvalDirs) {
+  const out = new Set();
+  const dir = join(EVALS_DIR, tier);
+  if (!existsSync(dir) || changedEvalDirs.size === 0) return out;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    for (const f of readdirSync(join(dir, entry.name)).filter((n) => n.endsWith(".eval.ts"))) {
+      const src = readFileSync(join(dir, entry.name, f), "utf8");
+      for (const m of src.matchAll(/from\s+["']\.\.\/([^/"']+)\//g)) {
+        if (changedEvalDirs.has(m[1])) out.add(entry.name);
+      }
+    }
+  }
+  return out;
+}
+
+/** Names whose `evals/<tier>/<name>/` folder is in the change. */
+function changedEvalDirs(tier) {
+  const re = new RegExp(`^evals/${tier}/([^/]+)/`);
+  return new Set(changed.map((f) => f.match(re)?.[1]).filter(Boolean));
+}
+
 /** A skill that only has skill-creator evals (evals/evals.json) cannot run in CI: say so by name. */
 function hasCreatorEvalsOnly(name) {
   return (
@@ -64,13 +92,20 @@ function touched(reClaude, reEvals) {
   return [...names].sort();
 }
 
+const union = (...lists) => [...new Set(lists.flatMap((l) => [...l]))].sort();
 const skillNames = ALL
   ? allWithEvals("skills")
-  : touched(/^\.claude\/skills\/([^/]+)\//, /^evals\/skills\/([^/]+)\//);
+  : union(
+      touched(/^\.claude\/skills\/([^/]+)\//, /^evals\/skills\/([^/]+)\//),
+      dependentsOf("skills", changedEvalDirs("skills")),
+    );
 // .claude/agents/README.md is the catalogue, not an agent.
 const agentNames = ALL
   ? allWithEvals("agents")
-  : touched(/^\.claude\/agents\/(?!README\.md$)([^/]+)\.md$/, /^evals\/agents\/([^/]+)\//);
+  : union(
+      touched(/^\.claude\/agents\/(?!README\.md$)([^/]+)\.md$/, /^evals\/agents\/([^/]+)\//),
+      dependentsOf("agents", changedEvalDirs("agents")),
+    );
 
 const skills = skillNames.filter((n) => hasEvals("skills", n));
 const skippedSkills = skillNames.filter((n) => !hasEvals("skills", n));

@@ -203,7 +203,8 @@ What a change runs (the detector, pinned by `src/ci-detect.test.ts`):
 | Changed | Runs |
 |---------|------|
 | `.claude/skills/<n>/**` or `evals/skills/<n>/**` | `evals/skills/<n>`, if it has a `*.eval.ts` |
-| `.claude/agents/<n>.md` or `evals/agents/<n>/**` | `evals/agents/<n>`, and the workflow tier |
+| `.claude/agents/<n>.md` | `evals/agents/<n>`, and the workflow tier |
+| `evals/agents/<n>/**` | `evals/agents/<n>`, and every agent eval that imports its cases (`architecture-reviewer-lite` imports `architecture-reviewer`'s) |
 | any `CLAUDE.md` / `AGENTS.md` (root, `.claude/`, `server/`, `client/`, …), a `SKILL.md`, `.claude/settings.json`, `evals/workflow/**`, `evals/src/**` | the workflow tier |
 
 A skill or agent without runnable evals is printed as `SKIP`, not failed. A skill that has only

@@ -45,6 +45,14 @@ describe("ci-detect", () => {
     expect(r.workflow).toBe(true);
   });
 
+  test("a shared eval input selects the eval that imports it; the agent file alone does not", () => {
+    // architecture-reviewer-lite runs the cases and fixtures kept under evals/agents/architecture-reviewer/.
+    const shared = detect(["evals/agents/architecture-reviewer/fixtures/discounts-service.diff"]);
+    expect(shared.agents).toEqual(["architecture-reviewer", "architecture-reviewer-lite"]);
+    const own = detect([".claude/agents/architecture-reviewer.md"]);
+    expect(own.agents).toEqual(["architecture-reviewer"]);
+  });
+
   test("the agents catalogue is not an agent", () => {
     const r = detect([".claude/agents/README.md"]);
     expect(r.agents).toEqual([]);
