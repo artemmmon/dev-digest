@@ -59,7 +59,7 @@ the artifact → measured lift). All three read the same persisted `results/reco
   gate it runs first and must equal `1.0`; the judge is skipped if it fails (cheap-tier economy).
 - `llmJudge(output, practices)` — one structured `query()` → strict JSON, binary PASS/FAIL per
   practice, PASS only with a verbatim evidence quote (the LLM Message Pattern). The judge defaults
-  to a **stronger family** (`EVAL_JUDGE_MODEL=claude-sonnet-5`) than the task (`claude-haiku-4-5`)
+  to a **stronger family** (`EVAL_JUDGE_MODEL=claude-sonnet-5-5`) than the task (`claude-haiku-5-5`)
   to soften single-model self-preference. On a shared subscription families still overlap — the
   real mitigations are *blind + binary + verbatim evidence*.
 
@@ -71,8 +71,8 @@ differs per backend.
 
 | `EVAL_BACKEND` | Runtime | Auth | Model name format |
 |---|---|---|---|
-| `subscription` *(default)* | Claude Agent SDK on the Claude Code login | none (API key stripped) | Anthropic ID — `claude-haiku-4-5` |
-| `openrouter` | see split below | `OPENROUTER_API_KEY` | OpenRouter slug — `deepseek/deepseek-chat`, `anthropic/claude-haiku-4.5`, `google/gemini-...` |
+| `subscription` *(default)* | Claude Agent SDK on the Claude Code login | none (API key stripped) | Anthropic ID — `claude-haiku-5-5` |
+| `openrouter` | see split below | `OPENROUTER_API_KEY` | OpenRouter slug — `deepseek/deepseek-chat`, `anthropic/claude-haiku-5.5`, `google/gemini-...` |
 
 **Why the backend splits by tier.** OpenRouter's native "Anthropic Skin" only serves *Anthropic*
 models, and only the Claude Agent SDK produces the subagent/skill/file-read trace the workflow tier
@@ -105,13 +105,13 @@ pnpm eval:skills
 
 # 3. OpenRouter, but an Anthropic model via the Skin
 EVAL_BACKEND=openrouter \
-EVAL_MODEL=anthropic/claude-haiku-4.5 \
+EVAL_MODEL=anthropic/claude-haiku-5.5 \
 OPENROUTER_API_KEY=sk-or-... \
 pnpm eval:skills
 ```
 
 > **Gotcha:** always set `EVAL_MODEL` together with `EVAL_BACKEND=openrouter` — the default
-> `claude-haiku-4-5` is an Anthropic ID and OpenRouter won't find it. Use an OpenRouter slug.
+> `claude-haiku-5-5` is an Anthropic ID and OpenRouter won't find it. Use an OpenRouter slug.
 
 ### The OpenRouter engine — running EVERY tier (incl. tool tiers) on cheap models
 
@@ -515,8 +515,8 @@ Cheap and orthogonal; the `TrendReporter` keeps writing test-level outcome rows 
 | Env var | Default | Meaning |
 |---------|---------|---------|
 | `EVAL_BACKEND` | `subscription` | runner: `subscription` (Claude Code) or `openrouter` — see [Runners](#runners-claude-code-default-vs-openrouter) |
-| `EVAL_MODEL` | `claude-haiku-4-5` | model under test. Anthropic ID on `subscription`; OpenRouter slug on `openrouter` |
-| `EVAL_JUDGE_MODEL` | `claude-sonnet-5` | judge model (stronger family); same slug-format rule as `EVAL_MODEL` |
+| `EVAL_MODEL` | `claude-haiku-5-5` | model under test. Anthropic ID on `subscription`; OpenRouter slug on `openrouter` |
+| `EVAL_JUDGE_MODEL` | `claude-sonnet-5-5` | judge model (stronger family); same slug-format rule as `EVAL_MODEL` |
 | `OPENROUTER_API_KEY` | — | required when `EVAL_BACKEND=openrouter`; also in `~/.devdigest/secrets.json` |
 | `OPENROUTER_BASE_URL` | OpenRouter | override to point at a local LiteLLM proxy for non-Anthropic tool-tier models |
 | `EVAL_MAX_TURNS` | `8` | max agent turns per case |

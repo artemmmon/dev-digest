@@ -30,19 +30,22 @@ tokens) as surfaced by the studio's model list; verify live before relying on th
 
 | Model | in / out ($/M) | ~$/run | Notes |
 |---|---|---|---|
-| `deepseek/deepseek-v4-flash` *(current default)* | 0.14 / 0.28 | **~$0.002** | Fast, nearly free. Severity inflation + weak instruction-following. |
-| `deepseek/deepseek-v3.2` | 0.28 / 0.42 | ~$0.004 | Cheap step up, decent reasoning. |
+| `deepseek/deepseek-v4-flash` *(current default)* | 0.03 / 1.28 | **~$0.002** | Fast, nearly free. Severity inflation + weak instruction-following. |
+| `anthropic/claude-haiku-5.5` | 0.1 / 0.5 | ~$0.002 | Newest Claude at the default's price; 1M context. Not yet compared on this project's PRs — worth adding to the A/B. |
+| `deepseek/deepseek-v3.2` | 0.259 / 0.80 | ~$0.004 | Cheap step up, decent reasoning. |
 | `deepseek/deepseek-chat-v3.1` | 0.25 / 0.95 | ~$0.004 | Solid budget reviewer. |
-| **`deepseek/deepseek-v4-pro`** ⭐ | 0.955 / 1.91 | **~$0.014** | **Best cheap upgrade.** Same family/provider → drop-in (no prompt or format change), 1M context, clearly stronger reasoning. Start here. |
-| `anthropic/claude-haiku-4.5` | 1 / 5 | ~$0.02 | Cheapest Claude; good at holding the rubric. |
+| **`deepseek/deepseek-v4-pro`** ⭐ | 0.412 / 0.825 | **~$0.006** | **Best cheap upgrade.** Same family/provider → drop-in (no prompt or format change), 1M context, clearly stronger reasoning. Start here. |
+| `anthropic/claude-haiku-4.5` | 1 / 5 | ~$0.02 | Previous Haiku; good at holding the rubric, now 10× the price of Haiku 5.5. |
 | `google/gemini-2.5-pro` | 1.25 / 10 | ~$0.03 | Strong, good value. |
 | `openai/gpt-4.1` | 2 / 8 | ~$0.036 | Reliable instruction-following. |
+| `anthropic/claude-sonnet-5.5` | 2 / 10 | ~$0.04 | Newest Sonnet, same price as Sonnet 5; not yet compared on this project's PRs. |
 | `anthropic/claude-sonnet-5` | 2 / 10 | ~$0.04 | Newer and cheaper than Sonnet 4.6; not yet compared on this project's PRs. |
 | **`anthropic/claude-sonnet-4.6`** ⭐ | 3 / 15 | **~$0.06** | **Quality benchmark.** Best severity calibration, lowest false-positive rate of the practical options. Use to see what a great review looks like. |
-| `anthropic/claude-opus-5` | 5 / 25 | ~$0.10 | Top-tier reasoning; overkill for routine review, useful as a gold-standard reference. |
-| `anthropic/claude-opus-4.8` | 5 / 25 | ~$0.10 | Previous Opus; same price as Opus 5. |
+| `anthropic/claude-opus-5.5` | 4 / 20 | ~$0.08 | Newest Opus, cheaper than Opus 5; top-tier reasoning, useful as a gold-standard reference. |
+| `anthropic/claude-opus-5` | 5 / 25 | ~$0.10 | Previous Opus 5; overkill for routine review. |
+| `anthropic/claude-opus-4.8` | 5 / 25 | ~$0.10 | Older Opus; same price as Opus 5. |
 
-Prices checked against OpenRouter's `/api/v1/models` on 2026-09-28.
+Prices checked against OpenRouter's `/api/v1/models` on 2026-10-12.
 
 (Even ~50× the default lands at ≈10 cents/run — trivial for evaluating quality.)
 
@@ -50,11 +53,12 @@ Prices checked against OpenRouter's `/api/v1/models` on 2026-09-28.
 
 1. **Cheap, low-risk upgrade → `deepseek/deepseek-v4-pro`.** Only the `model` field
    changes; everything else (prompts, structured output, context) is identical. This
-   alone should remove most of the severity-inflation wobble. ~7× the cost, still
-   about a cent per run.
+   alone should remove most of the severity-inflation wobble. ~3× the cost, still
+   well under a cent per run. `anthropic/claude-haiku-5.5` costs the same as the
+   default and is worth adding to the same A/B.
 2. **Quality benchmark → `anthropic/claude-sonnet-4.6`.** Switch one agent to it and
    compare side by side. If the quality jump is worth ~$0.06/run for your use, make
-   it the default for the gating agents (e.g. Security). `anthropic/claude-sonnet-5`
+   it the default for the gating agents (e.g. Security). `anthropic/claude-sonnet-5.5`
    is newer and cheaper — worth adding to the same A/B.
 3. **Mixed strategy.** Cheap model for advisory/Performance passes, a strong model
    for the agent that actually blocks merge (Security). Cost follows importance.
