@@ -32,6 +32,51 @@ changelog row each time.
 | [evals/evals.json](evals/evals.json) | 6 scenarios with expected behaviour, all on the generated `mini-repo` fixture |
 | [evals/setup/make-fixture.mjs](evals/setup/make-fixture.mjs) | Generates the fixture (sparse files, exact sizes); `--no-modules`, `--with-skill` |
 
+## Trials: with the skill and without it
+
+Skill-creator layout, three of the six scenarios, two runs per cell (`-n` is capped at 2 in this repo),
+12 headless sessions in all. Each run is a fresh generated `mini-repo`; the with-skill arm's fixture
+holds `.claude/skills/dependency-checker`, the baseline's does not, so the arms cannot see each
+other or this project's own skills. Task model `claude-haiku-5-5` under the Claude Code
+subscription, judge `claude-sonnet-5-5`, 2026-10-13. A check on the file system (the read-only
+scenario's "nothing changed") is made on a hash of the fixture tree, not on the answer.
+
+| Scenario | With skill | Without skill | Skill activated (with arm) |
+|---|---|---|---|
+| planted-findings (7 checks) | **1.00 / 1.00** | 0.29 / 0.14 | 2 of 2 |
+| internal-vs-external (4 checks) | 0.75 / 0.75 | 0.50 / 0.50 | 0 of 2 |
+| read-only (3 checks) | 0.67 / 1.00 | 0.67 / 0.67 | 1 of 2 |
+| **Mean ± deviation** | **0.86 ± 0.16** | **0.46 ± 0.21** | 3 of 6 |
+
+Pass rate per run, in the order run 1 / run 2; the deviation is across the six runs of an arm. The
+lift is +0.40, and it is almost all in planted-findings: without the skill the baseline passed one
+or two of the seven checks (the unused moment, the zod drift, the relative import into
+reviewer-core and the undeclared lodash were each missed in at least one run), with it all seven
+passed twice.
+
+What the trials say about the skill itself:
+
+- **It was engaged in three of six with-skill runs.** In internal-vs-external (both runs) and one
+  read-only run the model had the skill on disk and answered without it. Those runs still scored
+  at or above the baseline, but the skill's description does not reliably trigger on "how do our
+  packages depend on each other" or "which dependencies are unused"; the scenarios phrase the
+  need without the audit words the description leads with. Not changed here (the skill has two
+  versions only: this is the evidence for the second one).
+- **One check fails in both arms, in every run:** the answer must not call the repo a monorepo or
+  mention `workspace:*`, and internal-vs-external did, with and without the skill. Principle 1 of
+  `SKILL.md` says the same thing, so the answer either did not read it (not engaged) or the check is
+  worded against a harmless mention; the answers are in `evals/workspace/` for a human to settle.
+- **"Words the removal as a recommendation for the user to confirm" failed in one with-skill run and
+  in both baseline runs of read-only**: the answers named `moment` as unused and did not ask for a
+  confirmation, so the check discriminates little there.
+- **Cost.** With the skill, 15–57 s and 1.7–9.7k output tokens a run; without, 30–54 s and 5.1–9.8k.
+  The skill does not make a run slower or longer.
+
+The runs, answers, gradings and `benchmark.json` are in `evals/workspace/iteration-1/` (git-ignored, as
+for every skill: results do not belong to the skill). Reproduce with
+`node evals/setup/make-fixture.mjs <dest> [--with-skill]` and the `query` of each scenario in
+`evals/evals.json`.
+
 ## Sources
 
 `[Sn]` in the skill files refers to the numbers below. "Used in" abbreviations:
