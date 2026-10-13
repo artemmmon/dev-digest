@@ -79,6 +79,8 @@ jobs:
       skills: ${{ steps.detect.outputs.skills }}
       agents: ${{ steps.detect.outputs.agents }}
       run_workflow: ${{ steps.detect.outputs.run_workflow }}
+      # The tiers that have something to run, e.g. ["skills","workflow"]: one parallel job each.
+      tiers: ${{ steps.tiers.outputs.tiers }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -99,6 +101,18 @@ jobs:
             export CHANGED_FILES
           fi
           node evals/scripts/ci-detect.mjs
+      - id: tiers
+        env:
+          SKILLS: ${{ steps.detect.outputs.skills }}
+          AGENTS: ${{ steps.detect.outputs.agents }}
+          RUN_WORKFLOW: ${{ steps.detect.outputs.run_workflow }}
+        run: |
+          tiers=$(jq -nc --argjson s "$SKILLS" --argjson a "$AGENTS" --arg w "$RUN_WORKFLOW" \
+            '[ (if ($s|length) > 0 then "skills" else empty end),
+               (if ($a|length) > 0 then "agents" else empty end),
+               (if $w == "true" then "workflow" else empty end) ]')
+          echo "tiers=$tiers" >> "$GITHUB_OUTPUT"
+          echo "tiers to run: $tiers"
 
   static:
     name: static checks (no model)
@@ -122,18 +136,28 @@ jobs:
       # workflow case expects, the trace assertions and the change detector.
       - run: pnpm eval:static
 
+  # One job per tier, in parallel: a skill case on a verbose model runs for minutes (a 22k-token
+  # report took ~3 minutes), so three tiers in one job would not fit in any sane timeout, and a
+  # failure in one tier must not hide the others. Each leg starts its own proxy.
   model-evals:
-    name: model evals (OpenRouter)
+    name: model evals · ${{ matrix.tier }} (OpenRouter)
     needs: detect
-    if: needs.detect.outputs.skills != '[]' || needs.detect.outputs.agents != '[]' || needs.detect.outputs.run_workflow == 'true'
+    if: needs.detect.outputs.tiers != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: ${{ fromJSON(needs.detect.outputs.tiers) }}
     defaults:
       run:
         working-directory: evals
     env:
       EVAL_BACKEND: openrouter
       OPENROUTER_BASE_URL: http://127.0.0.1:4000
+      # Verbose models: the defaults (a 90 s request, a 240 s test) cut a long report off.
+      EVAL_REQUEST_TIMEOUT_MS: '420000'
+      EVAL_TEST_TIMEOUT_MS: '900000'
       # The key is NOT job-level: `pnpm install` runs dependency build scripts, and third-party
       # actions run in this job. It is set on the steps that call the proxy or the model only.
       SKILLS: ${{ needs.detect.outputs.skills }}
@@ -151,6 +175,7 @@ jobs:
             echo "::error::OPENROUTER_API_KEY is not set (Settings -> Secrets and variables -> Actions)"
             exit 1
           fi
+          echo "tier:             ${{ matrix.tier }}"
           echo "model under test: $EVAL_MODEL"
           echo "judge:            $EVAL_JUDGE_MODEL"
           echo "runs per case:    $EVAL_RUNS  (gate: pass rate >= $EVAL_MIN_PASS_RATE)"
@@ -172,7 +197,7 @@ jobs:
       - run: pnpm proxy:wait
 
       - name: Skills with evals
-        if: needs.detect.outputs.skills != '[]'
+        if: matrix.tier == 'skills'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -183,7 +208,7 @@ jobs:
           exit $rc
 
       - name: Agents with evals
-        if: needs.detect.outputs.agents != '[]'
+        if: matrix.tier == 'agents'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -196,7 +221,7 @@ jobs:
       # Groups 1, 2, 3, 5: doc routing, nested rules, guardrails, negatives. Behaviour a model of
       # this class is expected to show.
       - name: Workflow, routing and rules
-        if: needs.detect.outputs.run_workflow == 'true'
+        if: matrix.tier == 'workflow'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: >
@@ -207,7 +232,7 @@ jobs:
       # model may do that work inline instead (see evals/README.md, "Which cheap model"), which is a
       # model finding, not a harness fault: advisory until a calibration run shows it holds.
       - name: Workflow, skill and subagent dispatch (advisory)
-        if: needs.detect.outputs.run_workflow == 'true'
+        if: ${{ !cancelled() && matrix.tier == 'workflow' }}
         continue-on-error: true
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -222,7 +247,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: eval-results
+          name: eval-results-${{ matrix.tier }}
           path: evals/results
           retention-days: 14
 

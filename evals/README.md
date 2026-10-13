@@ -197,7 +197,7 @@ workflow); adding a `pull_request:` trigger is one block, documented at the top 
 |-----|-------------|--------------|------|
 | `what changed` | no | `git diff base...HEAD` → `scripts/ci-detect.mjs` → skills, agents, workflow flag | — |
 | `static checks` | no | `pnpm typecheck` + `pnpm eval:static` | the only job to mark **required** |
-| `model evals` | `OPENROUTER_API_KEY` | LiteLLM proxy up → skills → agents → workflow groups 1/2/3/5 → group 4 (advisory) → report | advisory |
+| `model evals · <tier>` | `OPENROUTER_API_KEY` | one parallel job per tier that has work (`skills`, `agents`, `workflow`), each with its own LiteLLM proxy → its cases → report → `eval-results-<tier>` artifact; workflow runs groups 1/2/3/5, then group 4 (advisory) | advisory |
 
 What a change runs (the detector, pinned by `src/ci-detect.test.ts`):
 
@@ -548,6 +548,8 @@ Cheap and orthogonal; the `TrendReporter` keeps writing test-level outcome rows 
 | `EVAL_CONFIG` | `candidate` | `benchmark` sets this to `baseline` to skip artifact injection |
 | `EVAL_QUIET` | unset | suppress per-run trace spam during multi-run aggregation (`0`, `false` and empty mean off) |
 | `LITELLM_PORT` | `4000` | host port of the LiteLLM proxy (`proxy/docker-compose.yml`, `scripts/litellm-proxy.sh`); the container always listens on 4000. Set `OPENROUTER_BASE_URL` to match |
+| `EVAL_REQUEST_TIMEOUT_MS` | `180000` | per-request timeout of the content tier's OpenRouter call (CI: `420000`); one retry |
+| `EVAL_TEST_TIMEOUT_MS` | `240000` | vitest test and hook timeout (CI: `900000`): a verbose model can generate for minutes |
 | `EVAL_ALL` | unset | `1`, read by `scripts/ci-detect.mjs` only: select every skill and agent with evals, ignoring the diff |
 | `EVAL_CONTROL` | unset | `1`: also run a control for trace cases with `control: true`; `only`: run just the controls |
 

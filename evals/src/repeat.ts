@@ -132,6 +132,11 @@ async function main(): Promise<void> {
     if (nCases && process.env.EVAL_CONTROL !== "only" && treated.length < nCases) {
       short++;
       console.log(`  ${RED}  ${nCases - treated.length} case(s) produced no record in run ${i}${RESET}`);
+      // The failure message is in vitest's own output, which is otherwise captured and dropped.
+      if (captured) {
+        const failed = captured.split("\n").filter((l) => /FAIL|Error|timed out|✗|×/.test(l)).slice(0, 12);
+        for (const l of failed) console.log(`      ${DIM}${l.trim().slice(0, 240)}${RESET}`);
+      }
     }
   }
 
