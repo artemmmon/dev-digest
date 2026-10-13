@@ -135,6 +135,7 @@ async function main(): Promise<void> {
   const report = {
     metadata: {
       pattern: vitestArgs.join(" "),
+      label: label ?? null,
       task_model: EVAL_MODEL,
       judge_model: EVAL_JUDGE_MODEL,
       runs_per_configuration: times,
@@ -151,7 +152,8 @@ async function main(): Promise<void> {
     flags: flagList,
   };
 
-  const outDir = join(RESULTS_DIR, "benchmarks", timestamp.replace(/[:.]/g, "-"));
+  const stamp = timestamp.replace(/[:.]/g, "-");
+  const outDir = join(RESULTS_DIR, "benchmarks", label ? `${stamp}-${label.replace(/[^A-Za-z0-9._-]+/g, "-")}` : stamp);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "benchmark.json"), JSON.stringify(report, null, 2));
   writeFileSync(join(outDir, "benchmark.md"), renderMarkdown(report, nodeids, candAgg, baseAgg));
@@ -223,7 +225,7 @@ function renderMarkdown(
   const r = report as any;
   const rateCell = (s?: Series) => (s && s.total ? `${Math.round(s.rate * 100)}% (${s.passed}/${s.total})` : "—");
   const lines: string[] = [];
-  lines.push(`# Benchmark — ${r.metadata.pattern}`);
+  lines.push(`# Benchmark — ${r.metadata.pattern}${r.metadata.label ? ` (${r.metadata.label})` : ""}`);
   lines.push("");
   lines.push(
     `Task model \`${r.metadata.task_model}\` · judge \`${r.metadata.judge_model}\` · ` +

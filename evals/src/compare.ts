@@ -41,8 +41,17 @@ function main() {
     }
     return;
   }
+  if (args.length !== 0 && args.length !== 2) {
+    console.error("usage: pnpm eval:compare [<runA> <runB>] | --list   (no ids: the last two runs)");
+    process.exit(1);
+  }
   const ids = args.length === 2 ? args : [...runs.keys()].slice(-2);
   if (ids.length < 2) return console.log("Need at least two runs to compare.");
+  const unknown = ids.filter((id) => !runs.has(id));
+  if (unknown.length) {
+    console.error(`unknown run id: ${unknown.join(", ")}   (pnpm eval:compare --list shows the recorded ids)`);
+    process.exit(1);
+  }
   const [a, b] = ids.map((id) => runs.get(id)!);
   console.log(`A ${ids[0]}  sha ${a.sha}`);
   console.log(`B ${ids[1]}  sha ${b.sha}`);

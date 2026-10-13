@@ -43,4 +43,5 @@ export const WORKFLOW_CONTROL = process.env.EVAL_CONTROL ?? "";
 
 // --- Output verbosity -------------------------------------------------------
 // Set EVAL_QUIET to suppress per-run trace/verdict spam during multi-run aggregation.
-export const QUIET = Boolean(process.env.EVAL_QUIET);
+// "0", "false" and "" mean off; run-vitest.ts sets "1".
+export const QUIET = !["", "0", "false"].includes((process.env.EVAL_QUIET ?? "").trim().toLowerCase());

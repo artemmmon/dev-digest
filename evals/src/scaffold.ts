@@ -111,16 +111,20 @@ function scaffold(tier: "skills" | "agents", name: string): void {
   console.log(`\nNext: fill in ${name}.cases.ts, then run  pnpm vitest run ${tier}/${name}`);
 }
 
+const USAGE = "usage: pnpm eval:scaffold <skill-name>  |  pnpm eval:scaffold --agent <agent-name>";
+const isName = (n: string | undefined): n is string => !!n && /^[a-z0-9][a-z0-9-]*$/.test(n);
+
 function main(): void {
   const argv = process.argv.slice(2);
   if (argv.length === 0) return list();
   const agentIdx = argv.indexOf("--agent");
-  if (agentIdx !== -1) {
-    const name = argv[agentIdx + 1];
-    if (!name) return void console.error("usage: pnpm eval:scaffold --agent <agent-name>");
-    return scaffold("agents", name);
+  const name = agentIdx !== -1 ? argv[agentIdx + 1] : argv[0];
+  // A flag is not a name: `--help` used to scaffold evals/skills/--help/.
+  if (!isName(name)) {
+    console.error(USAGE);
+    process.exit(2);
   }
-  scaffold("skills", argv[0]);
+  scaffold(agentIdx !== -1 ? "agents" : "skills", name);
 }
 
 main();

@@ -545,7 +545,7 @@ Cheap and orthogonal; the `TrendReporter` keeps writing test-level outcome rows 
 | `OPENROUTER_BASE_URL` | OpenRouter | override to point at a local LiteLLM proxy for non-Anthropic tool-tier models |
 | `EVAL_MAX_TURNS` | `8` | max agent turns per case |
 | `EVAL_CONFIG` | `candidate` | `benchmark` sets this to `baseline` to skip artifact injection |
-| `EVAL_QUIET` | unset | suppress per-run trace spam during multi-run aggregation |
+| `EVAL_QUIET` | unset | suppress per-run trace spam during multi-run aggregation (`0`, `false` and empty mean off) |
 | `LITELLM_PORT` | `4000` | host port of the LiteLLM proxy (`proxy/docker-compose.yml`, `scripts/litellm-proxy.sh`); the container always listens on 4000. Set `OPENROUTER_BASE_URL` to match |
 | `EVAL_ALL` | unset | `1`, read by `scripts/ci-detect.mjs` only: select every skill and agent with evals, ignoring the diff |
 | `EVAL_CONTROL` | unset | `1`: also run a control for trace cases with `control: true`; `only`: run just the controls |
