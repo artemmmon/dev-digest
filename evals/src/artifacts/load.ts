@@ -37,9 +37,11 @@ export function agentContent(agentName: string): string {
   return stripFrontmatter(readFileSync(f, "utf8"));
 }
 
-// Tools the eval refuses to hand a subagent: evals run with bypassPermissions against the LIVE
-// repo, so a mutating tool could take real actions. An agent that declares these still runs — it
-// just runs read-only, which is all an eval ever needs.
+// Tools left out of the agent's `allowedTools`. This is bookkeeping, not a restriction: under
+// bypassPermissions `allowedTools` restricts nothing (recorded agent runs used Bash although it is
+// stripped here). What actually removes a tool from the model is `disallowedTools` in tasks.ts
+// (AGENT_DISALLOWED_TOOLS): the file-editing tools. Bash stays reachable on purpose, because the
+// reviewer agents run `pnpm arch`; so an agent eval can still run a command against the live repo.
 const MUTATING_TOOLS = new Set(["Write", "Edit", "NotebookEdit", "Bash"]);
 const READONLY_FALLBACK = ["Read", "Grep", "Glob"];
 

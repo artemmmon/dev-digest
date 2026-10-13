@@ -31,6 +31,11 @@ export const WORKFLOW_ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Task", "Agent", 
 // model's context, so the workflow tier cannot change the checkout it runs in.
 export const WORKFLOW_DISALLOWED_TOOLS = ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit"];
 
+// The agent tier runs a subagent the way production does, and architecture-reviewer's own method is
+// mechanical checks through Bash (`pnpm arch`), which every recorded agent run used. So Bash stays
+// reachable and only the file-editing tools are removed from the model's context.
+export const AGENT_DISALLOWED_TOOLS = ["Edit", "Write", "MultiEdit", "NotebookEdit"];
+
 // Control session for trace cases that set `control: true`: the same prompt in an empty folder with
 // no on-disk config, judged by the same practices. "1" runs it after the treatment; "only" skips
 // the treatment, so a control costs one session and the treatment is not run a third time.
