@@ -14,10 +14,14 @@ services:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: devdigest-eval-litellm
     ports:
-      # Loopback only: the proxy has no master_key and spends the OpenRouter key.
+      # Loopback only: the proxy spends the OpenRouter key.
       - "127.0.0.1:${LITELLM_PORT:-4000}:4000"
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in the environment}
+      # Current LiteLLM images refuse to start with no master key. The clients already send
+      # OPENROUTER_API_KEY as their bearer token (env.ts, run-openrouter.ts), so it doubles as the
+      # master key: nothing else has to be passed to them, and a caller without it gets a 401.
+      LITELLM_MASTER_KEY: ${OPENROUTER_API_KEY}
     volumes:
       - ./litellm.config.yaml:/app/config.yaml:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
