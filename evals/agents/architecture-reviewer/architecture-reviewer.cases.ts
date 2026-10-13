@@ -3,83 +3,53 @@ import { fixtureReader } from "../../src/index.js";
 
 const fx = fixtureReader(import.meta.url);
 
-const REVIEW_PROMPT = `Audit this diff against DevDigest's documented structural contracts.
+// One prompt, shared by `architecture-reviewer` and `architecture-reviewer-lite`. The two evals
+// import this module, so the fixture, the prompt, the practices, the threshold and maxTurns are
+// the same objects for both; the only thing that differs between the runs is the injected agent
+// definition. The diff is inlined because its paths do not exist in the checkout: the prompt
+// says so, so the agent reviews the text instead of asking for a base or running git.
+const reviewPrompt = (fixture: string) => `mode: diff
 
-${fx("checkout-service.diff")}`;
+The change to review is the unified diff below. It is not a commit in this checkout and its files
+are not on disk, so there is no base to compare against and git cannot show it. Read the change
+from this message. Return the JSON report your instructions describe.
 
-// A second real diff whose violations map onto DevDigest-SPECIFIC rule names
-// (`reviewer-core-zero-io`, `reviewer-core-ground-findings-gate`) that a competent model will
-// describe in prose but will not spontaneously name unless the agent forces a citation. This is
-// the discriminating case for the strict-vs-lite A/B: both variants should FIND both problems,
-// but only the strict variant (which keeps the "cite the exact documented rule per finding" hard
-// rule) should reliably emit the identifier. The checkout diff's textbook violations don't
-// discriminate — the model volunteers `inward-only-dependencies`/`di-discipline` either way.
-const REVIEWER_CORE_PROMPT = `Audit this diff against DevDigest's documented structural contracts.
+${fx(fixture)}`;
 
-${fx("reviewer-core-gate.diff")}`;
-
-// A diff that violates NO documented rule (a pure local-variable rename inside a domain file, no
-// new imports, no cross-layer edges). A grounded reviewer should report zero violations. This
-// surfaces the COST of relaxing the citation rule: freed from "every finding must name a
-// documented contract", the lite variant is more prone to fabricating a judgment/best-practice
-// finding where the strict variant stays silent.
-const BENIGN_PROMPT = `Audit this diff against DevDigest's documented structural contracts.
-
-${fx("benign-refactor.diff")}`;
-
-// Shared across the strict (architecture-reviewer) and relaxed (architecture-reviewer-lite)
-// variants so the two agents are graded on the exact same task — the only thing that should
-// move between the two runs is whether "cites the specific documented rule" keeps passing.
 export const cases: AgentCase[] = [
   {
-    name: "flags both violations in the checkout diff with severity and a citable rule",
+    name: "finds both violations in the checkout diff, rates them and cites a documented rule",
     kind: "quality",
-    prompt: REVIEW_PROMPT,
+    prompt: reviewPrompt("checkout-service.diff"),
     practices: [
-      "flags the domain file (checkout.ts) importing a type from 'fastify' as a violation of the inward-only dependency rule between Domain and Presentation layers",
-      "flags the `new PgCheckoutRepository()` call inside service.ts as a violation of DI discipline (concrete adapters/repositories must be constructed only in the composition root / container)",
-      "names the specific documented rule identifier for EVERY finding (e.g. `inward-only-dependencies`, `di-discipline`) rather than describing the problem only in prose",
-      "assigns a severity (critical/high/medium/low/info) to each finding",
-      "quotes the offending line verbatim as evidence for each finding, not a paraphrase",
-      "ends with an explicit PASS/FAIL gate verdict based on whether any critical or high findings exist",
+      // Detection
+      "reports a finding for `import type { FastifyReply } from \"fastify\"` in server/src/modules/checkout/domain/checkout.ts: a web-framework type imported into the domain layer",
+      "reports a finding for `new PgCheckoutRepository()` in server/src/modules/checkout/service.ts: a concrete repository constructed inside the service instead of being injected from the DI container / composition root",
+      // Severity
+      "gives the FastifyReply-in-domain finding the severity CRITICAL (a Fastify import in application code is an `onion-layer-violation`, which severity.md lists as CRITICAL)",
+      "gives the `new PgCheckoutRepository()` finding a severity of CRITICAL or WARNING, not SUGGESTION",
+      // Documented rule
+      "the FastifyReply finding has a non-empty `rule` that names a documented rule: `onion-layer-violation`, or the onion-architecture checklist item 'no DB/Fastify/SDK/adapters import in application code'",
+      "the `new PgCheckoutRepository()` finding has a non-empty `rule` that names a documented rule: `onion-layer-violation`, or an onion-architecture checklist item about the service taking ports / the composition root assembling it",
     ],
     threshold: 1.0,
     maxTurns: 25,
   },
+  // Recall of a documented placement rule: the service takes a port and imports nothing outer, so
+  // there is no layering violation, but the discount arithmetic sits inline in the service. The
+  // onion-architecture "Where does X go?" table puts a business rule / calculation in `domain.ts`
+  // or a pure helper beside the service, and severity.md rates placement inside a ring WARNING.
+  // The diff is also awkward code (boolean flags, magic numbers) that no documented rule covers;
+  // reporting that as such would be an opinion, not a finding.
   {
-    name: "does not fabricate an architecture finding for the out-of-scope security-shaped change",
+    name: "finds the calculation placed in the service instead of the domain, with its documented rule",
     kind: "quality",
-    prompt: REVIEW_PROMPT,
+    prompt: reviewPrompt("discounts-service.diff"),
     practices: [
-      "does not invent an architecture-contract violation for the optional `reply?: FastifyReply` parameter beyond the inward-only-dependencies import issue itself (no runtime bug/security finding fabricated as an architecture rule)",
-      "stays scoped to structural/layering/DI findings and does not comment on naming, style, or test coverage",
-    ],
-    threshold: 1.0,
-    maxTurns: 25,
-  },
-  {
-    name: "cites the DevDigest-specific rule identifier for reviewer-core violations",
-    kind: "quality",
-    prompt: REVIEWER_CORE_PROMPT,
-    practices: [
-      "flags the `import { readFileSync } from 'node:fs'` added to reviewer-core/src/pipeline/run.ts as a violation (reviewer-core must do no I/O except the injected LLMProvider)",
-      "flags that runPipeline now returns `deduped` directly, skipping the mandatory `groundFindings()` gate before emitting findings",
-      "names the exact documented rule identifier `reviewer-core-zero-io` for the fs-import finding rather than only describing it in prose",
-      "names the exact documented rule identifier `reviewer-core-ground-findings-gate` for the skipped-gate finding rather than only describing it in prose",
-      "quotes the offending line verbatim as evidence for each finding, not a paraphrase",
-      "ends with an explicit PASS/FAIL gate verdict based on whether any critical or high findings exist",
-    ],
-    threshold: 1.0,
-    maxTurns: 25,
-  },
-  {
-    name: "does not fabricate a documented-rule violation for a benign rename",
-    kind: "quality",
-    prompt: BENIGN_PROMPT,
-    practices: [
-      "reports no violations for the benign rename (or records only `info`-level, non-blocking observations) — it does not invent a critical/high/medium finding",
-      "does not fabricate a documented-rule violation where the diff violates none of the checked rules",
-      "the final gate verdict is PASS",
+      "reports a finding for the discount arithmetic written inline in `DiscountService.applyDiscount` in server/src/modules/discounts/service.ts, instead of in `domain.ts` or a pure helper beside the service",
+      "that finding's `rule` names the documented onion-architecture placement rule: the 'Where does X go?' row for a business rule / calculation (`domain.ts` or a pure helper beside the service)",
+      "that finding has the severity WARNING, not CRITICAL (placement inside a ring is WARNING in severity.md)",
+      "does not raise a separate finding about the boolean flag parameters or the magic numbers as such: they are code style, not a violation of a documented rule",
     ],
     threshold: 1.0,
     maxTurns: 25,

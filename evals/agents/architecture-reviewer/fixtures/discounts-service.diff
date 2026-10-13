@@ -1,0 +1,57 @@
+diff --git a/server/src/modules/discounts/ports.ts b/server/src/modules/discounts/ports.ts
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/server/src/modules/discounts/ports.ts
+@@ -0,0 +1,9 @@
++export interface DiscountRecord {
++  code: string;
++  percent: number;
++}
++
++export interface DiscountStore {
++  findByCode(code: string): Promise<DiscountRecord | null>;
++  saveApplied(orderId: string, amount: number): Promise<void>;
++}
+
+diff --git a/server/src/modules/discounts/service.ts b/server/src/modules/discounts/service.ts
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/server/src/modules/discounts/service.ts
+@@ -0,0 +1,35 @@
++import type { DiscountStore } from "./ports.js";
++
++export class DiscountService {
++  constructor(private readonly store: DiscountStore) {}
++
++  async applyDiscount(
++    orderId: string,
++    total: number,
++    code: string | null,
++    isVip: boolean,
++    isFirstOrder: boolean,
++    isBlackFriday: boolean,
++  ): Promise<number> {
++    let result = total;
++    if (code) {
++      const found = await this.store.findByCode(code);
++      if (found) {
++        if (isVip) {
++          if (isBlackFriday) {
++            result = total - (total * (found.percent + 15)) / 100;
++          } else {
++            result = total - (total * (found.percent + 7)) / 100;
++          }
++        } else if (isFirstOrder) {
++          result = total - total * 0.1;
++        } else {
++          result = total - (total * found.percent) / 100;
++        }
++      }
++    }
++    if (result < 0) result = 0;
++    await this.store.saveApplied(orderId, result);
++    return result;
++  }
++}
