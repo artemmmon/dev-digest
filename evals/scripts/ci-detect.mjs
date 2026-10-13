@@ -107,9 +107,13 @@ const agentNames = ALL
       dependentsOf("agents", changedEvalDirs("agents")),
     );
 
-const skills = skillNames.filter((n) => hasEvals("skills", n));
+// EVAL_SKIP: names left out of a run on purpose (space or comma separated), e.g. the experiment
+// architecture-reviewer-lite, whose evals are meant to differ from the strict agent's and cost a
+// full agent tier. An empty value skips nothing.
+const SKIP = new Set((process.env.EVAL_SKIP ?? "").split(/[\s,]+/).filter(Boolean));
+const skills = skillNames.filter((n) => hasEvals("skills", n) && !SKIP.has(n));
 const skippedSkills = skillNames.filter((n) => !hasEvals("skills", n));
-const agents = agentNames.filter((n) => hasEvals("agents", n));
+const agents = agentNames.filter((n) => hasEvals("agents", n) && !SKIP.has(n));
 const skippedAgents = agentNames.filter((n) => !hasEvals("agents", n));
 
 // The workflow tier measures the LIVE harness, so anything that changes it re-triggers it:
@@ -145,6 +149,7 @@ console.error(ALL ? "mode          : all (EVAL_ALL=1)" : `changed files : ${chan
 console.error(`skills → run  : ${skills.join(", ") || "(none)"}`);
 console.error(`agents → run  : ${agents.join(", ") || "(none)"}`);
 console.error(`workflow tier : ${runWorkflow ? "run" : "skip"}`);
+if (SKIP.size) console.error(`left out (EVAL_SKIP): ${[...SKIP].join(", ")}`);
 for (const n of skippedSkills) {
   console.error(
     hasCreatorEvalsOnly(n)

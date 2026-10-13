@@ -8,6 +8,20 @@ import { EVAL_MODEL, MAX_TURNS, SPAWN_TOOLS } from "../config.js";
 import { REPO_ROOT } from "../artifacts/paths.js";
 import { subscriptionEnv } from "./env.js";
 
+/**
+ * The file a tool call consulted, or null. A `Read` names one. A `Grep` whose `path` is a single
+ * file counts too: the repo's own rule for a 40-50 KB INSIGHTS.md is "search it for your module",
+ * so a model that greps the file has done what the rule asks. A Grep over a directory names no
+ * file, and stays invisible to the trace.
+ */
+export function consultedFile(tool: string, input: Record<string, unknown>): string | null {
+  const path = (input.file_path ?? input.path) as unknown;
+  if (typeof path !== "string" || path === "") return null;
+  if (tool === "Read") return path;
+  if (tool === "Grep" && /\.[A-Za-z0-9]+$/.test(path)) return path;
+  return null;
+}
+
 export interface Metrics {
   durationMs: number;
   inputTokens: number;
@@ -22,6 +36,7 @@ export interface Result {
   subagents: string[];
   /** Skills activated via the Skill tool (workflow mode); name may be "plugin:skill". */
   skillsInvoked: string[];
+  /** Files a session consulted: `Read` targets and `Grep` calls aimed at one file (see consultedFile). */
   filesRead: string[];
   numTurns: number;
   isError: boolean;
@@ -112,10 +127,8 @@ export async function runClaude(prompt: string, opts: RunOptions = {}): Promise<
               const sub = input.subagent_type ?? input.agent_type ?? input.name;
               if (sub) subagents.push(sub);
             }
-            if (block.name === "Read") {
-              const fp = input.file_path ?? input.path;
-              if (fp) reads.push(fp);
-            }
+            const consulted = consultedFile(block.name, input);
+            if (consulted) reads.push(consulted);
             if (block.name === "Skill") {
               const s = input.skill ?? input.command;
               if (s) skills.push(s);

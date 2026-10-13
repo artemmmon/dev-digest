@@ -53,6 +53,14 @@ describe("ci-detect", () => {
     expect(own.agents).toEqual(["architecture-reviewer"]);
   });
 
+  test("EVAL_SKIP leaves a named suite out and nothing else", () => {
+    const r = detect([], { EVAL_ALL: "1", EVAL_SKIP: "architecture-reviewer-lite" });
+    expect(r.agents).toContain("architecture-reviewer");
+    expect(r.agents).not.toContain("architecture-reviewer-lite");
+    expect(r.skills).toContain("dependency-checker");
+    expect(detect([], { EVAL_ALL: "1", EVAL_SKIP: "" }).agents).toContain("architecture-reviewer-lite");
+  });
+
   test("the agents catalogue is not an agent", () => {
     const r = detect([".claude/agents/README.md"]);
     expect(r.agents).toEqual([]);
