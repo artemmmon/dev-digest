@@ -294,7 +294,8 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         }
         // The control is recorded, never asserted: a failure of the control session itself must
         // not replace the treatment's own result below.
-        if (WORKFLOW_CONTROL && c.control && c.practices?.length) {
+        // Only "1": "only" returned earlier, and "0" / "false" must not start a paid session.
+        if (WORKFLOW_CONTROL === "1" && c.control && c.practices?.length) {
           try {
             await runControl(c);
           } catch (e) {
@@ -330,8 +331,10 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
           expect(treatmentRead, `treatment reads: ${treatment.filesRead.join(", ")}`).toBe(true);
           expect(controlRead, `control reads: ${control.filesRead.join(", ")}`).toBe(false);
         } finally {
-          record(`${c.name} [treatment]`, { result: treatment, passed: treatmentRead });
-          record(`${c.name} [control]`, { result: control, passed: !controlRead });
+          // One verdict for the case: it holds only when the harness made the difference. The control
+          // row is tagged, so aggregate() does not pool it into the treatment's pass rate.
+          record(`${c.name} [treatment]`, { result: treatment, passed: treatmentRead && !controlRead });
+          record(`${c.name} [control]`, { result: control, passed: !controlRead, extra: { control: true } });
         }
       }
     });
