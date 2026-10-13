@@ -10,7 +10,7 @@
     "eval:agents": "vitest run agents",
     "eval:workflow": "vitest run workflow",
     "eval:workflow:repeat": "tsx src/repeat.ts workflow",
-    "eval:static": "vitest run src/harness-static.test.ts src/ci-detect.test.ts src/runtime/env.test.ts src/dsl",
+    "eval:static": "vitest run src/harness-static.test.ts src/ci-detect.test.ts src/trend-reporter.test.ts src/runtime/env.test.ts src/dsl",
     "eval:report": "tsx src/report.ts",
     "eval:quality": "tsx src/skill-quality.ts",
     "eval:compare": "tsx src/compare.ts",
