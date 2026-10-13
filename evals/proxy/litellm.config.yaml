@@ -22,7 +22,7 @@ model_list:
       api_key: os.environ/OPENROUTER_API_KEY
 
 litellm_settings:
-  # Deterministic evals: never retry-with-jitter behind our back; the runners own retries.
+  # Silently drop request parameters the target model does not support (instead of a 400).
   drop_params: true
 
 general_settings:

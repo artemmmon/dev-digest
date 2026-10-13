@@ -108,7 +108,7 @@ jobs:
         working-directory: evals
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10
       - uses: actions/setup-node@v4
@@ -133,12 +133,15 @@ jobs:
         working-directory: evals
     env:
       EVAL_BACKEND: openrouter
-      OPENROUTER_BASE_URL: http://localhost:4000
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://127.0.0.1:4000
+      # The key is NOT job-level: `pnpm install` runs dependency build scripts, and third-party
+      # actions run in this job. It is set on the steps that call the proxy or the model only.
       SKILLS: ${{ needs.detect.outputs.skills }}
       AGENTS: ${{ needs.detect.outputs.agents }}
     steps:
       - name: Require the OpenRouter key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           if [ -z "$OPENROUTER_API_KEY" ]; then
             echo "::error::OPENROUTER_API_KEY is not set (Settings -> Secrets and variables -> Actions)"
@@ -149,7 +152,7 @@ jobs:
           echo "runs per case:    $EVAL_RUNS  (gate: pass rate >= $EVAL_MIN_PASS_RATE)"
 
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10
       - uses: actions/setup-node@v4
@@ -160,11 +163,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # Anthropic-protocol -> OpenRouter translator; the Agent SDK cannot reach DeepSeek directly.
-      - run: docker compose -f proxy/docker-compose.yml up -d
+      - name: Start the proxy
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: docker compose -f proxy/docker-compose.yml up -d
       - run: pnpm proxy:wait
 
       - name: Skills with evals
         if: needs.detect.outputs.skills != '[]'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           rc=0
           for n in $(echo "$SKILLS" | jq -r '.[]'); do
@@ -174,6 +182,8 @@ jobs:
 
       - name: Agents with evals
         if: needs.detect.outputs.agents != '[]'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           rc=0
           for n in $(echo "$AGENTS" | jq -r '.[]'); do
@@ -185,6 +195,8 @@ jobs:
       # this class is expected to show.
       - name: Workflow, routing and rules
         if: needs.detect.outputs.run_workflow == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: >
           pnpm eval:workflow:repeat -n "$EVAL_RUNS" -t "group [1235] "
           --fail-below "$EVAL_MIN_PASS_RATE" --label ci-workflow
@@ -195,6 +207,8 @@ jobs:
       - name: Workflow, skill and subagent dispatch (advisory)
         if: needs.detect.outputs.run_workflow == 'true'
         continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: >
           pnpm eval:workflow:repeat -n "$EVAL_RUNS" -t "group 4 "
           --fail-below "$EVAL_MIN_PASS_RATE" --label ci-workflow-dispatch
@@ -212,7 +226,11 @@ jobs:
 
       - name: Proxy logs
         if: failure()
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: docker compose -f proxy/docker-compose.yml logs --tail 100
       - name: Stop the proxy
         if: always()
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: pnpm proxy:down

@@ -3,7 +3,7 @@
 #   OPENROUTER_API_KEY=sk-or-... docker compose -f evals/proxy/docker-compose.yml up
 #
 # or use the wrapper that reads the key from ~/.devdigest/secrets.json for you:
-#   pnpm --dir evals proxy:up      # foreground
+#   pnpm --dir evals proxy:up      # starts detached and waits until healthy
 #   pnpm --dir evals proxy:down    # stop
 #
 # Exposes http://localhost:4000 speaking BOTH Anthropic (/v1/messages) and OpenAI
@@ -14,7 +14,8 @@ services:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: devdigest-eval-litellm
     ports:
-      - "4000:4000"
+      # Loopback only: the proxy has no master_key and spends the OpenRouter key.
+      - "127.0.0.1:4000:4000"
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in the environment}
     volumes:
