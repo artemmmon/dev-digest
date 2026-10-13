@@ -47,10 +47,14 @@ on:
         type: string
         default: ''
       runs:
-        description: 'Runs per case (the eval tooling caps this at 2)'
+        description: 'Runs per case (the eval tooling caps this at 2). 1 is a single pass; 2 costs twice as much and shows stability'
         type: choice
-        options: ['2', '1']
-        default: '2'
+        options: ['1', '2']
+        default: '1'
+      skip:
+        description: 'Skills / agents to leave out (space or comma separated). The lite reviewer is an experiment with evals meant to differ from the strict one; write none to run everything'
+        type: string
+        default: 'architecture-reviewer-lite'
       min_pass_rate:
         description: 'A case fails the job when its pass rate over the runs is below this (0.5 = one of two must pass)'
         type: string
@@ -68,7 +72,7 @@ concurrency:
 env:
   EVAL_MODEL: ${{ inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
   EVAL_JUDGE_MODEL: ${{ inputs.judge_model || vars.EVAL_JUDGE_MODEL || inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
-  EVAL_RUNS: ${{ inputs.runs || '2' }}
+  EVAL_RUNS: ${{ inputs.runs || '1' }}
   EVAL_MIN_PASS_RATE: ${{ inputs.min_pass_rate || '0.5' }}
 
 jobs:
@@ -92,6 +96,8 @@ jobs:
         env:
           BASE: ${{ github.base_ref || inputs.base || 'main' }}
           SCOPE: ${{ inputs.scope || 'changed' }}
+          # `inputs.skip` is unset on a pull_request, so the default has to live here too.
+          EVAL_SKIP: ${{ github.event_name == 'workflow_dispatch' && inputs.skip || 'architecture-reviewer-lite' }}
         run: |
           if [ "$SCOPE" = "all" ]; then
             export EVAL_ALL=1

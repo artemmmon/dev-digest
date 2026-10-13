@@ -418,7 +418,9 @@ adds. The control is an empty temp folder, so it cannot read the repo unless it 
 
 **What the trace cannot see.** A nested `AGENTS.md`/`CLAUDE.md` that Claude Code loads on its own
 when a folder is entered is not a `Read` call and is not in `filesRead`; the case judges what the
-answer says instead. And `Bash` can appear in `toolsUsed` although it is not on the allow-list.
+answer says instead. A `Grep` aimed at one file counts as consulting it (the repo's rule for a large
+INSIGHTS.md is "search it"); a `Grep` over a directory names no file and stays invisible. And `Bash`
+can appear in `toolsUsed` although it is not on the allow-list.
 
 **Static checks, no model.** `pnpm eval:static` checks that every `AGENTS.md` is ≤ 100 lines, that
 each `CLAUDE.md` is a symlink to it, that the paths it names exist, and that every file, skill and
@@ -550,6 +552,7 @@ Cheap and orthogonal; the `TrendReporter` keeps writing test-level outcome rows 
 | `LITELLM_PORT` | `4000` | host port of the LiteLLM proxy (`proxy/docker-compose.yml`, `scripts/litellm-proxy.sh`); the container always listens on 4000. Set `OPENROUTER_BASE_URL` to match |
 | `EVAL_REQUEST_TIMEOUT_MS` | `180000` | per-request timeout of the content tier's OpenRouter call (CI: `420000`); one retry |
 | `EVAL_TEST_TIMEOUT_MS` | `240000` | vitest test and hook timeout (CI: `900000`): a verbose model can generate for minutes |
+| `EVAL_SKIP` | unset | read by `scripts/ci-detect.mjs`: names (space or comma separated) left out of a CI run; the workflow's `skip` input sets it, default `architecture-reviewer-lite`, `none` runs everything |
 | `EVAL_ALL` | unset | `1`, read by `scripts/ci-detect.mjs` only: select every skill and agent with evals, ignoring the diff |
 | `EVAL_CONTROL` | unset | `1`: also run a control for trace cases with `control: true`; `only`: run just the controls |
 
