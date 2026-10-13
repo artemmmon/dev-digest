@@ -105,8 +105,9 @@ export const cases: WorkflowCase[] = [
 
   // --- 4. skill + subagent (1 session) -----------------------------------------------------------
   // The skill's description says to use it proactively on a discovery, without being asked. The
-  // audit prompt names the role, not the agent: architecture-reviewer and architecture-reviewer-lite
-  // carry the same description, so this also shows which of the two the harness picks.
+  // audit prompt names the role, not the agent. architecture-reviewer-lite's description says it is
+  // an experiment to be used only when named, so expectNoSubagents checks that the harness honours
+  // that steering and sends a plain "architecture reviewer" request to architecture-reviewer.
   {
     kind: "trace",
     name: "group 4 · a discovery engages engineering-insights; an audit dispatches architecture-reviewer",
