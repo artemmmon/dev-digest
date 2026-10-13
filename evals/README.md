@@ -212,8 +212,9 @@ A skill or agent without runnable evals is printed as `SKIP`, not failed. A skil
 `evals/evals.json` (skill-creator format) is named as such: CI cannot run that format.
 
 **Model.** One run: the `model` and `judge_model` inputs. For good: repository variables
-`EVAL_MODEL` and `EVAL_JUDGE_MODEL`. Fallback: `deepseek/deepseek-v4-flash`. The judge follows the
-model unless set. Under `EVAL_BACKEND=openrouter`, `src/runtime/env.ts` also pins
+`EVAL_MODEL` and `EVAL_JUDGE_MODEL`. Fallback: `anthropic/claude-haiku-5.5` under test and
+`deepseek/deepseek-v4-flash` as the judge (the judge does not follow the model: its input is long and
+its output a short JSON, where DeepSeek is cheapest, and it is another family). Under `EVAL_BACKEND=openrouter`, `src/runtime/env.ts` also pins
 `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL` and
 `CLAUDE_CODE_SUBAGENT_MODEL` to `EVAL_MODEL`: the project's subagents declare `model: sonnet` /
 `opus`, and an alias left alone would resolve to a Claude model on OpenRouter.

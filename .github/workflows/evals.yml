@@ -11,8 +11,11 @@
 # in evals/proxy/. Change the model without editing this file:
 #   - one run:   Actions -> evals -> Run workflow -> model / judge_model
 #   - for good:  Settings -> Secrets and variables -> Actions -> Variables: EVAL_MODEL, EVAL_JUDGE_MODEL
-#   - fallback:  deepseek/deepseek-v4-flash
-# The judge follows the model unless judge_model / EVAL_JUDGE_MODEL is set.
+#   - fallback:  model anthropic/claude-haiku-5.5, judge deepseek/deepseek-v4-flash
+# Why these two: Haiku 5.5 is cheaper than DeepSeek v4 flash on the long answers these cases
+# produce (0.1/0.5 against 0.03/1.28 $ per M tokens, in/out), dispatches subagents, and is the model
+# every local measurement was taken on. The judge's input is long and its output a short JSON,
+# which is where DeepSeek's price is lowest, and it is another family than the model under test.
 #
 # Required secret: OPENROUTER_API_KEY. Put a credit limit on that key at OpenRouter: it is the
 # spending cap that holds whatever this file says.
@@ -39,11 +42,11 @@ on:
         type: string
         default: main
       model:
-        description: 'Model under test (OpenRouter slug). Empty = repo variable EVAL_MODEL, else deepseek/deepseek-v4-flash'
+        description: 'Model under test (OpenRouter slug). Empty = repo variable EVAL_MODEL, else anthropic/claude-haiku-5.5'
         type: string
         default: ''
       judge_model:
-        description: 'Judge model. Empty = repo variable EVAL_JUDGE_MODEL, else the model under test'
+        description: 'Judge model. Empty = repo variable EVAL_JUDGE_MODEL, else deepseek/deepseek-v4-flash'
         type: string
         default: ''
       runs:
@@ -70,8 +73,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EVAL_MODEL: ${{ inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
-  EVAL_JUDGE_MODEL: ${{ inputs.judge_model || vars.EVAL_JUDGE_MODEL || inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
+  EVAL_MODEL: ${{ inputs.model || vars.EVAL_MODEL || 'anthropic/claude-haiku-5.5' }}
+  EVAL_JUDGE_MODEL: ${{ inputs.judge_model || vars.EVAL_JUDGE_MODEL || 'deepseek/deepseek-v4-flash' }}
   EVAL_RUNS: ${{ inputs.runs || '1' }}
   EVAL_MIN_PASS_RATE: ${{ inputs.min_pass_rate || '0.5' }}
 
