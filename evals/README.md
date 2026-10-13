@@ -432,6 +432,11 @@ adds. The control is an empty temp folder, so it cannot read the repo unless it 
 when a folder is entered is not a `Read` call and is not in `filesRead`; the case judges what the
 answer says instead. And `Bash` can appear in `toolsUsed` although it is not on the allow-list.
 
+**Static checks, no model.** `pnpm eval:static` checks that every `AGENTS.md` is ≤ 100 lines, that
+each `CLAUDE.md` is a symlink to it, that the paths it names exist, and that every file, skill and
+subagent a workflow case names exists. Run it before a workflow run; a case that expects a missing
+file fails for a reason that has nothing to do with the model.
+
 ## Commands & parameters
 
 ```bash
@@ -443,6 +448,7 @@ pnpm eval:skills         # just skills/
 pnpm eval:agents         # just agents/
 pnpm eval:workflow       # just workflow/
 pnpm eval:workflow:repeat -n 2   # workflow/ twice; -n is capped at 2 (token economy)
+pnpm eval:static         # static harness checks + trace-assertion unit tests (no model, no tokens)
 pnpm vitest run skills/onion-architecture       # one artifact
 pnpm vitest run src/records/stats.test.ts       # the only non-model unit test (stats math)
 ```
@@ -591,7 +597,7 @@ tokens > 125% of baseline), `missing_data` (a config has zero records for a test
 |--------|-----|
 | A skill's `SKILL.md` (quick check) | `pnpm vitest run skills/<skill>` |
 | A subagent file (quick check) | `pnpm vitest run agents/<agent>` |
-| `CLAUDE.md` / activation / dispatch | `pnpm eval:workflow` |
+| `CLAUDE.md` / `AGENTS.md` / activation / dispatch | `pnpm eval:static`, then `pnpm eval:workflow` |
 | Any artifact's structure | `pnpm eval:quality` |
 | A `SKILL.md` edit you want to **measure** | repeat/delta loop: `--label baseline` before, `--label candidate` after, then `eval:delta` |
 | New skill/agent — is it **worth its tokens**? | `pnpm eval:benchmark skills/<skill> -n 5` |
