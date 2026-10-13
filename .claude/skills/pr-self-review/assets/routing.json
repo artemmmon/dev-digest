@@ -170,6 +170,7 @@
   ],
   "nonReviewSkills": {
     "mermaid-diagram": "authoring aid, not a review rubric",
+    "dependency-checker": "dependency report generator (dep-report.mjs), not a review rubric",
     "engineering-insights": "documentation workflow, not a review rubric",
     "devdigest-demo": "demo-video conventions, not a review rubric",
     "spec-authoring": "rules for specs (Markdown), checked by its own check-spec.mjs",
