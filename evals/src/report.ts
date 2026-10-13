@@ -71,7 +71,14 @@ function checks(row: Row, c: WorkflowCase | undefined): Check[] {
     for (const s of c.expectNoSkills ?? []) out.push({ text: `skill \`${s}\` not engaged`, ok: !engaged(s, row) });
     for (const f of c.expectNoFilesRead ?? []) out.push({ text: `did not read \`${f}\``, ok: !t.reads.some((p) => p.includes(f)) });
   }
-  for (const p of row.practices ?? []) out.push({ text: p.practice, ok: !!p.passed, evidence: p.evidence });
+  // The judge echoes each practice back; its text can drift between runs. When the count matches
+  // the case's own list, label the rows with the case's text so run columns stay aligned.
+  const own = c && c.kind === "trace" ? c.practices : undefined;
+  const judged = row.practices ?? [];
+  judged.forEach((p, i) => {
+    const text = own && own.length === judged.length ? own[i] : p.practice;
+    out.push({ text, ok: !!p.passed, evidence: p.evidence });
+  });
   if (out.length === 0) out.push({ text: "case passed", ok: row.outcome });
   return out;
 }
@@ -85,7 +92,10 @@ function main(): void {
     else if (argv[i] === "--only") only = argv[++i] ?? "";
   }
 
-  const rows = loadRows().filter((r) => !r.control && r.label.includes(only));
+  // A benchmark writes `baseline` rows under the same labels; controls are recorded, not reported.
+  const rows = loadRows().filter(
+    (r) => !r.control && (r.config === undefined || r.config === "candidate") && r.label.includes(only),
+  );
   if (rows.length === 0) {
     console.log("No records in results/records.jsonl.");
     return;
@@ -119,14 +129,21 @@ function main(): void {
     detail.push(`### ${head} ${cell(label)}`, "", `turns ${turns} · seconds ${secs}`, "");
     const header = ["check", ...picked.map((_, i) => `run ${i + 1}`)];
     detail.push(`| ${header.join(" | ")} |`, `|${header.map(() => "---").join("|")}|`);
-    const keys = lists[0].map((c) => c.text);
-    keys.forEach((text, idx) => {
-      const marks = lists.map((l) => (l[idx] ? mark(l[idx].ok) : "⚪"));
+    // Checks are matched across runs by their text, not by position.
+    const keys = [...new Set(lists.flatMap((l) => l.map((c) => c.text)))];
+    const newest = new Set(lists[lists.length - 1].map((c) => c.text));
+    for (const text of keys) {
+      const marks = lists.map((l) => {
+        const hit = l.find((c) => c.text === text);
+        return hit ? mark(hit.ok) : "⚪";
+      });
       detail.push(`| ${cell(short(text, 150))} | ${marks.join(" | ")} |`);
       // Totals follow the newest run, so the headline is one number per check, not per run.
-      total++;
-      if (lists[lists.length - 1][idx]?.ok) green++;
-    });
+      if (newest.has(text)) {
+        total++;
+        if (lists[lists.length - 1].find((c) => c.text === text)?.ok) green++;
+      }
+    }
     const misses = lists.flatMap((l, run) =>
       l.filter((c) => !c.ok && c.evidence).map((c) => `- run ${run + 1}: ${cell(short(c.text, 100))} — judge: «${cell(short(c.evidence ?? "", 160))}»`),
     );

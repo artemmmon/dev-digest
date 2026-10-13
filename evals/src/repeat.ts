@@ -89,7 +89,9 @@ async function main(): Promise<void> {
     else vitestArgs.push(a);
   }
   if (vitestArgs.length === 0 || !Number.isFinite(times) || times < 1) {
-    console.error("usage: pnpm eval:repeat <vitest pattern> [-n times<=2] [-t testNamePattern] [--label name]");
+    console.error(
+      "usage: pnpm eval:repeat <vitest pattern> [-n times<=2] [-t testNamePattern] [--label name] [--fail-below rate]",
+    );
     process.exit(1);
   }
   if (times > MAX_TIMES) {
