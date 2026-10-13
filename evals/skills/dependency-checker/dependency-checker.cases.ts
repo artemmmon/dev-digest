@@ -29,7 +29,7 @@ client/node_modules/zod: 1.9M
 reviewer-core/node_modules/zod: 2.1M
 e2e/node_modules/playwright: 210M
 
-server/package.json also declares zod@3.23.8, client/package.json declares zod@3.22.4, reviewer-core/package.json declares zod@3.23.8 — three different resolved zod versions across packages.
+zod is declared in three packages at two different versions: 3.23.8 in server and reviewer-core, 3.22.4 in client.
 
 grep for imports crossing package boundaries:
 - server/src/routes/reviews.ts imports types from "@shared/review-types" (alias to server/src/vendor/shared)
@@ -72,7 +72,7 @@ export const cases: SkillCase[] = [
     prompt: `We suspect some npm dependencies in server/ and client/ are unused or duplicated across packages with different versions. Check our dependencies and tell me what to prioritize fixing first.\n\n${REPO_DATA}`,
     practices: [
       "findings are explicitly labeled with one of the defined severity tiers (P0, P1, P2, or Info) rather than left unranked",
-      "the three different zod versions across server, client, and reviewer-core are called out explicitly as version drift",
+      "the zod version drift is called out explicitly: client is on 3.22.4 while server and reviewer-core are on 3.23.8",
       "moment being declared in server/package.json but never imported anywhere under server/src is called out explicitly as an unused dependency",
       "each recommendation names a specific package name and package.json/file location (e.g. server/package.json, moment, zod) rather than a generic suggestion",
       "removing a dependency (e.g. moment) is presented as a recommendation for the user to confirm, not something already executed",
