@@ -11,7 +11,8 @@
  */
 
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { RESULTS_DIR } from "./artifacts/paths.js";
 import { cases } from "../workflow/review-workflow.cases.js";
 import type { WorkflowCase } from "./index.js";
@@ -19,7 +20,8 @@ import type { WorkflowCase } from "./index.js";
 const GREEN = "🟢";
 const RED = "🔴";
 
-interface Row {
+export interface Row {
+  nodeid?: string;
   label: string;
   outcome: boolean;
   num_turns: number;
@@ -83,6 +85,21 @@ function checks(row: Row, c: WorkflowCase | undefined): Check[] {
   return out;
 }
 
+/**
+ * One series per test (node id), not per label: architecture-reviewer-lite runs the cases of
+ * architecture-reviewer, so two eval files write records with the same label. `heading` tells a
+ * label that two files share apart by the eval file it came from.
+ */
+export function groupSeries(rows: Row[]): { bySeries: Map<string, Row[]>; heading: (row: Row) => string } {
+  const bySeries = new Map<string, Row[]>();
+  for (const r of rows) bySeries.set(r.nodeid ?? r.label, [...(bySeries.get(r.nodeid ?? r.label) ?? []), r]);
+  const labelUses = new Map<string, number>();
+  for (const [, series] of bySeries) labelUses.set(series[0].label, (labelUses.get(series[0].label) ?? 0) + 1);
+  const heading = (row: Row) =>
+    (labelUses.get(row.label) ?? 0) > 1 && row.nodeid ? `${row.label} — ${basename(row.nodeid.split(" > ")[0])}` : row.label;
+  return { bySeries, heading };
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
   let runs = 2;
@@ -101,8 +118,7 @@ function main(): void {
     return;
   }
 
-  const byLabel = new Map<string, Row[]>();
-  for (const r of rows) byLabel.set(r.label, [...(byLabel.get(r.label) ?? []), r]);
+  const { bySeries, heading } = groupSeries(rows);
   const byName = new Map<string, WorkflowCase>(cases.map((c) => [c.name, c]));
 
   const last = rows[rows.length - 1];
@@ -117,7 +133,8 @@ function main(): void {
   let total = 0;
   const detail: string[] = [];
 
-  for (const [label, all] of byLabel) {
+  for (const [, all] of bySeries) {
+    const label = all[0].label;
     const picked = all.slice(-runs);
     const lists = picked.map((r) => checks(r, byName.get(label)));
     const caseOk = picked.every((r, i) => r.outcome && lists[i].every((c) => c.ok));
@@ -126,7 +143,7 @@ function main(): void {
     const secs = picked.map((r) => ((r.metrics?.durationMs ?? 0) / 1000).toFixed(0)).join(" / ");
     const turns = picked.map((r) => r.num_turns).join(" / ");
 
-    detail.push(`### ${head} ${cell(label)}`, "", `turns ${turns} · seconds ${secs}`, "");
+    detail.push(`### ${head} ${cell(heading(all[0]))}`, "", `turns ${turns} · seconds ${secs}`, "");
     const header = ["check", ...picked.map((_, i) => `run ${i + 1}`)];
     detail.push(`| ${header.join(" | ")} |`, `|${header.map(() => "---").join("|")}|`);
     // Checks are matched across runs by their text, not by position.
@@ -159,4 +176,5 @@ function main(): void {
   if (summary) appendFileSync(summary, `${text}\n`);
 }
 
-main();
+// Run as a script, not when a test imports groupSeries.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
