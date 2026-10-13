@@ -128,7 +128,8 @@ async function main(): Promise<void> {
     const mark = passed === treated.length ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`;
     console.log(`  run ${i}/${times}  ${mark} ${passed}/${treated.length} cases`);
     // A case that threw before it recorded leaves no row, and a missing row cannot fail a gate.
-    if (nCases && treated.length < nCases) {
+    // Not under EVAL_CONTROL=only: it skips every case without a judged control on purpose.
+    if (nCases && process.env.EVAL_CONTROL !== "only" && treated.length < nCases) {
       short++;
       console.log(`  ${RED}  ${nCases - treated.length} case(s) produced no record in run ${i}${RESET}`);
     }
