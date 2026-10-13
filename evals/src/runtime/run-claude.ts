@@ -31,6 +31,8 @@ export interface Result {
 export interface RunOptions {
   systemPrompt?: string;
   allowedTools?: string[];
+  /** Removed from the model's context outright; unlike allowedTools this holds under bypassPermissions. */
+  disallowedTools?: string[];
   maxTurns?: number;
   cwd?: string;
   model?: string;
@@ -65,6 +67,7 @@ export async function runClaude(prompt: string, opts: RunOptions = {}): Promise<
     permissionMode: "bypassPermissions", // safe: evals only read/plan and tools are allow-listed
     systemPrompt,
     allowedTools,
+    ...(opts.disallowedTools ? { disallowedTools: opts.disallowedTools } : {}),
     cwd: opts.cwd ?? REPO_ROOT,
     // Default: do NOT load on-disk config — isolates the injected artifact. workflowTask overrides.
     settingSources: opts.settingSources ?? [],

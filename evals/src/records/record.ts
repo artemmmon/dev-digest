@@ -31,6 +31,12 @@ export interface RecordData {
   verdict?: Verdict;
   grounded?: number;
   threshold?: number;
+  /**
+   * The case's own verdict, for tiers that assert on the trace instead of a judge score. Without
+   * it a trace case that missed its expected file would still record `outcome: true` (the run
+   * itself succeeded) and `eval:repeat` would report a pass rate of 100% for a failing case.
+   */
+  passed?: boolean;
   extra?: Record<string, unknown>;
 }
 
@@ -40,18 +46,20 @@ export interface RecordData {
  * from being silently empty.
  */
 export function record(label: string, data: RecordData): void {
-  const { result, verdict, grounded, threshold, extra } = data;
+  const { result, verdict, grounded, threshold, passed, extra } = data;
   const state = expect.getState();
   const nodeid = `${state.testPath ?? "?"} > ${state.currentTestName ?? label}`;
 
   // outcome: grounding gate failure short-circuits to false; else the judge threshold; else
   // "did the run itself succeed" (workflow tests have neither grounding nor a judge verdict).
   const outcome =
-    grounded !== undefined && grounded < 1
-      ? false
-      : verdict && threshold !== undefined
-        ? verdict.score >= threshold
-        : !result.isError;
+    passed !== undefined
+      ? passed
+      : grounded !== undefined && grounded < 1
+        ? false
+        : verdict && threshold !== undefined
+          ? verdict.score >= threshold
+          : !result.isError;
 
   const outDir = join(OUTPUTS, RUN_ID);
   mkdirSync(outDir, { recursive: true });

@@ -401,8 +401,36 @@ How each `kind` asserts:
 | `activation` | `workflowTask` | `activated(result, skill) === shouldActivate` (positive **and** near-miss negative) |
 | `contrast` | treatment (real repo) **and** control (empty tmpdir, `settingSources:[]`) | `expectFileRead` read in treatment, NOT in control |
 
-Workflow records carry an empty `practices[]` (no judge) but a full trace; `contrast` writes two
-records — `<label>:treatment` and `<label>:control`.
+A fourth kind, `trace`, runs **one** session and checks several things at once, so a group of
+independent rules costs one session instead of one per rule. The prompt carries numbered tasks:
+
+| Field | Passes when |
+|-------|-------------|
+| `expectFilesRead` / `expectSkills` / `expectSubagents` | each was read / engaged / launched |
+| `expectNoFilesRead` / `expectNoSkills` / `expectNoSubagents` | none of them happened |
+| `practices` (+ `threshold`) | a judge scores the final answer; for rules a read or a skill call cannot show |
+| `control: true` (with `practices`) | with `EVAL_CONTROL=1` the same prompt also runs in an empty folder with no `CLAUDE.md`, skills or agents, and its verdict is recorded as `<name> [control]`; never asserted |
+
+All misses are collected and reported together. Early stop (end the session once the evidence is
+in) applies only when nothing needs the whole session: `practices`, `expectNoSkills` and
+`expectNoFilesRead` turn it off. `workflow/review-workflow.cases.ts` holds five such groups
+(docs routing, nested AGENTS.md rules, guardrails, skill + subagent, negatives); a positive and its
+near-miss negative stay in different groups, because the positive would engage the skill and make
+the negative meaningless.
+
+Workflow records carry a full trace and, when `practices` is set, the judge's verdict. Their
+`outcome` is the case's own verdict (all expectations met), not "the session did not crash".
+`contrast` writes two records — `<label> [treatment]` and `<label> [control]`.
+
+**Control.** A judged group that passes says the answers were right, not that the harness made
+them right: a careful model refuses `docker compose down -v` on its own. `EVAL_CONTROL=only pnpm
+eval:workflow:repeat -t "<group>" -n 1 --label ctl` runs only the control sessions (the treatment is
+not run again), and `pnpm eval:delta ctl <treatment-label>` shows, per practice, what the harness
+adds. The control is an empty temp folder, so it cannot read the repo unless it guesses an absolute path.
+
+**What the trace cannot see.** A nested `AGENTS.md`/`CLAUDE.md` that Claude Code loads on its own
+when a folder is entered is not a `Read` call and is not in `filesRead`; the case judges what the
+answer says instead. And `Bash` can appear in `toolsUsed` although it is not on the allow-list.
 
 ## Commands & parameters
 
@@ -414,6 +442,7 @@ pnpm eval                # all quality + workflow evals, once
 pnpm eval:skills         # just skills/
 pnpm eval:agents         # just agents/
 pnpm eval:workflow       # just workflow/
+pnpm eval:workflow:repeat -n 2   # workflow/ twice; -n is capped at 2 (token economy)
 pnpm vitest run skills/onion-architecture       # one artifact
 pnpm vitest run src/records/stats.test.ts       # the only non-model unit test (stats math)
 ```
@@ -522,6 +551,7 @@ Cheap and orthogonal; the `TrendReporter` keeps writing test-level outcome rows 
 | `EVAL_MAX_TURNS` | `8` | max agent turns per case |
 | `EVAL_CONFIG` | `candidate` | `benchmark` sets this to `baseline` to skip artifact injection |
 | `EVAL_QUIET` | unset | suppress per-run trace spam during multi-run aggregation |
+| `EVAL_CONTROL` | unset | `1`: also run a control for trace cases with `control: true`; `only`: run just the controls |
 
 ## Records, statistics, flags
 
@@ -571,9 +601,13 @@ tokens > 125% of baseline), `missing_data` (a config has zero records for a test
 
 ## Safety
 
-Sessions run with `permissionMode: "bypassPermissions"`, so `workflowTask` keeps a **read-only
-allow-list** (`Read, Grep, Glob, Task, Agent, Skill` — no `Bash`/`Write`/`Edit`). Don't copy the
-bypass pattern into a context that grants write tools.
+Sessions run with `permissionMode: "bypassPermissions"`, and under it `allowedTools` restricts
+nothing: a workflow run once engaged `engineering-insights`, which called `Edit` and appended an
+entry to the live `server/INSIGHTS.md`. So `workflowTask` passes the read-only list
+(`Read, Grep, Glob, Task, Agent, Skill`) **and** `disallowedTools: Bash, Edit, Write, MultiEdit,
+NotebookEdit`, which removes them from the model's context (`WORKFLOW_DISALLOWED_TOOLS` in
+`src/config.ts`). Don't copy the bypass pattern into a context that grants write tools; after any
+run, `git status` should show no change you did not make.
 
 ## Deferred (recorded so it isn't rediscovered)
 

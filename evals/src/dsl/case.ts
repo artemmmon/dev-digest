@@ -9,7 +9,12 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "vitest";
-import { DEFAULT_THRESHOLD } from "../config.js";
+import {
+  DEFAULT_THRESHOLD,
+  WORKFLOW_ALLOWED_TOOLS,
+  WORKFLOW_CONTROL,
+  WORKFLOW_DISALLOWED_TOOLS,
+} from "../config.js";
 import { skillTask, agentTask, workflowTask } from "../tasks.js";
 import { runClaude, type Result, type RunOptions } from "../runtime/run-claude.js";
 import { patternMatch } from "../scoring/pattern-match.js";
@@ -59,20 +64,74 @@ export type WorkflowCase =
       // Cheaper than separate dispatch/activation/contrast cases (one session, not N) at the cost
       // of coarser diagnostics and no control run — use contrast when you must isolate CLAUDE.md's
       // contribution. Every provided expectation must hold; omitted fields are not checked.
+      //
+      // A prompt may carry several independent numbered tasks, so one session covers a whole group
+      // of rules. All misses are collected and reported together, so a failing group says which
+      // expectations broke instead of stopping at the first one.
       kind: "trace";
       name: string;
       prompt: string;
       expectSubagents?: string[];
       expectSkills?: string[];
+      /** Substring of a path the session must have read. */
       expectFilesRead?: string[];
+      /** Subagents that must NOT be launched. Decided at dispatch, so it does not hold up an early stop. */
+      expectNoSubagents?: string[];
+      /** Skills that must NOT engage. Needs the whole session, so it turns early stop off. */
+      expectNoSkills?: string[];
+      /** Substrings of paths that must NOT be read. Needs the whole session, like expectNoSkills. */
+      expectNoFilesRead?: string[];
+      /**
+       * Practices a judge scores on the final answer (one judge call, `threshold` default from
+       * config). For rules a read or a skill call cannot show: what the agent says it would do.
+       * Needs the final text, so it turns early stop off.
+       */
+      practices?: string[];
+      threshold?: number;
+      /**
+       * With `practices`: also run the same prompt as a control (empty folder, no CLAUDE.md, skills
+       * or agents) when EVAL_CONTROL is set, and record its verdict as `<name> [control]`. The
+       * control is never asserted; it shows which practices the harness actually contributes.
+       */
+      control?: boolean;
       maxTurns?: number;
     };
 
 /** Did a skill engage? Either an explicit Skill tool-call, or reading its SKILL.md. */
-export function activated(result: Result, skill: string): boolean {
+export function activated(result: Pick<Result, "skillsInvoked" | "filesRead">, skill: string): boolean {
   const bySkill = result.skillsInvoked.some((s) => s === skill || s.endsWith(`:${skill}`));
   const byRead = result.filesRead.some((f) => f.includes(`skills/${skill}/SKILL.md`));
   return bySkill || byRead;
+}
+
+type TraceCase = Extract<WorkflowCase, { kind: "trace" }>;
+type Trace = Pick<Result, "subagents" | "skillsInvoked" | "filesRead" | "isError">;
+
+/** Every trace expectation the session did not meet, as readable lines. Empty means the trace passes. */
+export function traceMisses(c: TraceCase, r: Trace): string[] {
+  const misses: string[] = [];
+  const reads = r.filesRead.join(", ") || "none";
+  for (const s of c.expectSubagents ?? []) {
+    if (!r.subagents.includes(s)) misses.push(`subagent not launched: ${s} (launched: ${r.subagents.join(", ") || "none"})`);
+  }
+  for (const s of c.expectSkills ?? []) {
+    if (!activated(r, s)) misses.push(`skill not engaged: ${s} (skills: ${r.skillsInvoked.join(", ") || "none"})`);
+  }
+  for (const f of c.expectFilesRead ?? []) {
+    if (!r.filesRead.some((p) => p.includes(f))) misses.push(`file not read: ${f} (reads: ${reads})`);
+  }
+  for (const s of c.expectNoSubagents ?? []) {
+    if (r.subagents.includes(s)) misses.push(`subagent launched but must not be: ${s}`);
+  }
+  for (const s of c.expectNoSkills ?? []) {
+    if (activated(r, s)) misses.push(`skill engaged but must not be: ${s}`);
+  }
+  for (const f of c.expectNoFilesRead ?? []) {
+    const hit = r.filesRead.find((p) => p.includes(f));
+    if (hit) misses.push(`file read but must not be: ${f} (read ${hit})`);
+  }
+  if (r.isError) misses.push("session ended in error (max turns or SDK failure)");
+  return misses;
 }
 
 // --- Runners ----------------------------------------------------------------
@@ -115,6 +174,36 @@ function runQualityCases(artifact: string, cases: QualityCase[], task: Task): vo
 export const runSkillCases = (skill: string, cases: SkillCase[]) => runQualityCases(skill, cases, skillTask);
 export const runAgentCases = (agent: string, cases: AgentCase[]) => runQualityCases(agent, cases, agentTask);
 
+/** The same prompt with no harness: an empty folder, no on-disk config. Recorded, never asserted. */
+async function runControl(c: TraceCase): Promise<void> {
+  const emptyCwd = mkdtempSync(join(tmpdir(), "eval-control-"));
+  const result = await runClaude(c.prompt, {
+    allowedTools: WORKFLOW_ALLOWED_TOOLS,
+    disallowedTools: WORKFLOW_DISALLOWED_TOOLS,
+    maxTurns: c.maxTurns,
+    cwd: emptyCwd,
+    settingSources: [],
+  });
+  const label = `${c.name} [control]`;
+  logTrace(label, result);
+  const threshold = c.threshold ?? DEFAULT_THRESHOLD;
+  let verdict: Verdict | undefined;
+  try {
+    if (c.practices?.length && result.text) {
+      verdict = await llmJudge(result.text, c.practices);
+      logVerdict(label, verdict);
+    }
+  } finally {
+    record(label, {
+      result,
+      verdict,
+      threshold: verdict ? threshold : undefined,
+      passed: verdict ? verdict.score >= threshold : false,
+      extra: { control: true },
+    });
+  }
+}
+
 export function runWorkflowCases(cases: WorkflowCase[]): void {
   for (const c of cases) {
     test(c.name, async () => {
@@ -126,59 +215,80 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
           stopWhen: (p) => p.subagents.includes(expect1),
         });
         logTrace(c.name, result);
+        const launched = result.subagents.includes(c.expectSubagent);
         try {
           expect(result.subagents, `subagents: ${result.subagents.join(", ")}`).toContain(c.expectSubagent);
         } finally {
-          record(c.name, { result });
+          record(c.name, { result, passed: launched });
         }
       } else if (c.kind === "activation") {
         const result = await workflowTask(c.prompt, { maxTurns: c.maxTurns });
         logTrace(c.name, result);
+        const engaged = activated(result, c.skill);
         try {
           expect(
-            activated(result, c.skill),
+            engaged,
             `skills: ${result.skillsInvoked.join(", ")} | reads: ${result.filesRead.join(", ")}`,
           ).toBe(c.shouldActivate);
         } finally {
-          record(c.name, { result });
+          record(c.name, { result, passed: engaged === c.shouldActivate });
         }
       } else if (c.kind === "trace") {
+        if (WORKFLOW_CONTROL === "only") {
+          // Control only: the treatment already has its runs. Cases without a control do nothing.
+          if (c.control && c.practices?.length) await runControl(c);
+          return;
+        }
         // One session, many asserts — every provided expectation is checked against the same trace.
-        // Stop as soon as ALL expectations are satisfied (e.g. doc read + subagent launched), so a
-        // dispatch-bearing trace doesn't pay for the nested subagent's full run.
+        // Stop as soon as ALL positive expectations are satisfied (e.g. doc read + subagent
+        // launched), so a dispatch-bearing trace doesn't pay for the nested subagent's full run.
+        // A forbidden subagent ends the session too: that is already a miss.
+        // Early stop is off when the case needs the whole session: absence of a read or a skill
+        // cannot be shown before the end, and a judge needs the final answer.
         const subs = c.expectSubagents ?? [];
         const skls = c.expectSkills ?? [];
         const files = c.expectFilesRead ?? [];
-        const skillEngaged = (p: { skillsInvoked: string[]; filesRead: string[] }, skill: string) =>
-          p.skillsInvoked.some((s) => s === skill || s.endsWith(`:${skill}`)) ||
-          p.filesRead.some((f) => f.includes(`skills/${skill}/SKILL.md`));
+        const noSubs = c.expectNoSubagents ?? [];
+        const wholeSession =
+          (c.practices?.length ?? 0) > 0 ||
+          (c.expectNoSkills?.length ?? 0) > 0 ||
+          (c.expectNoFilesRead?.length ?? 0) > 0 ||
+          subs.length + skls.length + files.length === 0;
         const result = await workflowTask(c.prompt, {
           maxTurns: c.maxTurns,
-          stopWhen: (p) =>
-            subs.every((s) => p.subagents.includes(s)) &&
-            skls.every((s) => skillEngaged(p, s)) &&
-            files.every((f) => p.filesRead.some((r) => r.includes(f))),
+          stopWhen: wholeSession
+            ? undefined
+            : (p) =>
+                noSubs.some((s) => p.subagents.includes(s)) ||
+                (subs.every((s) => p.subagents.includes(s)) &&
+                  skls.every((s) => activated(p, s)) &&
+                  files.every((f) => p.filesRead.some((r) => r.includes(f)))),
         });
         logTrace(c.name, result);
+
+        const threshold = c.threshold ?? DEFAULT_THRESHOLD;
+        const misses = traceMisses(c, result);
+        let verdict: Verdict | undefined;
         try {
-          for (const sub of c.expectSubagents ?? []) {
-            expect(result.subagents, `subagents: ${result.subagents.join(", ")}`).toContain(sub);
+          if (c.practices?.length && result.text) {
+            verdict = await llmJudge(result.text, c.practices);
+            logVerdict(c.name, verdict);
           }
-          for (const skill of c.expectSkills ?? []) {
-            expect(
-              activated(result, skill),
-              `skill ${skill} not engaged | skills: ${result.skillsInvoked.join(", ")} | reads: ${result.filesRead.join(", ")}`,
-            ).toBe(true);
-          }
-          for (const file of c.expectFilesRead ?? []) {
-            expect(
-              result.filesRead.some((f) => f.includes(file)),
-              `${file} not read | reads: ${result.filesRead.join(", ")}`,
-            ).toBe(true);
-          }
-          expect(result.isError).toBe(false);
         } finally {
-          record(c.name, { result });
+          // A judged case without a verdict (judge crashed, or the session gave no text) is a fail.
+          const judged = c.practices?.length ? (verdict ? verdict.score >= threshold : false) : true;
+          record(c.name, {
+            result,
+            verdict,
+            threshold: verdict ? threshold : undefined,
+            passed: misses.length === 0 && judged,
+          });
+        }
+        if (WORKFLOW_CONTROL && c.control && c.practices?.length) await runControl(c);
+        expect(misses, misses.join("\n")).toEqual([]);
+        if (c.practices?.length) {
+          expect(verdict, "nothing to judge: the session produced no answer text").toBeDefined();
+          expect(verdict!.score, JSON.stringify(verdict!.results)).toBeGreaterThanOrEqual(threshold);
         }
       } else {
         // contrast: treatment (real harness) vs control (empty tmpdir, no on-disk config).
@@ -193,14 +303,14 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         });
         logTrace(`${c.name} [treatment]`, treatment);
         logTrace(`${c.name} [control]`, control);
+        const treatmentRead = treatment.filesRead.some((f) => f.includes(c.expectFileRead));
+        const controlRead = control.filesRead.some((f) => f.includes(c.expectFileRead));
         try {
-          const treatmentRead = treatment.filesRead.some((f) => f.includes(c.expectFileRead));
-          const controlRead = control.filesRead.some((f) => f.includes(c.expectFileRead));
           expect(treatmentRead, `treatment reads: ${treatment.filesRead.join(", ")}`).toBe(true);
           expect(controlRead, `control reads: ${control.filesRead.join(", ")}`).toBe(false);
         } finally {
-          record(`${c.name} [treatment]`, { result: treatment });
-          record(`${c.name} [control]`, { result: control });
+          record(`${c.name} [treatment]`, { result: treatment, passed: treatmentRead });
+          record(`${c.name} [control]`, { result: control, passed: !controlRead });
         }
       }
     });

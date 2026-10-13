@@ -11,6 +11,7 @@ export {
   runAgentCases,
   runWorkflowCases,
   activated,
+  traceMisses,
   type SkillCase,
   type AgentCase,
   type WorkflowCase,

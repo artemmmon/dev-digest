@@ -26,6 +26,15 @@ export const COST_REGRESSION_RATIO = 1.25; // candidate mean tokens > 125% of ba
 export const SPAWN_TOOLS = new Set(["Task", "Agent"]);
 // workflowTask runs against the LIVE repo with bypassPermissions — keep this read-only.
 export const WORKFLOW_ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Task", "Agent", "Skill"];
+// `allowedTools` does not restrict a session under bypassPermissions: a skill that records an
+// insight called Edit and appended to the live server/INSIGHTS.md. These are removed from the
+// model's context, so the workflow tier cannot change the checkout it runs in.
+export const WORKFLOW_DISALLOWED_TOOLS = ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit"];
+
+// Control session for trace cases that set `control: true`: the same prompt in an empty folder with
+// no on-disk config, judged by the same practices. "1" runs it after the treatment; "only" skips
+// the treatment, so a control costs one session and the treatment is not run a third time.
+export const WORKFLOW_CONTROL = process.env.EVAL_CONTROL ?? "";
 
 // --- Output verbosity -------------------------------------------------------
 // Set EVAL_QUIET to suppress per-run trace/verdict spam during multi-run aggregation.
