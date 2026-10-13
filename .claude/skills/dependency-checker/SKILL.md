@@ -22,7 +22,7 @@ node .claude/skills/dependency-checker/assets/dep-report.mjs            # sectio
 node .claude/skills/dependency-checker/assets/dep-report.mjs --format json   # same data, for detail
 ```
 
-Flags: `--packages server,client` (narrow) · `--top 12` (rows per table) · `--audit` (runs
+Flags: `--packages server,client` (narrow what is reported; aliases and relative imports still resolve against every package) · `--top 12` (rows per table) · `--audit` (runs
 `pnpm audit` / `npm audit` per package; needs the network, so ask first) · `--root <dir>`.
 Node ≥ 18; the shell's default Node here can be 16, so put Node 22 first on `PATH`.
 Read-only: it never installs and never edits.
@@ -85,6 +85,8 @@ Five sections, these names, this order — details and a worked example in
 The script is its own check: exit 0 and a report. A report is **not** done until: the graph is
 a fenced `mermaid` block that renders; every P0/P1 row names a file or `package.json`; section
 5 exists; nothing in it claims an action was performed.
+
+The script's own tests (throw-away repos, no network): `node --test .claude/skills/dependency-checker/assets/tests/*.test.mjs`.
 
 ## Read next
 

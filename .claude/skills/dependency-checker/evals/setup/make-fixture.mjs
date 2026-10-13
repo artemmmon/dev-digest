@@ -4,7 +4,10 @@
  * hand-made `node_modules` whose files are sparse, so sizes are exact and nothing big is
  * committed. Nothing in the generated files hints at what is planted.
  *
- *   node make-fixture.mjs <dest> [--no-modules] [--with-skill]
+ *   node make-fixture.mjs <dest> [--no-modules] [--with-skill] [--force]
+ *
+ * `<dest>` is the first argument that is not a flag. It is removed and rebuilt only when it does
+ * not exist, is empty, or holds the marker this script writes; anything else needs `--force`.
  *
  * `--with-skill` copies this skill (without its evals/) into <dest>/.claude/skills/, so the
  * documented command `node .claude/skills/dependency-checker/assets/dep-report.mjs` works
@@ -15,18 +18,39 @@
  *   client  -> lodash imported, declared nowhere (hoisted by npm); zod one minor behind
  *   next    -> 132 MB runtime dependency; react-dom is its peer and never imported
  */
-import { cpSync, existsSync, mkdirSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const dest = resolve(process.argv[2] ?? '');
+const destArg = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const withModules = !process.argv.includes('--no-modules');
 const withSkill = process.argv.includes('--with-skill');
-if (!process.argv[2]) {
-  console.error('usage: make-fixture.mjs <dest> [--no-modules]');
+const force = process.argv.includes('--force');
+if (!destArg) {
+  console.error('usage: make-fixture.mjs <dest> [--no-modules] [--with-skill] [--force]');
   process.exit(2);
 }
-if (existsSync(dest)) rmSync(dest, { recursive: true, force: true });
+const dest = resolve(destArg);
+const MARKER = '.mini-repo-fixture';
+// The destination is deleted before the rebuild: refuse a path that is the working directory, one
+// of its parents, or a folder that is not empty and was not made by this script.
+const cwd = process.cwd();
+const isAncestorOrSelf = cwd === dest || cwd.startsWith(dest + sep);
+if (isAncestorOrSelf) {
+  console.error(`refusing to delete ${dest}: it is the working directory or one of its parents`);
+  process.exit(2);
+}
+if (existsSync(dest)) {
+  const entries = readdirSync(dest);
+  if (entries.length > 0 && !entries.includes(MARKER) && !force) {
+    console.error(`refusing to delete ${dest}: not empty and not a fixture made by this script (use --force)`);
+    process.exit(2);
+  }
+  rmSync(dest, { recursive: true, force: true });
+}
+
+mkdirSync(dest, { recursive: true });
+writeFileSync(join(dest, MARKER), 'made by evals/setup/make-fixture.mjs\n');
 
 const MB = 1024 * 1024;
 const put = (rel, text = '') => {

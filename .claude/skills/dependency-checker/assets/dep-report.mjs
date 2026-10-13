@@ -194,7 +194,9 @@ function discoverPackages() {
     if (!e.isDirectory() || e.name.startsWith('.') || SKIP_DIRS.has(e.name)) continue;
     if (existsSync(join(ROOT, e.name, 'package.json'))) found.push({ dirName: e.name, dir: join(ROOT, e.name) });
   }
-  return found.filter((p) => ONLY.length === 0 || ONLY.includes(p.dirName));
+  // Every package, always: `--packages` narrows what is analysed and reported, not what is known.
+  // An alias or a relative import that leaves a narrowed package must still resolve to its target.
+  return found;
 }
 function hasTsconfigText(dir) {
   try {
@@ -259,7 +261,13 @@ function scanSources(pkg, aliases, declaredNames) {
     fileCount++;
     const isTest = isTestPath(rel);
     const isClient = /^\s*(?:(?:\/\*[\s\S]*?\*\/|\/\/[^\n]*)\s*)*["']use client["']/.test(text);
-    const category = isTest ? 'test' : depth === 0 || /\.config\.[cm]?[jt]s$/.test(rel) ? 'config' : /^scripts\//.test(rel) ? 'scripts' : 'src';
+    // A file at the package root is config only when it looks like config (vite.config.ts,
+    // eslint.config.mjs, vitest.setup.ts, .eslintrc.cjs, next-env.d.ts). An entry point such as
+    // server.mjs, cli.ts or Next's middleware.ts is source: its imports are the package's runtime use.
+    const isConfigFile =
+      /\.config\.[cm]?[jt]s$/.test(rel) ||
+      (depth === 0 && (/\.(?:setup|workspace)\.[cm]?[jt]s$/.test(rel) || /^\.?[\w-]*rc\.[cm]?[jt]s$/.test(rel) || /\.d\.ts$/.test(rel)));
+    const category = isTest ? 'test' : isConfigFile ? 'config' : /^scripts\//.test(rel) ? 'scripts' : 'src';
     const lineAt = (idx) => text.slice(0, idx).split('\n').length;
     const stripped = text.replace(/^\s*(?:\/\/.*|\*.*|\/\*.*)$/gm, (m) => ' '.repeat(m.length));
     const hits = [];
@@ -530,7 +538,7 @@ const majorOf = (v) => {
   return m ? Number(m[1]) : null;
 };
 
-function buildReport(packages) {
+function buildReport(packages, everyPackage = packages) {
   const internal = [];
   for (const p of packages) {
     for (const a of p.aliases) {
@@ -541,7 +549,7 @@ function buildReport(packages) {
       const m = String(e.range).match(/^(?:file|link):(.+)$/);
       if (m) {
         const abs = resolve(ROOT, p.dir, m[1]);
-        const to = packages.find((q) => q.dir !== p.dir && !relative(join(ROOT, q.dir), abs).startsWith('..'));
+        const to = everyPackage.find((q) => q.dir !== p.dir && !relative(join(ROOT, q.dir), abs).startsWith('..'));
         internal.push({ from: p.dir, to: to?.dir ?? m[1], kind: 'file-dependency', via: e.name, files: e.refs.src, target: m[1] });
       }
     }
@@ -565,7 +573,9 @@ function buildReport(packages) {
     const ranges = new Set(g.map((x) => x.range));
     const versions = new Set(g.map((x) => x.installed).filter(Boolean));
     if (ranges.size < 2 && versions.size < 2) continue;
-    const basis = versions.size ? [...versions] : [...ranges];
+    // Per entry: the installed version where there is one, else its range. A partly installed
+    // repo is the usual state of a worktree, and a major mismatch must not hide behind it.
+    const basis = g.map((x) => x.installed ?? x.range);
     const majors = new Set(basis.map(majorOf));
     const kind = majors.size > 1 ? 'major' : versions.size > 1 ? (ranges.size < 2 ? 'lock-skew' : 'minor-or-patch') : 'range-only';
     drift.push({ name, kind, contract: CONTRACT_PKGS.has(name), declared: g });
@@ -650,10 +660,10 @@ function buildReport(packages) {
       add('P2', 'version-drift', d.declared.map((x) => x.package).join(', '), d.name, `different ranges and different installed versions — ${spread}`, 'Align the ranges at the next dependency update');
     } else if (d.kind === 'lock-skew') {
       add('Info', 'lockfile-skew', d.declared.map((x) => x.package).join(', '), d.name, `same range, lockfiles resolved different versions — ${spread}`, 'Resolves itself at the next lockfile refresh');
-    } else if (d.contract && !d.declared.some((x) => x.installed)) {
+    } else if (d.contract && d.declared.some((x) => !x.installed)) {
       add('P2', 'version-drift', d.declared.map((x) => x.package).join(', '), d.name, `ranges allow different versions of a package whose values cross package boundaries — ${spread}`, 'Install and compare the resolved versions; pin one range');
     } else {
-      const known = d.declared.some((x) => x.installed);
+      const known = d.declared.every((x) => x.installed);
       add('Info', 'range-drift', d.declared.map((x) => x.package).join(', '), d.name, `${known ? 'same installed version, ' : ''}different ranges — ${spread}`, 'Optional: use one range spelling');
     }
   }
@@ -714,6 +724,12 @@ function mermaid(packages, rep) {
     const k = `${e.from}>${e.to}`;
     pairs.set(k, [...(pairs.get(k) ?? []), e.via]);
   }
+  // A target outside a narrowed run still needs a node, or the edge would point at nothing.
+  const inScope = new Set(packages.map((p) => p.dir));
+  const outside = new Set(
+    [...pairs.keys()].map((k) => k.split('>')[1]).concat(rep.violations.map((v) => v.to).filter(Boolean)).filter((t) => !inScope.has(t)),
+  );
+  for (const o of outside) L.push(`  P_${id(o)}["${o} · not analysed"]`);
   for (const [k, via] of pairs) {
     const [from, to] = k.split('>');
     L.push(`  P_${id(from)} -->|"${[...new Set(via)].join(', ')}"| P_${id(to)}`);
@@ -750,6 +766,9 @@ function renderMd(packages, rep, audit) {
   out.push('## 1. Scope\n');
   out.push(table(['Package', 'Manager', 'Prod', 'Dev', 'Installed', 'Prod footprint', 'Total footprint', 'Source files'],
     packages.map((p) => [p.dir, p.manager, p.counts.dependencies, p.counts.devDependencies, p.installed ? `yes (${p.installedPackages} pkgs)` : 'no', mb(p.prodBytes), mb(p.totalBytes), p.sourceFiles])));
+  if (ONLY.length) {
+    out.push(`_Narrowed with \`--packages ${ONLY.join(',')}\`: aliases and relative imports are resolved against all ${EVERY_COUNT} packages of the repo; version drift and duplicates are computed among the packages above only._\n`);
+  }
   out.push('_Footprint = unique installed bytes of the declared dependencies and everything they pull in (apparent file size, `node_modules` only). 1 MB = 1,048,576 bytes, like `du -h`._\n');
   out.push('## 2. Dependency graph\n');
   out.push('```mermaid\n' + mermaid(packages, rep) + '\n```\n');
@@ -797,10 +816,15 @@ function renderMd(packages, rep, audit) {
 // ---------------------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------------------
-const discovered = discoverPackages();
-if (discovered.length === 0) die(`no package.json found under ${ROOT} (use --root)`);
-const packages = discovered.map((p) => analysePackage(p, discovered));
-const report = buildReport(packages);
+const everything = discoverPackages();
+const EVERY_COUNT = everything.length;
+if (everything.length === 0) die(`no package.json found under ${ROOT} (use --root)`);
+const discovered = everything.filter((p) => ONLY.length === 0 || ONLY.includes(p.dirName));
+if (discovered.length === 0) {
+  die(`--packages ${ONLY.join(',')} matched none of: ${everything.map((p) => p.dirName).join(', ')}`);
+}
+const packages = discovered.map((p) => analysePackage(p, everything));
+const report = buildReport(packages, everything.map((p) => ({ dir: p.dirName })));
 let audit = null;
 if (has('audit')) {
   audit = {};
