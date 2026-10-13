@@ -576,7 +576,8 @@ function buildReport(packages, everyPackage = packages) {
     // Per entry: the installed version where there is one, else its range. A partly installed
     // repo is the usual state of a worktree, and a major mismatch must not hide behind it.
     const basis = g.map((x) => x.installed ?? x.range);
-    const majors = new Set(basis.map(majorOf));
+    // A range with no number (`latest`, `*`, `workspace:*`) has no major to compare.
+    const majors = new Set(basis.map(majorOf).filter((m) => m !== null));
     const kind = majors.size > 1 ? 'major' : versions.size > 1 ? (ranges.size < 2 ? 'lock-skew' : 'minor-or-patch') : 'range-only';
     drift.push({ name, kind, contract: CONTRACT_PKGS.has(name), declared: g });
   }

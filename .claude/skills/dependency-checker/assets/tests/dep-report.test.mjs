@@ -84,3 +84,13 @@ test('a major mismatch is not hidden when only one side is installed', () => {
   const drift = report(root).drift.find((d) => d.name === 'zod');
   assert.equal(drift.kind, 'major');
 });
+
+test('a tag such as "latest" is not read as a different major', () => {
+  const root = join(tmp, 'tag');
+  for (const [name, range] of [['a', '^5.6.3'], ['b', 'latest']]) {
+    mkdirSync(join(root, name), { recursive: true });
+    writeFileSync(join(root, name, 'package.json'), JSON.stringify({ name, dependencies: { typescript: range } }));
+  }
+  const drift = report(root).drift.find((d) => d.name === 'typescript');
+  assert.notEqual(drift.kind, 'major');
+});
