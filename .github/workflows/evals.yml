@@ -139,6 +139,10 @@ jobs:
       SKILLS: ${{ needs.detect.outputs.skills }}
       AGENTS: ${{ needs.detect.outputs.agents }}
     steps:
+      # Checkout first: `defaults.run.working-directory` is evals/, which does not exist until then,
+      # and every `run` step, the always() ones included, fails to start without it.
+      - uses: actions/checkout@v4
+
       - name: Require the OpenRouter key
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -150,8 +154,6 @@ jobs:
           echo "model under test: $EVAL_MODEL"
           echo "judge:            $EVAL_JUDGE_MODEL"
           echo "runs per case:    $EVAL_RUNS  (gate: pass rate >= $EVAL_MIN_PASS_RATE)"
-
-      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10
