@@ -24,12 +24,16 @@ const OUTPUTS = join(RESULTS_DIR, "outputs");
 const RUN_ID = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
 const { sha: GIT_SHA, dirty: DIRTY } = gitInfo();
 
-// The slug is cut to 80 characters, so two long labels that differ only at the end (a case and its
-// " [control]" run) would share one file; a short hash of the full label keeps them apart.
-const slugify = (s: string): string => {
-  const base = s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "case";
-  return `${base}-${createHash("sha1").update(s).digest("hex").slice(0, 6)}`;
-};
+/**
+ * File name of a record's saved answer. The slug is cut to 80 characters, and the same case name
+ * can be registered by two eval files (architecture-reviewer-lite runs architecture-reviewer's
+ * cases, in parallel workers that share one RUN_ID), so the name carries a short hash of the whole
+ * node id and label, not of the label alone.
+ */
+export function outputSlug(label: string, nodeid: string): string {
+  const base = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "case";
+  return `${base}-${createHash("sha1").update(`${nodeid}\n${label}`).digest("hex").slice(0, 6)}`;
+}
 
 export interface RecordData {
   result: Result;
@@ -68,7 +72,7 @@ export function record(label: string, data: RecordData): void {
 
   const outDir = join(OUTPUTS, RUN_ID);
   mkdirSync(outDir, { recursive: true });
-  const outputFile = join("outputs", RUN_ID, `${slugify(label)}.md`);
+  const outputFile = join("outputs", RUN_ID, `${outputSlug(label, nodeid)}.md`);
   writeFileSync(join(RESULTS_DIR, outputFile), result.text);
 
   const row = {
