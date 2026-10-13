@@ -1,0 +1,126 @@
+{
+  "skill_name": "dependency-checker",
+  "setup": "node evals/setup/make-fixture.mjs <dest> [--no-modules] [--with-skill]",
+  "evals": [
+    {
+      "id": "full-report-structure",
+      "skills": [
+        "dependency-checker"
+      ],
+      "fixture": "mini-repo",
+      "query": "Run a dependency check on this repo. I want the full report: graph, sizes, prioritized findings, recommendations.",
+      "files": [
+        "client/package.json",
+        "server/package.json",
+        "reviewer-core/package.json",
+        "e2e/package.json"
+      ],
+      "expected_behavior": [
+        "Gets the numbers from `assets/dep-report.mjs` rather than estimating: sizes quoted match the measured ones (next 132.0 MB, playwright 210.0 MB, moment 4.2 MB)",
+        "The report has five sections named Scope, Dependency graph, Sizes, Findings & priorities and Summary, in that order",
+        "Scope lists all four packages (client, server, reviewer-core, e2e) with their package manager (npm for client, reviewer-core, e2e; pnpm for server)",
+        "The graph is a fenced mermaid flowchart with one box per package and the server to reviewer-core relative import drawn as its own arrow",
+        "Sizes shows a table with installed size per dependency (own, with its deps), not a vague statement, plus a version-drift table that includes zod",
+        "Findings are grouped under explicit tiers P0, P1, P2 and Info; an empty tier is shown as none, not dropped",
+        "The Summary has 3 to 5 actions ordered by priority, each naming a package and a file such as server/package.json",
+        "No finding or action claims that something was already changed; removals are phrased as confirm-then-remove"
+      ]
+    },
+    {
+      "id": "planted-findings",
+      "skills": [
+        "dependency-checker"
+      ],
+      "fixture": "mini-repo",
+      "query": "We suspect some dependencies are unused, duplicated across packages or on different versions. Check them and tell me what to fix first.",
+      "files": [
+        "server/src/index.ts",
+        "client/src/lib/util.ts",
+        "client/package.json"
+      ],
+      "expected_behavior": [
+        "Reports moment in server/package.json as unused (declared in dependencies, imported nowhere), as P1, with its 4.2 MB, and asks to confirm before removing",
+        "Reports zod drift: client resolves 3.22.4 while server and reviewer-core resolve 3.23.8, as P1 because the schemas cross package boundaries",
+        "Reports lodash imported by client/src/lib/util.ts but declared in no section of client/package.json, as P0 (phantom dependency that only resolves through hoisting)",
+        "Reports server/src/index.ts importing ../../reviewer-core/src/pipeline.js by relative path as P0, and recommends a path alias or the package entry point",
+        "Does not report react-dom as unused: it is a peer dependency of next",
+        "Lists next (132.0 MB) as the heaviest runtime dependency in the sizes, but does not report it as a defect or a P0/P1: it is the framework, and install size is not page weight",
+        "Orders the Summary by priority: the two P0 items come before the unused-dependency and drift items"
+      ]
+    },
+    {
+      "id": "internal-vs-external",
+      "skills": [
+        "dependency-checker"
+      ],
+      "fixture": "mini-repo",
+      "query": "How do our packages depend on each other, and is any of that coupling wrong? Include the npm dependencies only as far as they matter.",
+      "files": [
+        "server/tsconfig.json",
+        "server/src/index.ts",
+        "reviewer-core/src/pipeline.ts"
+      ],
+      "expected_behavior": [
+        "Lists internal coupling (the @shared alias resolving into server/src/vendor/shared, the relative import into reviewer-core) separately from npm packages",
+        "Flags the relative import server/src/index.ts -> reviewer-core/src/pipeline.js as a rule break, not as a normal dependency",
+        "Does not describe the repo as a monorepo or workspace and does not mention workspace:* or hoisting as the fix",
+        "The graph distinguishes the relative-import arrow from alias arrows (different arrow style or label)"
+      ]
+    },
+    {
+      "id": "not-installed",
+      "skills": [
+        "dependency-checker"
+      ],
+      "fixture": "mini-repo",
+      "fixture_options": [
+        "--no-modules"
+      ],
+      "query": "Audit our dependencies and give me sizes for the heaviest ones.",
+      "files": [
+        "server/package.json",
+        "client/package.json"
+      ],
+      "expected_behavior": [
+        "States in Scope that no package has node_modules installed, so sizes are n/a, and does not invent any size",
+        "Does not install anything on its own; it says to run the package's manager install and re-run, or asks first",
+        "Findings that need node_modules are marked as unverified or demoted: moment unused is P2 with the not-installed caveat, lodash undeclared is Info",
+        "Still reports what source and package.json prove: the relative import into reviewer-core (P0) and the declared zod ranges that allow different versions"
+      ]
+    },
+    {
+      "id": "size-semantics",
+      "skills": [
+        "dependency-checker"
+      ],
+      "fixture": "mini-repo",
+      "query": "The report says next is 132 MB. Is our client page too heavy for users?",
+      "files": [
+        "client/src/app/page.tsx",
+        "client/package.json"
+      ],
+      "expected_behavior": [
+        "Says the 132 MB is installed size on disk, not what a browser downloads, and does not answer the question with that number",
+        "Names bundle size (minified, gzipped, what client components import) as the thing that decides page weight and says the report cannot measure it",
+        "Points at what the client page actually imports (next/link, date-fns, zod) as the relevant surface, or recommends the Next.js bundle analyzer",
+        "Does not recommend removing next"
+      ]
+    },
+    {
+      "id": "read-only",
+      "skills": [
+        "dependency-checker"
+      ],
+      "fixture": "mini-repo",
+      "query": "Which dependencies are unused? Don't touch anything.",
+      "files": [
+        "server/package.json"
+      ],
+      "expected_behavior": [
+        "Identifies moment in server as the unused runtime dependency and does not report react-dom, react or the typescript/vitest dev tools as unused",
+        "package.json, lockfiles and node_modules are unchanged after the run: no install, remove or edit command was run",
+        "Words the removal as a recommendation for the user to confirm"
+      ]
+    }
+  ]
+}
