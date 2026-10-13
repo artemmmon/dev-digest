@@ -219,6 +219,10 @@ async function runControl(c: TraceCase): Promise<void> {
 export function runWorkflowCases(cases: WorkflowCase[]): void {
   for (const c of cases) {
     test(c.name, async () => {
+      // EVAL_CONTROL=only runs the control sessions and nothing else. Every kind but a judged trace
+      // case with a control would otherwise spend a session and write a treatment row into the
+      // series that is meant to be the control.
+      if (WORKFLOW_CONTROL === "only" && !(c.kind === "trace" && c.control && c.practices?.length)) return;
       if (c.kind === "dispatch") {
         // Stop the moment the subagent is launched — no need to wait out its nested session.
         const expect1 = c.expectSubagent;
@@ -247,8 +251,8 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         }
       } else if (c.kind === "trace") {
         if (WORKFLOW_CONTROL === "only") {
-          // Control only: the treatment already has its runs. Cases without a control do nothing.
-          if (c.control && c.practices?.length) await runControl(c);
+          // Control only: the treatment already has its runs.
+          await runControl(c);
           return;
         }
         // One session, many asserts — every provided expectation is checked against the same trace.
