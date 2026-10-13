@@ -29,8 +29,7 @@ Each has its own `AGENTS.md` — read it before working in that package.
 ./scripts/e2e.sh              # hermetic e2e on alternate ports
 ./scripts/check-changed.sh    # typecheck · lint · test · arch for the packages you touched, failures only
 ```
-Per-package build/test commands live in each package's `AGENTS.md`.
-Every package exposes the same three checks: `typecheck` · `lint` · `test`.
+Per-package commands live in each package's `AGENTS.md`; each exposes `typecheck` · `lint` · `test`.
 
 ## Naming
 - Files `kebab-case.ts`; a file whose default export is a React component is
@@ -76,12 +75,16 @@ Every package exposes the same three checks: `typecheck` · `lint` · `test`.
 - `CLAUDE.md` files — symlinks to the `AGENTS.md` beside them, for Claude Code.
   Edit `AGENTS.md`; never replace a link with a copy.
 
+## Evals
+After a harness change run, from `evals/` (what each costs and when: `evals/README.md`):
+- `AGENTS.md` / `CLAUDE.md`, a `SKILL.md`, an agent file, `.claude/settings.json` → `pnpm eval:static`, then `pnpm eval:workflow`
+- one skill → `pnpm eval:repeat skills/<name> -n 2`; one agent → `pnpm eval:repeat agents/<name> -n 2` (2 runs is the cap)
+- the engine (`evals/src`) or a workflow case → `pnpm eval:static`, no model. CI runs the matching tiers on a PR.
+
 ## Documentation map
 Read on demand when the task matches — do not preload.
-- `README.md` — product overview, quick start, troubleshooting
-- `TESTING.md` — test strategy, suite map, test conventions
-- `docs/` — cross-package docs; `docs/agent-prompts/` — reviewer agent prompts, model choice
-- `docs/demo-video.md` — how to record a narrated demo of a lesson
+- `README.md` — overview, quick start, troubleshooting · `TESTING.md` — test strategy, suite map, conventions
+- `docs/` — cross-package docs; `docs/agent-prompts/` — reviewer prompts, model choice; `docs/demo-video.md` — recording a demo
 - `specs/` — cross-package feature specs (check before starting a feature)
 - `.claude/agents/README.md` + the `feature-flow` skill — how a feature goes through the subagents; start one with `/sdd`
 - `INSIGHTS.md` — cross-package gotchas and non-obvious decisions
