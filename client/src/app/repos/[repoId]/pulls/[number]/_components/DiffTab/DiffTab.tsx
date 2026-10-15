@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { SectionLabel, Button, Icon } from "@devdigest/ui";
-import type { PrFile } from "@devdigest/shared";
+import type { FindingRecord, PrFile } from "@devdigest/shared";
 import {
   DiffViewer,
   type DiffCommentApi,
@@ -20,6 +20,7 @@ import { usePrSmartDiff } from "@/lib/hooks/core";
 import { latestRoundFindings } from "@/lib/latest-round-findings";
 import { unstyledButton } from "@/lib/interactive";
 import { FindingCard } from "../FindingCard";
+import { FindingCaseEditor } from "../FindingCaseEditor";
 import { buildRoleGroups } from "./helpers";
 import { RoleGroup } from "./_components/RoleGroup";
 import { s } from "./styles";
@@ -58,6 +59,8 @@ export function DiffTab({
     isError: smartDiffError,
   } = usePrSmartDiff(prId);
   const action = useFindingAction();
+  // The finding the Case Editor is open on (null = closed).
+  const [seedFor, setSeedFor] = React.useState<FindingRecord | null>(null);
 
   const findings = React.useMemo(() => latestRoundFindings(reviews), [reviews]);
   const hasReview = (reviews ?? []).some((r) => r.kind === "review");
@@ -107,6 +110,7 @@ export function DiffTab({
         pending={action.isPending}
         repoFullName={repoFullName}
         headSha={headSha}
+        onTurnIntoEvalCase={setSeedFor}
       />
     ),
   };
@@ -192,6 +196,10 @@ export function DiffTab({
             ))}
           </div>
         </>
+      )}
+
+      {seedFor && prId && (
+        <FindingCaseEditor finding={seedFor} prId={prId} onClose={() => setSeedFor(null)} />
       )}
     </section>
   );

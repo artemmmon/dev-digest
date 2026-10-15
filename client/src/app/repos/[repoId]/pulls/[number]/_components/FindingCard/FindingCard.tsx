@@ -1,7 +1,8 @@
 /* FindingCard — ported from findings.jsx (createElement → TSX).
    Severity icon+label, category, file:line, confidence, markdown rationale +
    suggestion, accept/dismiss actions. Accept/dismiss reflect persisted
-   timestamps. */
+   timestamps. The eval action ("Turn into eval case" / "In eval set" / the reason it is
+   unavailable) is derived only from the server's markers on the finding. */
 "use client";
 
 import React from "react";
@@ -33,6 +34,7 @@ export function FindingCard({
   pending,
   repoFullName,
   headSha,
+  onTurnIntoEvalCase,
 }: {
   f: FindingRecord;
   focused?: boolean;
@@ -41,8 +43,12 @@ export function FindingCard({
   pending?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** Open the Case Editor seeded from this finding (AC-2). */
+  onTurnIntoEvalCase?: (f: FindingRecord) => void;
 }) {
   const t = useTranslations("prReview");
+  const te = useTranslations("eval");
+  const reasonId = React.useId();
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
   const sevColor = SEV_COLOR[f.severity] ?? SEV_COLOR_FALLBACK;
   const fileHref =
@@ -121,6 +127,36 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            {f.eval_case_id ? (
+              <span style={s.inEvalSet}>
+                <Icon.FlaskConical size={14} />
+                {te("findingCard.inEvalSet")}
+              </span>
+            ) : f.eval_unavailable_reason ? (
+              <>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  icon="FlaskConical"
+                  disabled
+                  aria-describedby={reasonId}
+                >
+                  {te("findingCard.turnIntoCase")}
+                </Button>
+                <span id={reasonId} style={s.evalReason}>
+                  {te(`findingCard.reasons.${f.eval_unavailable_reason}`)}
+                </span>
+              </>
+            ) : (
+              <Button
+                kind="ghost"
+                size="sm"
+                icon="FlaskConical"
+                onClick={() => onTurnIntoEvalCase?.(f)}
+              >
+                {te("findingCard.turnIntoCase")}
+              </Button>
+            )}
           </div>
         </div>
       )}

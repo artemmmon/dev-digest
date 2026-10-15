@@ -169,6 +169,20 @@
       "when": 1791208588791,
       "tag": "0023_goofy_morg",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792051589613,
+      "tag": "0024_unknown_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792051605976,
+      "tag": "0025_premium_dragon_lord",
+      "breakpoints": true
     }
   ]
 }

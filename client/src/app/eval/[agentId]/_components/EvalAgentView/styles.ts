@@ -1,0 +1,46 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for EvalAgentView (design: `screen_skills.jsx` ScreenEval, agent branch). */
+export const s = {
+  page: { padding: "20px 28px 40px", maxWidth: 980, margin: "0 auto" } satisfies CSSProperties,
+  back: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+    padding: "4px 8px 4px 4px",
+    borderRadius: 6,
+    color: "var(--text-secondary)",
+    fontSize: 12.5,
+    fontWeight: 600,
+    textDecoration: "none",
+  } satisfies CSSProperties,
+  header: { display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 18, flexWrap: "wrap" } satisfies CSSProperties,
+  titleBlock: { minWidth: 0, flex: 1 } satisfies CSSProperties,
+  h1: {
+    fontSize: 22,
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    margin: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+    overflowWrap: "anywhere",
+  } satisfies CSSProperties,
+  model: {
+    fontSize: 11.5,
+    fontWeight: 500,
+    color: "var(--text-muted)",
+    padding: "2px 7px",
+    borderRadius: 5,
+    border: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  subtitle: { fontSize: 13, color: "var(--text-secondary)", margin: "3px 0 0" } satisfies CSSProperties,
+  actions: { display: "flex", alignItems: "center", gap: 8 } satisfies CSSProperties,
+  hint: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+  runsHead: { display: "flex", alignItems: "center", gap: 10, margin: "20px 0 8px", flexWrap: "wrap" } satisfies CSSProperties,
+  runsHint: { fontSize: 11.5, color: "var(--text-muted)" } satisfies CSSProperties,
+  compare: { marginLeft: "auto" } satisfies CSSProperties,
+  empty: { fontSize: 13, color: "var(--text-muted)", margin: "8px 0" } satisfies CSSProperties,
+} as const;

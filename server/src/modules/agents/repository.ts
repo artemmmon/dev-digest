@@ -391,6 +391,7 @@ export class AgentsRepository implements AgentStore {
         name: t.skills.name,
         body: t.skills.body,
         appliesTo: t.skills.appliesTo,
+        version: t.skills.version,
       })
       .from(t.agentSkills)
       .innerJoin(t.skills, eq(t.skills.id, t.agentSkills.skillId))

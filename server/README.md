@@ -85,6 +85,7 @@ flowchart TB
   subgraph Agents["Agents"]
     agents["agents<br/>/agents · /agents/:id · /agents/:id/skills · /agents/:id/context"]
     skills["skills<br/>/skills · /skills/:id · /skills/:id/context · /skills/import/preview"]
+    evalModule["eval<br/>/agents/:id/(eval-cases|eval-runs|eval-trend) · /eval-cases/:id<br/>/eval-runs/compare · /eval/dashboard"]
   end
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
@@ -105,6 +106,12 @@ the `PrBrief` (10 per minute; a second request for the same PR joins the running
 background (one model request, 180 s deadline; `409 generation_in_progress` while one
 runs; 10 per minute). Interrupted generations are marked failed on boot. See
 [`../docs/onboarding-tour.md`](../docs/onboarding-tour.md).
+
+`POST /agents/:id/eval-runs` answers `202` and runs the agent over its eval cases in the
+background, one case after another (one request and a 120 s deadline per case; `409
+eval_run_in_progress` while one runs; 10 per minute). Scoring is code, with no model call.
+Interrupted runs are marked failed on boot. `pnpm verify:l06` runs the unit lane of the
+eval tests (no Docker). See [`../docs/eval-pipeline.md`](../docs/eval-pipeline.md).
 
 ## Environment
 

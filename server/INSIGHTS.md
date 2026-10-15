@@ -420,6 +420,22 @@ Where: server/src/platform/container.ts:264, server/src/modules/brief/routes.ts:
 `OnboardingService.start` returns before the run ends, and `run` logs its outcome AFTER `store.complete/fail` returns. An in-memory store that resolves an `ended()` promise inside `complete/fail` lets a test await the run with no sleep, but a test that then reads the log races it (`logs.find(...)` was undefined) — wait for the line with `vi.waitFor`. Concurrent `claim` exclusivity is proved only against real Postgres (`Promise.all` of 10 claims, 5 rounds, over a fresh row and over an idle/failed row): an in-memory fake cannot show it.
 Where: server/test/onboarding-service.test.ts:201, server/test/onboarding.it.test.ts:107
 
+### 2026-10-15 — One request per eval case: wrap the `LLMProvider`, because `ReviewInput` has no transport slot
+`reviewPullRequest` forwards only `maxRetries` (schema re-prompts) and `sessionId` to `completeStructured`, so a caller cannot ask for "exactly one HTTP request" through the engine's input. The eval run executor hands the engine a wrapper whose `completeStructured` spreads `{ maxRetries: 0, transportRetries: 0, timeoutMs }` over every request; `timeoutMs` equals the case deadline, so the SDK aborts together with the local `withDeadline` race (which alone would leave the request running).
+Where: `src/modules/eval/run-executor.ts:39`, `../reviewer-core/src/review/run.ts:186`.
+
+### 2026-10-15 — A case diff headed only by `---`/`+++` survives `excludeFromReview`; `normalizeCaseDiff` adds `diff --git` first
+`excludeFromReview` strips whole sections of `raw` keyed on `diff --git a/<p> b/<p>` lines and keeps a section whose path it cannot resolve, so a typed or seeded case diff (`--- a/<p>` + `+++ b/<p>` + hunks) passes through with its lock-file or fixture content intact, and `parseUnifiedDiff` sees one file for the whole text. `eval/case-rules.ts` inserts the missing header before every header-less `---`/`+++` pair (idempotent) before parsing, filtering, range checks and the run. A `---` line inside a hunk is not tracked: a removed line `-- a/x` directly followed by `++ b/y` would be misread as a header (accepted).
+Where: `src/modules/eval/case-rules.ts:28`, `src/modules/reviews/diff-filter.ts:42`.
+
+### 2026-10-15 — eval markers are computed per pull read, not stored on findings
+`reviewsForPull` marks each finding with `eval_case_id` / `eval_unavailable_reason` (`withEvalMarkers`, order `no_agent` → `file_excluded` → `diff_unavailable`) from two batched reads: `getPrFiles` once and `ReviewDeps.evalCases.caseIdsBySourceFinding` once. A finding that already seeded a case gets the case id and NO reason, so a re-imported PR still shows "In eval set" (EC-3). `actOnFinding` returns the DTO without markers (both fields are nullish): the client refetches the reviews after an action. A new `ReviewDeps` field needs `evalCases` in every literal in `test/reviews-service.test.ts`.
+Where: src/modules/reviews/helpers.ts:98
+
+### 2026-10-15 — "One request per eval case" holds only for a `single-pass` agent
+The eval executor passes `capture.agent.strategy ?? REVIEW_STRATEGY` to the engine, and `strategy` is an agent setting (`single-pass` | `map-reduce` | `auto`). For `map-reduce`, or for `auto` on a large diff, `reviewPullRequest` sends one request per changed file, so a case can cost several requests. Each request still gets `maxRetries: 0`, `transportRetries: 0` and `timeoutMs` = 120 s, and the whole case still has one 120 s `withDeadline`; a slow multi-file case ends as `error` and its already-spent requests are billed but not counted in the run cost. Do not describe the limit as "exactly one request" without that qualifier.
+Where: `src/modules/eval/run-executor.ts:145`, `../reviewer-core/src/review/run.ts:156`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -502,6 +518,14 @@ Where: reviewer-core/src/llm/openrouter.ts:94, server/src/adapters/llm/openai.ts
 ### 2026-10-05 — `parseUnifiedDiff` returns no files for a bare `pr_files.patch`
 `pr_files.patch` holds only `@@` hunks (no `diff --git` / `+++` line), and `parseUnifiedDiff` only opens a file on those lines, so it yields nothing for one file's patch. For per-file hunk data read the headers directly: `extractHunkHeaders` and `newSideRanges` (new-side line ranges, context lines included) in `_shared/hunks.ts`.
 Where: ../reviewer-core/src/diff.ts:33, src/modules/_shared/hunks.ts:35
+
+### 2026-10-15 — Delete of an eval case is one guarded statement
+`EvalRepository.deleteCaseIfIdle` runs `DELETE FROM eval_cases WHERE id = $ AND workspace_id = $ AND NOT EXISTS (SELECT 1 FROM eval_runs WHERE agent_id = eval_cases.agent_id AND status = 'running')`; only when 0 rows go does a second SELECT tell `running` (409) from `not_found` (404). No check-then-act, so a run claimed between a read and the delete cannot lose its case rows. An update is not blocked while a run runs: the run replays the cases it captured at start.
+Where: `src/modules/eval/repository.ts:193`
+
+### 2026-10-15 — A per-route `rateLimit` is inert under `NODE_ENV=test`: the 429 test needs a non-test app
+`app.ts` registers `@fastify/rate-limit` only when `config.nodeEnv !== 'test'`, so `config: { rateLimit: { max: 10 } }` on a route (eval run start, review start) never answers 429 in a normal `.it.test.ts` app. Build that one app with `{ ...loadConfig(...), nodeEnv: 'production' }` and `LOG_LEVEL=silent` semantics from the test config; a non-test app also runs the repo-stack backfill at boot, so put the test before any test that inserts repos (the eval one is the first test of its file). Starts 2-10 may be 202 or 409 (a run still running), never 429.
+Where: `src/app.ts:114`, `test/eval.it.test.ts:202`.
 
 ## Recurring Errors & Fixes
 
@@ -592,6 +616,14 @@ Where: src/modules/intent/links.ts:88, src/modules/intent/hunks.ts:49
 The script is `vitest run .it.test`, so the extra `-- blast` does not narrow it (all 16 files ran, ~25 s). To run one file use `pnpm vitest run test/<name>.it.test.ts`. A fresh git worktree also has no `node_modules`: run `pnpm install --frozen-lockfile` in `server/` (and `npm ci` in `reviewer-core/`) before any check.
 Where: `package.json:14`.
 
+### 2026-10-15 — Rewriting `eval_runs`: two `db:generate` passes, partial unique index works
+Replacing a table's columns in one `pnpm db:generate` risks drizzle-kit's interactive rename question (not reproduced — **(unverified)**; the single pass was never tried). Remove-only pass first (drop `evalRuns` from `schema/eval.ts` and the `schema.ts` barrel → `DROP TABLE`), then re-add the new tables and columns as a second pass: no prompt. `uniqueIndex(...).on(t.agentId).where(sql\`${t.status} = 'running'\`)` is emitted by drizzle-kit 0.38 as `CREATE UNIQUE INDEX … WHERE "eval_runs"."status" = 'running'`, so the claim needs no row-lock fallback.
+Where: `src/db/schema/eval.ts:84`, `src/db/migrations/0025_premium_dragon_lord.sql:48`.
+
+### 2026-10-15 — A run-executor test that awaits `store.ended()` hangs for 120 s when the code under test is broken
+`createMemoryEvalStore().ended(runId)` resolves only on `finishRun` or a refused write, and `vitest.config.ts` sets `testTimeout: 120_000`: if a regression skips `finishFailed`, a test that awaits `ended()` stalls for two minutes instead of failing. After `await executor.run(...)` has resolved, assert on `store.runs[0].summary.status` directly, and use `ended()` only to wait for a run still in flight. macOS also has no `timeout` binary: a `timeout 60 pnpm exec vitest …` wrapper exits 127 without running anything.
+Where: `test/helpers/eval.ts:188`, `vitest.config.ts:16`.
+
 ## Open Questions
 
 ### 2026-09-15 — Failed background job may crash the process (unverified)
@@ -636,6 +668,10 @@ keyword optional, first match only) feeding `PrDetail.linked_issue` — display-
 unifies them; a PR whose `linked_issue` (Overview tab) differs from `pr_intent`'s picked issue is possible and not a bug.
 Decide whether `PrDetail.linked_issue` should be retired in favour of the intent layer's detector.
 Where: `src/adapters/github/octokit.ts:150` (`resolveLinkedIssue`), `src/modules/intent/links.ts:15` (`extractIssueRefs`).
+
+### 2026-10-15 — Answer to "Should editing a skill body version the agents bound to it?" for eval runs
+`ResolvedSkill` now carries `version` (`skills.version`), so an eval run can record the `{skill_id, name, version}` list it ran with (`eval_runs.skill_versions`). The question stays open for normal review runs: `agent_runs` still does not link a skill version.
+Where: `src/modules/agents/ports.ts:81`, `src/modules/agents/repository.ts:387`.
 
 ## Session Notes
 

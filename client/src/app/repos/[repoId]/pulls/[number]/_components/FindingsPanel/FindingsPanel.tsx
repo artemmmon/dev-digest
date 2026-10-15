@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Toggle, EmptyState } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
+import { FindingCaseEditor } from "../FindingCaseEditor";
 import { SeverityFilterPills } from "../SeverityFilterPills";
 import { useFindingAction } from "@/lib/hooks/reviews";
 import { countBySeverity, type CountedSeverity } from "@/lib/severity-counts";
@@ -30,6 +31,8 @@ export function FindingsPanel({
   const [hideLow, setHideLow] = React.useState(false);
   const [severity, setSeverity] = React.useState<CountedSeverity | null>(null);
   const [focusRaw, setFocusIdx] = React.useState(0);
+  // The finding the Case Editor is open on (null = closed).
+  const [seedFor, setSeedFor] = React.useState<FindingRecord | null>(null);
 
   // Counters are taken from the full visible set, the list from the filtered one, so a
   // pill's number always equals the number of cards it shows.
@@ -42,14 +45,18 @@ export function FindingsPanel({
 
   // j/k navigation + a/d shortcuts on the focused finding (keyboard). The listener is
   // bound once and reads the latest values through a ref, so it isn't re-bound every render.
-  const latest = React.useRef({ shown, focusIdx, prId, mutate: action.mutate });
+  const latest = React.useRef({ shown, focusIdx, prId, mutate: action.mutate, editorOpen: false });
   React.useEffect(() => {
-    latest.current = { shown, focusIdx, prId, mutate: action.mutate };
+    latest.current = { shown, focusIdx, prId, mutate: action.mutate, editorOpen: seedFor !== null };
   });
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // While the Case Editor (or any modal) is open the list shortcuts are off, wherever focus is.
+      if (latest.current.editorOpen) return;
+      if ((e.target as HTMLElement | null)?.closest?.('[role="dialog"]')) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
       const { shown: list, focusIdx: idx, prId: id, mutate } = latest.current;
       if (e.key === "j") setFocusIdx(Math.min(idx + 1, list.length - 1));
       else if (e.key === "k") setFocusIdx(Math.max(idx - 1, 0));
@@ -85,10 +92,15 @@ export function FindingsPanel({
               repoFullName={repoFullName}
               headSha={headSha}
               onAction={(act) => action.mutate({ findingId: f.id, action: act, prId })}
+              onTurnIntoEvalCase={setSeedFor}
             />
           ))
         )}
       </div>
+
+      {seedFor && (
+        <FindingCaseEditor finding={seedFor} prId={prId} onClose={() => setSeedFor(null)} />
+      )}
     </div>
   );
 }

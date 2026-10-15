@@ -18,6 +18,7 @@ import { AppError } from './platform/errors.js';
 import { modules } from './modules/index.js';
 import { ReviewService } from './modules/reviews/service.js';
 import { OnboardingService } from './modules/onboarding/service.js';
+import { EvalService } from './modules/eval/service.js';
 
 // Attach the DI container to every request/instance.
 declare module 'fastify' {
@@ -92,6 +93,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     if (reaped > 0) app.log.info({ reaped }, 'reaped interrupted onboarding generations on boot');
   } catch (err) {
     app.log.warn({ err: (err as Error).message }, 'onboarding generation reaping failed (non-fatal)');
+  }
+
+  // Eval runs execute inside the process that started them, so a 'running' row at boot is dead.
+  try {
+    const reaped = await new EvalService(container.evalDeps).reapInterrupted();
+    if (reaped > 0) app.log.info({ reaped }, 'reaped interrupted eval runs on boot');
+  } catch (err) {
+    app.log.warn({ err: (err as Error).message }, 'eval run reaping failed (non-fatal)');
   }
 
   // Security headers (X-Content-Type-Options, X-Frame-Options, …). The API

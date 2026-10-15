@@ -30,6 +30,8 @@ import { ConventionsRepository } from '../modules/conventions/repository.js';
 import type { ConventionsDeps } from '../modules/conventions/ports.js';
 import { OnboardingRepository } from '../modules/onboarding/repository.js';
 import type { OnboardingDeps } from '../modules/onboarding/ports.js';
+import { EvalRepository } from '../modules/eval/repository.js';
+import type { EvalDeps } from '../modules/eval/ports.js';
 import { resolveFeatureModel } from '../modules/settings/feature-models.js';
 import { renderPrompt } from './prompts.js';
 import type { ArchiveReader, RemoteFileFetcher } from '../modules/skills/ports.js';
@@ -135,6 +137,7 @@ export class Container {
   private _projectContextService?: ProjectContextService;
   private _priceBook?: PriceBook;
   private _onboardingRepo?: OnboardingRepository;
+  private _evalRepo?: EvalRepository;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -203,6 +206,20 @@ export class Container {
       llm: (provider) => this.llm(provider),
       systemPrompt: () => renderPrompt('onboarding.system.md', {}),
       tokenizer: this.tokenizer,
+    };
+  }
+
+  get evalRepo(): EvalRepository {
+    return (this._evalRepo ??= new EvalRepository(this.db));
+  }
+
+  /** Collaborators of the eval service. Cross-module reads are structural ports on the repositories. */
+  get evalDeps(): EvalDeps {
+    return {
+      store: this.evalRepo,
+      agents: this.agentsRepo,
+      findings: this.reviewRepo,
+      llm: (provider) => this.llm(provider),
     };
   }
 
@@ -291,6 +308,8 @@ export class Container {
       // `modules/intent` directly; the container is the only file that knows both.
       intent: this.intentService,
       projectContext: this.projectContextService,
+      // Structural port onto the eval repository — reviews never imports `modules/eval`.
+      evalCases: this.evalRepo,
     };
   }
 
