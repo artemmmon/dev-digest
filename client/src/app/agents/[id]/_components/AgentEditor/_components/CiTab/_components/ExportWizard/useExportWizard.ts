@@ -8,7 +8,7 @@ import React from "react";
 import type { Agent, CiPostAs, CiPreview, CiTrigger } from "@devdigest/shared";
 import { useCiInstall, useCiPreview, useCiZip, useRepos, useSecretsStatus } from "@/lib/hooks";
 import { DEFAULT_POST_AS, DEFAULT_TRIGGERS, STEP_KEYS } from "./constants";
-import { installErrorText, isValidYaml, requestKey, toggleTrigger, workflowFile } from "./helpers";
+import { canContinueFrom, installErrorText, isValidYaml, requestKey, toggleTrigger, workflowFile } from "./helpers";
 
 /** Choices an "Update CI config" click starts with (AC-79). */
 export interface WizardPreset {
@@ -61,14 +61,12 @@ export function useExportWizard(agent: Agent, preset: WizardPreset | null) {
   const installError = installErrorText(method === "pr" ? install.error : zip.error);
   const key = requestKey(repoId, triggers, postAs);
 
-  const canContinue =
-    step === 0
-      ? repo !== null && !preview.isPending
-      : step === 1
-        ? preview.data !== undefined
-        : step === 2
-          ? triggers.length > 0 && !preview.isPending && preview.data !== undefined
-          : false;
+  const canContinue = canContinueFrom(step, {
+    hasRepo: repo !== null,
+    previewPending: preview.isPending,
+    hasPreview: preview.data !== undefined,
+    triggerCount: triggers.length,
+  });
   const canInstall = yamlValid && preview.data !== undefined && !installPending && !done;
 
   // ---- actions ----

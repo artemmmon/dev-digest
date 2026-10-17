@@ -4,10 +4,11 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, Icon, SelectInput } from "@devdigest/ui";
+import { Badge, Icon } from "@devdigest/ui";
 import { ApiError } from "@/lib/api";
-import type { ExportWizardState } from "../useExportWizard";
-import { s } from "../styles";
+import type { ExportWizardState } from "../../useExportWizard";
+import { s } from "../../styles";
+import { RepoPicker } from "./_components/RepoPicker";
 
 export function TargetStep({ wizard }: { wizard: ExportWizardState }) {
   const t = useTranslations("ci");
@@ -25,26 +26,15 @@ export function TargetStep({ wizard }: { wizard: ExportWizardState }) {
             {t("wizard.target.recommended")}
           </Badge>
         </div>
-        <p style={{ ...s.cardBody, margin: "8px 0 0" }}>{t("wizard.target.ghaDesc")}</p>
+        <p style={s.cardBodyFlush}>{t("wizard.target.ghaDesc")}</p>
       </div>
 
-      {wizard.reposLoading ? (
-        <p style={s.muted}>{t("wizard.target.loadingRepos")}</p>
-      ) : wizard.repos.length === 0 ? (
-        <p role="status" style={s.cardBody}>
-          {t("wizard.target.noRepos")}
-        </p>
-      ) : (
-        <label style={{ display: "block" }}>
-          <span style={s.fieldLabel}>{t("wizard.target.repoLabel")}</span>
-          <SelectInput
-            value={wizard.repo?.id ?? ""}
-            onChange={wizard.pickRepo}
-            options={wizard.repos.map((r) => ({ value: r.id, label: r.full_name }))}
-          />
-          <span style={{ ...s.fieldHint, display: "block" }}>{t("wizard.target.repoHint")}</span>
-        </label>
-      )}
+      <RepoPicker
+        repos={wizard.repos}
+        loading={wizard.reposLoading}
+        value={wizard.repo?.id ?? ""}
+        onPick={wizard.pickRepo}
+      />
 
       {error && (
         <p id={errorId} role="alert" style={s.error}>

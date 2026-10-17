@@ -5,16 +5,14 @@
 import type { CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { SelectInput } from "@devdigest/ui";
-import type { Agent, CiRunStatus, Repo } from "@devdigest/shared";
+import type { Agent, Repo } from "@devdigest/shared";
 import type { CiRunFilters } from "@/lib/hooks";
+import { PERIODS, STATUSES } from "../../constants";
 
 const s = {
   bar: { display: "flex", gap: 10, padding: "12px 0", flexWrap: "wrap" } satisfies CSSProperties,
   field: { display: "block", minWidth: 170 } satisfies CSSProperties,
 } as const;
-
-const PERIODS = ["7d", "30d", "all"] as const;
-const STATUSES: readonly CiRunStatus[] = ["succeeded", "no_findings", "failed"];
 
 export function CiRunsFilters({
   filters,

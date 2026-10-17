@@ -5,23 +5,20 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { useQueryClient } from "@tanstack/react-query";
 import type { Agent, CiFailOn } from "@devdigest/shared";
-import { useUpdateAgent } from "@/lib/hooks/agents";
-import { keys } from "@/lib/query-keys";
+import { useUpdateCiFailOn } from "@/lib/hooks/ci";
 import { FAIL_ON_OPTIONS } from "./constants";
 import { s } from "./styles";
 
 export function FailOnControl({ agent }: { agent: Agent }) {
   const t = useTranslations("ci");
-  const update = useUpdateAgent();
-  const qc = useQueryClient();
+  const update = useUpdateCiFailOn(agent.id);
   const [focused, setFocused] = React.useState<CiFailOn | null>(null);
   const hintId = React.useId();
   const name = React.useId();
 
   // While the save runs, show the pick rather than the stored value so the choice does not lag.
-  const value: CiFailOn = update.isPending ? (update.variables?.patch.ci_fail_on ?? agent.ci_fail_on) : agent.ci_fail_on;
+  const value: CiFailOn = update.pending ?? agent.ci_fail_on;
   const options = agent.ci_fail_on === "any" ? ([...FAIL_ON_OPTIONS, "any"] as const) : FAIL_ON_OPTIONS;
 
   return (
@@ -33,7 +30,7 @@ export function FailOnControl({ agent }: { agent: Agent }) {
         <div id={hintId} style={s.hint}>
           {t("failOn.hint")}
         </div>
-        {update.isError && (
+        {update.failed && (
           <div role="alert" style={s.error}>
             {t("failOn.saveFailed")}
           </div>
@@ -47,17 +44,11 @@ export function FailOnControl({ agent }: { agent: Agent }) {
               name={name}
               value={option}
               checked={value === option}
-              disabled={update.isPending}
+              disabled={update.saving}
               className="sr-only"
               onFocus={() => setFocused(option)}
               onBlur={() => setFocused(null)}
-              onChange={() =>
-                update.mutate(
-                  { id: agent.id, patch: { ci_fail_on: option } },
-                  // The installations' `outdated` flag is computed on the server from `ci_fail_on` (AC-78).
-                  { onSuccess: () => void qc.invalidateQueries({ queryKey: keys.ci.overview(agent.id) }) },
-                )
-              }
+              onChange={() => update.save(option)}
             />
             {t(`failOn.options.${option}`)}
           </label>

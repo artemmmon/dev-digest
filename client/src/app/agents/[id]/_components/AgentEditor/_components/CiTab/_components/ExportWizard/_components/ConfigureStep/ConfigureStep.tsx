@@ -7,9 +7,9 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Chip, Icon } from "@devdigest/ui";
-import { ALL_TRIGGERS, POST_AS_OPTIONS, SECRET_BADGES } from "../constants";
-import type { ExportWizardState } from "../useExportWizard";
-import { s } from "../styles";
+import { ALL_TRIGGERS, POST_AS_OPTIONS, SECRET_BADGES } from "../../constants";
+import type { ExportWizardState } from "../../useExportWizard";
+import { s } from "../../styles";
 
 export function ConfigureStep({ wizard }: { wizard: ExportWizardState }) {
   const t = useTranslations("ci");
@@ -19,7 +19,7 @@ export function ConfigureStep({ wizard }: { wizard: ExportWizardState }) {
   const secretBadge = SECRET_BADGES[wizard.preview?.secret_status ?? "unknown"];
   return (
     <div style={s.narrow}>
-      <fieldset style={{ border: "none", padding: 0, margin: "0 0 20px" }}>
+      <fieldset style={s.fieldset}>
         <legend style={s.fieldLabel}>{t("wizard.configure.triggerLabel")}</legend>
         <div style={s.chipRow}>
           {ALL_TRIGGERS.map((trigger) => {
@@ -45,7 +45,7 @@ export function ConfigureStep({ wizard }: { wizard: ExportWizardState }) {
         )}
       </fieldset>
 
-      <section style={{ margin: "0 0 20px" }} aria-labelledby={secretsTitleId}>
+      <section style={s.section} aria-labelledby={secretsTitleId}>
         <h3 id={secretsTitleId} style={s.fieldLabel}>
           {t("wizard.configure.secrets.title")}
         </h3>
@@ -76,7 +76,7 @@ export function ConfigureStep({ wizard }: { wizard: ExportWizardState }) {
         <p style={s.fieldHint}>{t("wizard.configure.secrets.hint")}</p>
       </section>
 
-      <fieldset style={{ border: "none", padding: 0, margin: "0 0 20px" }}>
+      <fieldset style={s.fieldset}>
         <legend style={s.fieldLabel}>{t("wizard.configure.postAsLabel")}</legend>
         <div style={s.choiceRow}>
           {POST_AS_OPTIONS.map((option) => (
@@ -101,15 +101,15 @@ export function ConfigureStep({ wizard }: { wizard: ExportWizardState }) {
       </fieldset>
 
       <div style={s.note}>
-        <Icon.Info size={15} style={{ color: "var(--text-muted)", flexShrink: 0, marginTop: 1 }} />
+        <Icon.Info size={15} style={s.noteIcon} />
         <div style={s.noteText}>
           {t.rich("wizard.configure.blockMergeNote", {
-            b: (chunks) => <b style={{ color: "var(--text-primary)" }}>{chunks}</b>,
+            b: (chunks) => <b style={s.strong}>{chunks}</b>,
           })}
         </div>
       </div>
 
-      {wizard.previewPending && <p style={{ ...s.muted, marginTop: 10 }}>{t("wizard.generating")}</p>}
+      {wizard.previewPending && <p style={s.mutedGap}>{t("wizard.generating")}</p>}
       {wizard.previewError != null && !wizard.previewPending && (
         <p role="alert" style={s.error}>
           {t("wizard.configure.regenerateFailed")}

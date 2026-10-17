@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+const td = { padding: "11px 12px", borderBottom: "1px solid var(--border)", verticalAlign: "middle" } satisfies CSSProperties;
+
 /** Co-located styles for CiRunTable / TraceDetails / CiStatusBadge (design: `screen_cizruns.jsx` ScreenCIRuns). */
 export const s = {
   frame: {
@@ -21,9 +23,9 @@ export const s = {
     textTransform: "uppercase",
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
-  td: { padding: "11px 12px", borderBottom: "1px solid var(--border)", verticalAlign: "middle" } satisfies CSSProperties,
+  td,
   time: { fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap" } satisfies CSSProperties,
-  prCell: { minWidth: 220, maxWidth: 360 } satisfies CSSProperties,
+  prTd: { ...td, minWidth: 220, maxWidth: 360 } satisfies CSSProperties,
   repo: {
     display: "block",
     fontSize: 10.5,
@@ -55,6 +57,7 @@ export const s = {
     fontSize: 12,
     color: "var(--text-secondary)",
   } satisfies CSSProperties,
+  agentIcon: { color: "var(--text-muted)", flexShrink: 0 } satisfies CSSProperties,
   muted: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
   num: { fontSize: 12, whiteSpace: "nowrap" } satisfies CSSProperties,
   links: { display: "flex", alignItems: "center", gap: 12, whiteSpace: "nowrap" } satisfies CSSProperties,

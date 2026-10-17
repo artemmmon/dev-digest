@@ -19,9 +19,10 @@ export function AgentEditor({ agent, tab, onTab }: { agent: Agent; tab: string; 
   const t = useTranslations("agents");
   const tEval = useTranslations("eval");
   const tCi = useTranslations("ci");
+  const translate = { agents: t, eval: tEval, ci: tCi };
   const tabs = TABS.map((tb) => ({
     key: tb.key,
-    label: tb.ns === "eval" ? tEval(tb.labelKey) : tb.ns === "ci" ? tCi(tb.labelKey) : t(tb.labelKey),
+    label: translate[tb.ns ?? "agents"](tb.labelKey),
     icon: tb.icon,
   }));
   return (

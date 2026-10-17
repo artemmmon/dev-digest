@@ -6,7 +6,8 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, Button } from "@devdigest/ui";
 import type { CiInstallation } from "@devdigest/shared";
-import { CiStatusBadge, safeHttpsUrl } from "@/components/ci-run-table";
+import { CiStatusBadge } from "@/components/ci-run-table";
+import { safeHttpsUrl } from "@/lib/safe-url";
 import { s } from "./styles";
 
 const COLUMNS = ["repository", "target", "method", "version", "lastRun"] as const;

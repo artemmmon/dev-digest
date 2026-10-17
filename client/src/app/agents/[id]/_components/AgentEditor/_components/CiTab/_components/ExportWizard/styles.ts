@@ -8,8 +8,14 @@ export const s = {
   footerRight: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 } satisfies CSSProperties,
   narrow: { maxWidth: 600 } satisfies CSSProperties,
   muted: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+  mutedGap: { fontSize: 12, color: "var(--text-muted)", marginTop: 10 } satisfies CSSProperties,
+  fieldset: { border: "none", padding: 0, margin: "0 0 20px" } satisfies CSSProperties,
+  section: { margin: "0 0 20px" } satisfies CSSProperties,
+  strong: { color: "var(--text-primary)" } satisfies CSSProperties,
+  block: { display: "block" } satisfies CSSProperties,
   error: { fontSize: 12.5, color: "var(--crit)", margin: "10px 0 0" } satisfies CSSProperties,
   fieldLabel: { display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 } satisfies CSSProperties,
+  cardBodyFlush: { margin: "8px 0 0", fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 } satisfies CSSProperties,
   fieldHint: { fontSize: 12, color: "var(--text-muted)", marginTop: 8, lineHeight: 1.45 } satisfies CSSProperties,
   card: (active: boolean, disabled = false): CSSProperties => ({
     display: "block",
@@ -71,6 +77,7 @@ export const s = {
     background: active ? "var(--accent-bg)" : "transparent",
     color: active ? "var(--accent-text)" : "var(--text-secondary)",
   }),
+  fileList: { listStyle: "none", margin: 0, padding: 0 } satisfies CSSProperties,
   treePath: { minWidth: 0, overflowWrap: "anywhere" } satisfies CSSProperties,
   viewer: { display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 } satisfies CSSProperties,
   viewerHead: {
@@ -116,6 +123,7 @@ export const s = {
     background: "var(--bg-surface)",
     marginBottom: 14,
   } satisfies CSSProperties,
+  noteIcon: { color: "var(--text-muted)", flexShrink: 0, marginTop: 1 } satisfies CSSProperties,
   noteText: { fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 } satisfies CSSProperties,
   chipRow: { display: "flex", flexWrap: "wrap", gap: 7 } satisfies CSSProperties,
   secretsPanel: {

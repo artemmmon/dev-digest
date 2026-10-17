@@ -11,8 +11,11 @@ import React from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { keys } from "../query-keys";
+import { saveBlob } from "../save-blob";
+import { useUpdateAgent } from "./agents";
 import type {
   CiAgentOverview,
+  CiFailOn,
   CiInstallInputBody,
   CiInstallResult,
   CiPreview,
@@ -85,18 +88,6 @@ export function useCiInstall(agentId: string | null | undefined) {
   });
 }
 
-/** Save `blob` as a file through a temporary link, then free the object URL. */
-function saveBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 /** Install as a zip: the server records a manual installation and answers with the bytes. */
 export function useCiZip(agentId: string | null | undefined) {
   const qc = useQueryClient();
@@ -107,6 +98,31 @@ export function useCiZip(agentId: string | null | undefined) {
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: keys.ci.scope() }),
   });
+}
+
+/**
+ * Save the agent's "Fail CI on" level through the agent update. The installations' `outdated` flag is
+ * computed on the server from `ci_fail_on` (AC-78), so the CI overview is refetched on success.
+ * `pending` is the level being saved, so the control can show the pick instead of the stored value.
+ */
+export function useUpdateCiFailOn(agentId: string) {
+  const qc = useQueryClient();
+  const update = useUpdateAgent();
+  const { mutate } = update;
+  const save = React.useCallback(
+    (failOn: CiFailOn) =>
+      mutate(
+        { id: agentId, patch: { ci_fail_on: failOn } },
+        { onSuccess: () => void qc.invalidateQueries({ queryKey: keys.ci.overview(agentId) }) },
+      ),
+    [mutate, qc, agentId],
+  );
+  return {
+    save,
+    saving: update.isPending,
+    pending: update.isPending ? (update.variables?.patch.ci_fail_on ?? null) : null,
+    failed: update.isError,
+  };
 }
 
 /** Ask the server to ingest new runs from GitHub (`force` skips its 30 s per-installation guard). */

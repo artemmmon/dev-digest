@@ -6,10 +6,10 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon } from "@devdigest/ui";
-import { safeHttpsUrl } from "@/components/ci-run-table";
-import { GHA_DOCS_URL } from "../constants";
-import type { ExportWizardState, InstallMethod } from "../useExportWizard";
-import { s } from "../styles";
+import { safeHttpsUrl } from "@/lib/safe-url";
+import { GHA_DOCS_URL } from "../../constants";
+import type { ExportWizardState, InstallMethod } from "../../useExportWizard";
+import { s } from "../../styles";
 
 export function InstallStep({ wizard }: { wizard: ExportWizardState }) {
   const t = useTranslations("ci");
@@ -105,11 +105,7 @@ export function InstallStep({ wizard }: { wizard: ExportWizardState }) {
       )}
       {error && (
         <p role="alert" style={s.error}>
-          {error.kind === "workflowScope"
-            ? t("wizard.install.errors.workflowScope")
-            : error.kind === "message"
-              ? error.message
-              : t("wizard.install.errors.generic")}
+          {"message" in error ? error.message : t(error.key)}
         </p>
       )}
     </div>

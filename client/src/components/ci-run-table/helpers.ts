@@ -1,18 +1,6 @@
 import type { CiRun, FindingsBySeverity } from "@devdigest/shared";
 import { githubPrUrl } from "@/lib/github-urls";
-
-/**
- * A server-supplied link is opened only when it is an https URL: a value like `javascript:…` would run
- * script in this page when clicked. Anything else renders no link.
- */
-export function safeHttpsUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
-}
+import { safeHttpsUrl } from "@/lib/safe-url";
 
 /** `7.4 s`-style duration; a run without one (no result, or an old row) is `null` so the cell shows "—". */
 export function formatDuration(ms: number | null | undefined): string | null {

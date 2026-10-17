@@ -1,8 +1,6 @@
-import type { CiRunStatus } from "@devdigest/shared";
 import type { CiRunFilters } from "@/lib/hooks";
+import { PERIODS, STATUSES } from "../../constants";
 
-const PERIODS = ["7d", "30d", "all"] as const;
-const STATUSES: readonly CiRunStatus[] = ["succeeded", "no_findings", "failed"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The period when the URL names none, or a value this page does not know (AC-94). */

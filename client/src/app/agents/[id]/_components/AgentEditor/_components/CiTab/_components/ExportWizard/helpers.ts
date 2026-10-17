@@ -28,17 +28,44 @@ export function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-/** What an install error becomes on screen: a known code gets our text, a server message is a fixed one. */
-export type InstallErrorText = { kind: "workflowScope" } | { kind: "message"; message: string } | { kind: "generic" };
+/**
+ * What an install error becomes on screen: a known code gets our text (`key` under the `ci` namespace),
+ * a server message is a fixed one shown as is.
+ */
+export type InstallErrorText =
+  | { key: "wizard.install.errors.workflowScope" | "wizard.install.errors.generic" }
+  | { message: string };
 
 export function installErrorText(error: unknown): InstallErrorText | null {
   if (!error) return null;
   if (error instanceof ApiError) {
-    if (error.code === WORKFLOW_SCOPE_CODE) return { kind: "workflowScope" };
+    if (error.code === WORKFLOW_SCOPE_CODE) return { key: "wizard.install.errors.workflowScope" };
     // The server answers with its own fixed messages and never relays a GitHub body.
-    if (error.message) return { kind: "message", message: error.message };
+    if (error.message) return { message: error.message };
   }
-  return { kind: "generic" };
+  return { key: "wizard.install.errors.generic" };
+}
+
+/** What `canContinueFrom` needs to know about the wizard. */
+export interface ContinueState {
+  hasRepo: boolean;
+  previewPending: boolean;
+  hasPreview: boolean;
+  triggerCount: number;
+}
+
+/** Whether "Continue" is enabled on `step` (0 Target, 1 Preview, 2 Configure; the Install step has its own button). */
+export function canContinueFrom(step: number, state: ContinueState): boolean {
+  switch (step) {
+    case 0:
+      return state.hasRepo && !state.previewPending;
+    case 1:
+      return state.hasPreview;
+    case 2:
+      return state.triggerCount > 0 && !state.previewPending && state.hasPreview;
+    default:
+      return false;
+  }
 }
 
 /** The key that says whether the generated files still match the current choices. */
