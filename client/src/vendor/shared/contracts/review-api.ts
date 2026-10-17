@@ -71,6 +71,8 @@ export const ReviewRunResponse = z.object({
   runs: z.array(ReviewRunTarget),
   reviews: z.array(ReviewRecord),
   skipped_agents: z.array(SkippedAgent),
+  // Id of this review batch = the multi-agent run id (`agent_runs.batch_id`).
+  multi_agent_run_id: z.string(),
 });
 export type ReviewRunResponse = z.infer<typeof ReviewRunResponse>;
 

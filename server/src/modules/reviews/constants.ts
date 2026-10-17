@@ -3,6 +3,15 @@
  */
 
 /**
+ * `data.phase` of the "Starting review with agent" run event. A `running` row whose
+ * bus buffer has no such event is shown as `queued` (derived on read, never stored).
+ */
+export const AGENT_STARTED_PHASE = 'agent-started' as const;
+
+/** Prefix of the error every run of a batch gets when the shared PR-diff load fails. */
+export const PREP_ERROR_PREFIX = 'Failed to load PR diff:' as const;
+
+/**
  * Studio review strategy. 'single-pass' = send the WHOLE diff in ONE LLM call.
  * We deliberately do NOT use 'auto'/map-reduce by default: map-reduce makes one
  * call PER FILE, which is slow and fragile (any single file's transient 5xx

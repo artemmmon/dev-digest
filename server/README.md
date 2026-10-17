@@ -74,7 +74,7 @@ flowchart TB
     polling["polling<br/>/repos/:id/poll"]
   end
   subgraph Review["Review & runs"]
-    reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
+    reviews["reviews<br/>/pulls/:id/review (body: agentIds | agentId | all; runs in parallel, returns multi_agent_run_id) · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)<br/>/pulls/:id/multi-agent-runs (GET) · /pulls/:id/multi-agent-runs/:runId (GET) · /review-estimates (GET)"]
     intent["intent<br/>/pulls/:id/intent (GET · POST)"]
     smartDiff["smart-diff<br/>/pulls/:id/smart-diff (GET)"]
     blast["blast<br/>/pulls/:id/blast (GET)"]

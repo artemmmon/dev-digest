@@ -436,6 +436,14 @@ Where: src/modules/reviews/helpers.ts:98
 The eval executor passes `capture.agent.strategy ?? REVIEW_STRATEGY` to the engine, and `strategy` is an agent setting (`single-pass` | `map-reduce` | `auto`). For `map-reduce`, or for `auto` on a large diff, `reviewPullRequest` sends one request per changed file, so a case can cost several requests. Each request still gets `maxRetries: 0`, `transportRetries: 0` and `timeoutMs` = 120 s, and the whole case still has one 120 s `withDeadline`; a slow multi-file case ends as `error` and its already-spent requests are billed but not counted in the run cost. Do not describe the limit as "exactly one request" without that qualifier.
 Where: `src/modules/eval/run-executor.ts:145`, `../reviewer-core/src/review/run.ts:156`.
 
+### 2026-10-17 — `queued` is derived from the bus buffer, never stored
+A multi-agent column is `queued` when its row is `running` but the run's bus buffer has no event with `data.phase === 'agent-started'` (emitted with "Starting review with agent"). Works on a single instance only and is lost on restart (a restarted server shows `running`). Do not store `queued` in `agent_runs.status`: mcp polls it and would break (`mcp/src/wait.ts:14-21`).
+Where: `src/modules/reviews/run-executor.ts:216`
+
+### 2026-10-17 — A multi-agent run id is `batch_id`, or the run id for a local null-batch run
+`batchKey` = `batchId ?? id`; a local run without a batch is a one-column run. `source='ci'` rows are hidden from the multi-agent view. Groups, conflicts, states and totals are computed on read in `multi-agent.ts`; no table, no migration.
+Where: `src/modules/reviews/multi-agent.ts:37`
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

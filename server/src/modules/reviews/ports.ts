@@ -111,6 +111,30 @@ export interface ActiveRun {
   ran_at: string | null;
 }
 
+/** One agent_runs row of a PR for the multi-agent view (any status, local and CI). */
+export interface BatchRunRow {
+  id: string;
+  batchId: string | null;
+  source: 'local' | 'ci';
+  agentId: string | null;
+  agentName: string | null;
+  status: string | null;
+  error: string | null;
+  durationMs: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+  score: number | null;
+  ranAt: Date;
+}
+
+/** One finished run of an agent, for the duration/cost estimate. */
+export interface DoneRunSample {
+  agentId: string;
+  durationMs: number | null;
+  costUsd: number | null;
+}
+
 /**
  * Review data-access: reviews + findings, agent runs + traces, the PR lookup the
  * run needs, and the PR intent. Workspace scoping goes through the PR.
@@ -152,6 +176,10 @@ export interface ReviewStore {
   activeRunsForPull(workspaceId: string, prId: string): Promise<ActiveRun[]>;
   /** All runs for a PR (any status), newest first. */
   listRunsForPull(workspaceId: string, prId: string): Promise<RunSummary[]>;
+  /** Every run of a PR with its batch id and source, newest first (multi-agent view). */
+  listBatchRunsForPull(workspaceId: string, prId: string): Promise<BatchRunRow[]>;
+  /** The last `perAgent` `done` runs of each agent in the workspace. */
+  recentDoneRuns(workspaceId: string, perAgent: number): Promise<DoneRunSample[]>;
   /** A run's status in the workspace; `undefined` when the run doesn't exist there. */
   runStatus(workspaceId: string, runId: string): Promise<string | null | undefined>;
   cancelRunIfRunning(workspaceId: string, runId: string): Promise<boolean>;

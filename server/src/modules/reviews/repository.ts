@@ -17,6 +17,8 @@ import type { Finding, RunSummary, RunTrace } from '@devdigest/shared';
 import type {
   ActiveRun,
   AgentRunCompletion,
+  BatchRunRow,
+  DoneRunSample,
   FindingRow,
   NewAgentRun,
   NewReview,
@@ -76,6 +78,16 @@ export class ReviewRepository implements ReviewStore {
   /** All runs for a PR (any status), newest first — the PR run history. */
   listRunsForPull(workspaceId: string, prId: string): Promise<RunSummary[]> {
     return runRepo.listRunsForPull(this.db, workspaceId, prId);
+  }
+
+  /** Every run of a PR with its batch id and source, newest first (multi-agent view). */
+  listBatchRunsForPull(workspaceId: string, prId: string): Promise<BatchRunRow[]> {
+    return runRepo.listBatchRunsForPull(this.db, workspaceId, prId);
+  }
+
+  /** The last `perAgent` `done` runs of each agent in the workspace. */
+  recentDoneRuns(workspaceId: string, perAgent: number): Promise<DoneRunSample[]> {
+    return runRepo.recentDoneRuns(this.db, workspaceId, perAgent);
   }
 
   /** Delete one agent run (+ its trace via FK cascade). Workspace-scoped. */

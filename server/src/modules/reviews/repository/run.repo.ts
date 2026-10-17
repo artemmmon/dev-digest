@@ -1,7 +1,8 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
 import type { RunSummary, RunTrace } from '@devdigest/shared';
+import type { BatchRunRow, DoneRunSample } from '../ports.js';
 
 // ---- in-flight / history --------------------------------------------------
 
@@ -66,6 +67,71 @@ export async function listRunsForPull(
     score: run.score,
     blockers: run.blockers,
   }));
+}
+
+/** Every run of a PR (any status, local and CI) with its batch id and source, newest first. */
+export async function listBatchRunsForPull(
+  db: Db,
+  workspaceId: string,
+  prId: string,
+): Promise<BatchRunRow[]> {
+  const rows = await db
+    .select({ run: t.agentRuns, agentName: t.agents.name })
+    .from(t.agentRuns)
+    .leftJoin(t.agents, eq(t.agents.id, t.agentRuns.agentId))
+    .where(and(eq(t.agentRuns.workspaceId, workspaceId), eq(t.agentRuns.prId, prId)))
+    .orderBy(desc(t.agentRuns.ranAt));
+  return rows.map(({ run, agentName }) => ({
+    id: run.id,
+    batchId: run.batchId,
+    source: run.source,
+    agentId: run.agentId,
+    agentName: agentName ?? null,
+    status: run.status,
+    error: run.error,
+    durationMs: run.durationMs,
+    tokensIn: run.tokensIn,
+    tokensOut: run.tokensOut,
+    costUsd: run.costUsd,
+    score: run.score,
+    ranAt: run.ranAt,
+  }));
+}
+
+/**
+ * The last `perAgent` `done` runs of each agent in the workspace (one window
+ * query: rows ranked per agent by `ran_at` desc, keep rank <= perAgent).
+ */
+export async function recentDoneRuns(
+  db: Db,
+  workspaceId: string,
+  perAgent: number,
+): Promise<DoneRunSample[]> {
+  const ranked = db
+    .select({
+      agentId: t.agentRuns.agentId,
+      durationMs: t.agentRuns.durationMs,
+      costUsd: t.agentRuns.costUsd,
+      rn: sql<number>`row_number() over (partition by ${t.agentRuns.agentId} order by ${t.agentRuns.ranAt} desc)`.as(
+        'rn',
+      ),
+    })
+    .from(t.agentRuns)
+    .where(
+      and(
+        eq(t.agentRuns.workspaceId, workspaceId),
+        eq(t.agentRuns.status, 'done'),
+        isNotNull(t.agentRuns.agentId),
+      ),
+    )
+    .as('ranked');
+  const rows = await db
+    .select({ agentId: ranked.agentId, durationMs: ranked.durationMs, costUsd: ranked.costUsd })
+    .from(ranked)
+    .where(sql`${ranked.rn} <= ${perAgent}`);
+  return rows.flatMap((r) =>
+    r.agentId ? [{ agentId: r.agentId, durationMs: r.durationMs, costUsd: r.costUsd }] : [],
+  );
 }
 
 /**

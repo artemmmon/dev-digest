@@ -185,18 +185,26 @@ export interface RunReviewInput {
   prId: string;
   agentId?: string;
   all?: boolean;
+  /** An explicit agent-id list: one parallel batch (the Multi-Agent Review page). */
+  agentIds?: string[];
 }
 
 export function useRunReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ prId, agentId, all }: RunReviewInput) =>
+    mutationFn: ({ prId, agentId, all, agentIds }: RunReviewInput) =>
       api.post<ReviewRunResponse>(`/pulls/${prId}/review`, {
         ...(agentId ? { agentId } : {}),
         ...(all ? { all } : {}),
+        ...(agentIds ? { agentIds } : {}),
       }),
     // The new runs are "running" already: show them in the live section and the history.
-    onSuccess: (_d, { prId }) => invalidateRuns(qc, prId),
+    // Returns the multi-agent list refetch so a caller that navigates to the new run
+    // resolves after the list knows it (the mutation waits on the returned promise).
+    onSuccess: (_d, { prId }) => {
+      invalidateRuns(qc, prId);
+      return qc.invalidateQueries({ queryKey: keys.pr.multiAgentRuns(prId) });
+    },
   });
 }
 
@@ -218,7 +226,10 @@ export function useFindingAction() {
         `/findings/${findingId}/${action}`,
         reply ? { reply } : undefined,
       ),
-    onSuccess: (_d, { prId }) => qc.invalidateQueries({ queryKey: keys.pr.reviews(prId) }),
+    onSuccess: (_d, { prId }) => {
+      void qc.invalidateQueries({ queryKey: keys.pr.multiAgentRuns(prId) });
+      return qc.invalidateQueries({ queryKey: keys.pr.reviews(prId) });
+    },
   });
 }
 

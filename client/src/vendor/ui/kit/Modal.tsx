@@ -16,6 +16,18 @@ export function Modal({
   children?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  // Escape closes the modal and stops there: the capture-phase listener on `window` runs before
+  // the Drawer's `document` listener, so a modal opened above a drawer closes alone (top layer wins).
+  React.useEffect(() => {
+    if (!onClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", zIndex: 50, padding: 28 }}>
       <div

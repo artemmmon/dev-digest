@@ -1,6 +1,42 @@
 import type { CSSProperties } from "react";
 
-/** Co-located styles for RunReviewDropdown. This component renders only library
-   primitives (Button/Dropdown) and has no inline styles; the map is kept for
-   convention parity and future use. */
-export const s = {} satisfies Record<string, CSSProperties>;
+export const s = {
+  root: { position: "relative", display: "inline-block" } satisfies CSSProperties,
+  popover: {
+    position: "absolute",
+    top: "calc(100% + 6px)",
+    right: 0,
+    zIndex: 40,
+    background: "var(--bg-elevated)",
+    border: "1px solid var(--border-strong)",
+    borderRadius: 10,
+    boxShadow: "var(--shadow-modal)",
+    padding: "12px 14px",
+    animation: "ddpop .12s ease",
+  } satisfies CSSProperties,
+  warning: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    fontSize: 12,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  empty: { fontSize: 13, color: "var(--text-muted)", padding: "6px 0" } satisfies CSSProperties,
+  runRow: { marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" } satisfies CSSProperties,
+  configure: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    marginTop: 10,
+    padding: "8px 0 0",
+    border: "none",
+    borderTop: "1px solid var(--border)",
+    background: "transparent",
+    color: "var(--text-muted)",
+    fontSize: 12,
+    fontFamily: "inherit",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+} as const;

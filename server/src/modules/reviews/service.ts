@@ -49,13 +49,26 @@ export class ReviewService {
    * Resolve which agents to run. `all` → every enabled agent whose `applies_to`
    * (spec 07) matches at least one of the PR's changed files — fails open (runs
    * anyway) when the PR has no `pr_files` yet, so a never-imported PR loses no
-   * agent. An explicitly named agent always runs, gating or not.
+   * agent. An explicitly named agent always runs, gating or not. Precedence:
+   * `agentIds` (explicit list, de-duplicated, request order, no `applies_to` or
+   * `enabled` filter) > `agentId` > `all`.
    */
   async resolveTargets(
     workspaceId: string,
     prId: string,
-    opts: { agentId?: string; all?: boolean },
+    opts: { agentId?: string; agentIds?: string[]; all?: boolean },
   ): Promise<{ targets: AgentRecord[]; skipped: SkippedAgent[] }> {
+    if (opts.agentIds !== undefined) {
+      const ids = [...new Set(opts.agentIds)];
+      const found = await Promise.all(ids.map((id) => this.agents.getById(workspaceId, id)));
+      // Reject before any run row exists: a missing agent starts nothing.
+      const targets: AgentRecord[] = [];
+      for (const agent of found) {
+        if (!agent) throw new NotFoundError('Agent not found');
+        targets.push(agent);
+      }
+      return { targets, skipped: [] };
+    }
     if (opts.all) {
       const enabled = await this.agents.listEnabled(workspaceId);
       const files = await this.repo.getPrFiles(prId);
@@ -73,7 +86,7 @@ export class ReviewService {
       if (!agent) throw new NotFoundError('Agent not found');
       return { targets: [agent], skipped: [] };
     }
-    throw new AppError('invalid_run_request', 'Provide agentId or all:true', 400);
+    throw new AppError('invalid_run_request', 'Provide agentIds, agentId or all:true', 400);
   }
 
   /** Delete a whole review run (one agent's pass) + its findings (cascade). */
@@ -139,7 +152,11 @@ export class ReviewService {
     prId: string,
     targets: AgentRecord[],
     logger?: Logger,
-  ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
+  ): Promise<{
+    runs: { run_id: string; agent_id: string; agent_name: string }[];
+    reviews: ReviewDto[];
+    batchId: string;
+  }> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const repo = await this.repo.getRepo(pull.repoId);
@@ -171,7 +188,7 @@ export class ReviewService {
       logger?.error({ prId, err: (err as Error).message }, 'review: background execution crashed');
     });
 
-    return { runs, reviews: [] };
+    return { runs, reviews: [], batchId };
   }
 
   private publish(runId: string, kind: RunEventKind, msg: string, data?: unknown) {

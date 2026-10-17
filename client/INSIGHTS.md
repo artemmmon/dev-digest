@@ -384,6 +384,18 @@ Where: `src/app/eval/[agentId]/_components/CompareView/helpers.ts:35`.
 Where: client/src/components/app-shell/hooks/useNavLabel.ts:10
 
 
+### 2026-10-17 — The Multi-Agent page polls; only the trace drawer streams
+A batch of N agents would open N `EventSource` streams, and browsers allow about 6 connections per origin over HTTP/1.1, so a 7+ agent run would stall the rest of the page. `useMultiAgentRun` re-reads the run every `MULTI_AGENT_POLL_MS` (4 s) while a column is `queued`/`running` (`usePrRuns` does the same); the live log streams only for the one run open in `RunTraceDrawer`. Do not add a stream per column.
+Where: `src/lib/hooks/multi-agent.ts:28`.
+
+### 2026-10-17 — `Drawer` closes on Escape itself; do not add your own listener
+The kit `Drawer` has an Escape effect (`onClose`), added for the agent-run drawer on the Multi-Agent page. `SkillPreviewDrawer` and `DocPreviewDrawer` each had their own `keydown` effect; with both, `onClose` ran twice per Escape (their test counts calls), so those effects were removed. A new drawer that passes `onClose` gets Escape for free; a `Drawer` without `onClose` ignores it.
+Where: `src/vendor/ui/kit/Drawer.tsx:20`.
+
+### 2026-10-17 — `NAV_LABEL_KEYS` values are now full message paths
+`useNavLabel` reads the root catalogue (`useTranslations()`), so a value is `eval.nav.label` or `shell.nav.multi-agent`, not a path inside the `eval` namespace as the 2026-10-15 entry says. A nav item with no literal `label` (Eval Dashboard, Multi-Agent Review) needs an entry there, or the sidebar shows nothing.
+Where: `src/components/app-shell/constants.ts:7`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -587,6 +599,10 @@ segment is a `nowrap` span with a `<wbr/>` between them, and a segment wider tha
 dom-accessibility-api inserts a space between element children, making the link's name `src/ auth.ts:12`. Real browsers do
 not; assert `toHaveTextContent` for the exact text and match the name with `\s?`.
 Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_components/BlastRadiusCard/_components/BlastTree/BlastTree.tsx:21`.
+
+### 2026-10-17 — Row padding next to a kit `Checkbox` is a dead click zone
+The kit `Checkbox` makes only its own `<label>` box clickable. With the padding on the wrapping `<li>`, a click a few pixels off the box did nothing, so a checkbox seemed to toggle "every other time" (seen in a screen recording of the agent checklist). Put the vertical padding inside the label content, give the `<li>` none and the list `gap: 0`, so the whole row height is the target.
+Where: `src/components/agent-checklist/styles.ts:33`
 
 ## Open Questions
 

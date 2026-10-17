@@ -12,7 +12,7 @@ vi.mock("@/lib/hooks/reviews", () => ({
 }));
 
 // The Case Editor has its own tests; here it is a stand-in that is open while rendered.
-vi.mock("../FindingCaseEditor", () => ({
+vi.mock("@/components/finding-case-editor", () => ({
   FindingCaseEditor: ({ onClose }: { onClose: () => void }) => (
     <div>
       <p>Case editor is open</p>

@@ -1,6 +1,6 @@
 /* PR Detail — /repos/:repoId/pulls/:number. F2 shell extended by A2 with:
    - Findings panel (VerdictBanner + FindingCards)
-   - RunReviewDropdown (run all / a specific agent) + live SSE RunStatus
+   - RunReviewDropdown (agent checklist popover) + live SSE RunStatus
    - Basic file-by-file diff viewer in the Files tab
    Tab and open trace live in the query string (?tab, ?trace). */
 "use client";
@@ -15,7 +15,7 @@ import { PrDetailHeader } from "./_components/PrDetailHeader";
 import { OverviewTab } from "./_components/OverviewTab";
 import { FindingsTab } from "./_components/FindingsTab";
 import { DiffTab } from "./_components/DiffTab";
-import { RunTraceDrawer } from "./_components/RunTraceDrawer";
+import { RunTraceDrawer } from "@/components/run-trace-drawer";
 import { usePullDetail, usePulls } from "@/lib/hooks";
 import { usePrReviews, usePrRunTracking } from "@/lib/hooks/reviews";
 import { useActiveRepo, useRepoNotFound } from "@/lib/repo-context";
@@ -144,6 +144,7 @@ export default function PRDetailPage() {
           ref={headerRef}
           pr={pr}
           prId={prId}
+          repoId={repoId}
           tab={tab}
           findingsCount={findingsCount}
           githubUrl={repoFullName ? githubPrUrl(repoFullName, pr.number) : null}

@@ -38,7 +38,7 @@ describe("sidebar nav — Eval Dashboard", () => {
     expect(item).toMatchObject({ href: "/eval" });
     // NFR-5: the text is not a literal in the vendored nav; it resolves from the eval namespace.
     expect(item.label).toBeUndefined();
-    expect(NAV_LABEL_KEYS.eval).toBe("nav.label");
+    expect(NAV_LABEL_KEYS.eval).toBe("eval.nav.label");
     expect(evalMessages.nav.label).toBe("Eval Dashboard");
     expect(shellMessages.nav).not.toHaveProperty("eval");
     expect(activeKeyFor("/eval")).toBe("eval");
