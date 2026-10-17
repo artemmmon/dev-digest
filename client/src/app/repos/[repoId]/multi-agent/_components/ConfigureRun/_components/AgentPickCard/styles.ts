@@ -1,0 +1,56 @@
+import type { CSSProperties } from "react";
+import { agentTint } from "../../../../agent-palette";
+
+export const s = {
+  card: (on: boolean, color: string): CSSProperties => ({
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: 9,
+    cursor: "pointer",
+    textAlign: "left",
+    width: "100%",
+    fontFamily: "inherit",
+    color: "inherit",
+    border: "1px solid " + (on ? color : "var(--border)"),
+    background: on ? agentTint(color, "12") : "var(--bg-elevated)",
+    transition: "border-color .12s, background .12s",
+  }),
+  box: (on: boolean, color: string): CSSProperties => ({
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    flexShrink: 0,
+    marginTop: 1,
+    display: "grid",
+    placeItems: "center",
+    border: "1.5px solid " + (on ? color : "var(--border-strong)"),
+    background: on ? color : "transparent",
+  }),
+  icon: (color: string): CSSProperties => ({
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    display: "grid",
+    placeItems: "center",
+    background: agentTint(color),
+    color,
+    flexShrink: 0,
+  }),
+  text: { minWidth: 0, flex: 1 } satisfies CSSProperties,
+  name: { fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" } satisfies CSSProperties,
+  desc: {
+    fontSize: 11.5,
+    color: "var(--text-muted)",
+    marginTop: 3,
+    lineHeight: 1.45,
+    wordBreak: "break-word",
+  } satisfies CSSProperties,
+  estimate: {
+    fontSize: 10.5,
+    color: "var(--text-muted)",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+} as const;

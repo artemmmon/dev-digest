@@ -16,6 +16,15 @@ export function Drawer({
   children?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  // Escape closes the drawer; listener removed on unmount or when `onClose` changes.
+  React.useEffect(() => {
+    if (!onClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", justifyContent: "flex-end", zIndex: 50 }}>
       <div

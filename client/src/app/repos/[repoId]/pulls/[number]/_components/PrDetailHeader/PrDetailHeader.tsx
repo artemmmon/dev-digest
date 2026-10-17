@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Icon, Avatar, Badge, Button, Tabs } from "@devdigest/ui";
 import { RunReviewDropdown } from "../RunReviewDropdown";
@@ -11,6 +12,8 @@ import type { PrDetail, Repo } from "@/lib/types";
 interface PrDetailHeaderProps {
   pr: PrDetail;
   prId: string | null;
+  /** The route's repo id, for the Multi-Agent Review link. */
+  repoId: string;
   tab: string;
   findingsCount: number;
   /** github.com PR URL; null when the repo's full_name isn't known yet. */
@@ -29,6 +32,7 @@ interface PrDetailHeaderProps {
 export function PrDetailHeader({
   pr,
   prId,
+  repoId,
   tab,
   findingsCount,
   githubUrl,
@@ -101,9 +105,14 @@ export function PrDetailHeader({
           >
             {t("header.viewOnGithub")}
           </Button>
+          <Link href={`/repos/${repoId}/multi-agent?pr=${pr.number}`} style={s.multiAgentLink}>
+            <Icon.Users size={13} />
+            {t("header.multiAgent")}
+          </Link>
           {prId && (
             <RunReviewDropdown
               prId={prId}
+              prNumber={pr.number}
               warnMerged={pr.status === "merged" || pr.status === "closed"}
               onRunStart={handleRunStart}
               onRunsStarted={handleRunsStarted}

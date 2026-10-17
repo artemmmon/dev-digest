@@ -3,7 +3,6 @@
    skill; editing lives on /skills/<id>. Which skill is open is the page's business (?skill=<id>). */
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge, Drawer, Icon, Markdown } from "@devdigest/ui";
@@ -15,11 +14,6 @@ import { s } from "./styles";
 export function SkillPreviewDrawer({ skill, onClose }: { skill: Skill; onClose: () => void }) {
   const t = useTranslations("skills");
   const SourceIcon = Icon[SKILL_SOURCE_ICON[skill.source]];
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
   return (
     <Drawer
       width={DRAWER_WIDTH}

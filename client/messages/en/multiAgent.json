@@ -1,0 +1,74 @@
+{
+  "title": "Multi-Agent Review",
+  "crumb": {
+    "root": "Multi-Agent Review",
+    "configure": "Configure run"
+  },
+  "checklist": {
+    "heading": "Pick agents to run",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "noEstimate": "no estimate",
+    "estimate": "{duration} · {cost}"
+  },
+  "configure": {
+    "title": "Run a Multi-Agent Review",
+    "subtitle": "Pick a pull request and choose which agents to fan out — they run in parallel and you compare their findings side by side.",
+    "prStep": "Pull request",
+    "agentsStep": "Agents to run",
+    "prPlaceholder": "Select a pull request…",
+    "prOption": "#{number} · {title}",
+    "pickPrTitle": "Pick a pull request first",
+    "pickPrBody": "Choose which PR to review above, then select the agents to run on it.",
+    "runMany": "Run multi-agent review ({count})",
+    "runOne": "Run 1 agent",
+    "runNone": "Select agents",
+    "starting": "Starting…",
+    "estimate": "≈ {time} · {cost} · parallel fan-out",
+    "estimatePartial": "≈ {time} · {cost} · partial: some agents have no estimate · parallel fan-out",
+    "loadErrorTitle": "Could not load the pull requests or agents",
+    "loadErrorBody": "Check that the API is running, then retry."
+  },
+  "empty": {
+    "noAgentsTitle": "Enable agents to run reviews",
+    "noAgentsBody": "A multi-agent review fans out to your enabled agents. Enable at least one agent first.",
+    "goToAgents": "Go to Agents"
+  },
+  "results": {
+    "startNew": "Start new review",
+    "runSelectorLabel": "Multi-agent run",
+    "runOption": "{time} · {count} agents",
+    "parallel": "{count} agents · parallel",
+    "summary": "{count} agents · {time} total · {cost}",
+    "costPartial": "partial",
+    "tokensValue": "{input} in · {output} out",
+    "loadErrorTitle": "Could not load this multi-agent run",
+    "prepErrorTitle": "The shared preparation failed"
+  },
+  "view": {
+    "label": "View",
+    "columns": "Columns",
+    "tabs": "Tabs"
+  },
+  "state": {
+    "queued": "Queued",
+    "running": "Running",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "elapsed": "{seconds}s"
+  },
+  "column": {
+    "viewTrace": "View trace ({count})",
+    "unknownAgent": "Unknown agent"
+  },
+  "disagree": {
+    "title": "Where agents disagree",
+    "onlyConflicts": "Show only conflicts",
+    "noConflicts": "No conflicts — the agents agree on every flagged location.",
+    "didNotFlag": "did not flag",
+    "failed": "failed",
+    "running": "running",
+    "suggestedFix": "Suggested fix"
+  }
+}

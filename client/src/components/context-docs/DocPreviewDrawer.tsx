@@ -3,7 +3,6 @@
    `onToggle`, an attach toggle. Which document is open is the caller's business. */
 "use client";
 
-import React from "react";
 import { useTranslations } from "next-intl";
 import { Button, Drawer, Icon } from "@devdigest/ui";
 import type { ProjectDocument } from "@devdigest/shared";
@@ -26,11 +25,6 @@ export interface DocPreviewDrawerProps {
 export function DocPreviewDrawer({ repoId, doc, attached, onToggle, onClose }: DocPreviewDrawerProps) {
   const t = useTranslations("context");
   const query = useProjectDoc(repoId, doc.path);
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
   return (
     <Drawer
       width={DRAWER_WIDTH}

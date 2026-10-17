@@ -31,7 +31,13 @@ export const keys = {
     brief: (prId: Id) => ["pr", prId, "brief"] as const,
     smartDiff: (prId: Id) => ["pr", prId, "smart-diff"] as const,
     blast: (prId: Id) => ["pr", prId, "blast"] as const,
+    /** The PR's multi-agent run list (prefix of the single-run keys below). */
+    multiAgentRuns: (prId: Id) => ["pr", prId, "multi-agent-runs"] as const,
+    /** One multi-agent run (columns, groups, totals). */
+    multiAgentRun: (prId: Id, runId: Id) => ["pr", prId, "multi-agent-runs", runId] as const,
   },
+  /** Average duration/cost per agent over its last runs (Configure run estimates). */
+  reviewEstimates: () => ["review-estimates"] as const,
   runTrace: (runId: Id) => ["run-trace", runId] as const,
 
   agents: () => ["agents"] as const,

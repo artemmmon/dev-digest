@@ -59,6 +59,18 @@ export const s = {
     gap: 10,
     flexShrink: 0,
   } satisfies CSSProperties,
+  multiAgentLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "5px 9px",
+    borderRadius: 6,
+    fontSize: 12.5,
+    fontWeight: 500,
+    color: "var(--text-secondary)",
+    whiteSpace: "nowrap",
+    textDecoration: "none",
+  } satisfies CSSProperties,
   staleBanner: {
     display: "flex",
     alignItems: "center",

@@ -28,12 +28,14 @@ flowchart TD
 
   CTX["/repos/:repoId/context<br/>Project Context (read-only)"]
   TOUR["/repos/:repoId/onboarding<br/>Onboarding Tour (five cards)"]
+  MA["/repos/:repoId/multi-agent<br/>Multi-Agent Review (?pr · ?run · ?new · ?view · ?trace)"]
   AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config · skills · context)"]
   SKILLS["/skills<br/>card grid · preview drawer (?skill=) · create (?create=1)"] --> SKILL["/skills/:id<br/>config · context · preview · stats · versioning (?tab=)"]
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state<br/>GET /pulls/:id/reviews (lazy, FINDINGS hover popover)"| API
   PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments · /pulls/:id/intent · /pulls/:id/smart-diff · /pulls/:id/blast · /pulls/:id/brief<br/>POST /pulls/:id/review · /pulls/:id/intent · /pulls/:id/brief · /repos/:id/resync · /findings/:id/(accept|dismiss)"| API
+  MA -->|"GET /pulls/:id/multi-agent-runs · /pulls/:id/multi-agent-runs/:runId (polled while a column runs) · /review-estimates · /agents<br/>POST /pulls/:id/review (agentIds) · /findings/:id/(accept|dismiss)"| API
   TOUR -->|"GET /repos/:id/onboarding (polled while running)<br/>POST /repos/:id/onboarding/generate · GET /repos/:id/index-state"| API
   CTX -->|"GET /repos/:id/context · /repos/:id/context/content"| API
   AGENT -->|"GET · PUT /agents/:id/context · GET /repos/:id/context"| API

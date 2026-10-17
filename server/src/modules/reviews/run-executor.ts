@@ -4,7 +4,12 @@ import { RunLogger } from '../../platform/run-logger.js';
 import type { AgentRecord } from '../agents/types.js';
 import type { ReviewDeps, RunRepo } from './deps.js';
 import type { FindingRow, PullRow, ReviewRow } from './ports.js';
-import { REVIEW_STRATEGY, SCOPE_MIN_SIGNAL_SEVERITY } from './constants.js';
+import {
+  AGENT_STARTED_PHASE,
+  PREP_ERROR_PREFIX,
+  REVIEW_STRATEGY,
+  SCOPE_MIN_SIGNAL_SEVERITY,
+} from './constants.js';
 import { intentBlockText, shouldFilterScope, skillBlockText, taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 import { excludeFromReview } from './diff-filter.js';
@@ -101,8 +106,8 @@ export class ReviewRunExecutor {
         kind: 'tool',
       });
     } catch (err) {
-      runLog.error(`Failed to load PR diff: ${(err as Error).message}`);
-      await failAll(`Failed to load PR diff: ${(err as Error).message}`);
+      runLog.error(`${PREP_ERROR_PREFIX} ${(err as Error).message}`);
+      await failAll(`${PREP_ERROR_PREFIX} ${(err as Error).message}`);
       return;
     }
     // Generated / fixture files never reach the model: they burn context and their
@@ -142,46 +147,50 @@ export class ReviewRunExecutor {
         }
       : undefined;
 
-    for (const { agent, runId } of jobs) {
-      const agentStart = Date.now();
-      logger?.info(
-        { runId, agent: agent.name, provider: agent.provider, model: agent.model, prId: pull.id },
-        `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
-      );
-      try {
-        const outcome = await this.runOneAgent(
-          workspaceId,
-          pull,
-          repo,
-          diff,
-          agent,
-          runId,
-          runLog,
-          intentBlock,
-          intentResult,
-          scopeFilter,
-        );
+    // Agents run in parallel (AC-7): the shared prep above is read-only, and
+    // `runOneAgent` isolates its own failure, so one rejected job never stops the rest.
+    await Promise.allSettled(
+      jobs.map(async ({ agent, runId }) => {
+        const agentStart = Date.now();
         logger?.info(
-          {
+          { runId, agent: agent.name, provider: agent.provider, model: agent.model, prId: pull.id },
+          `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
+        );
+        try {
+          const outcome = await this.runOneAgent(
+            workspaceId,
+            pull,
+            repo,
+            diff,
+            agent,
             runId,
-            agent: agent.name,
-            findings: outcome.findings.length,
-            grounding: outcome.grounding,
-            costUsd: outcome.costUsd,
-            durationMs: Date.now() - agentStart,
-          },
-          `review: agent "${agent.name}" done — ${outcome.findings.length} finding(s)`,
-        );
-      } catch (err) {
-        // runOneAgent already persisted the failure/cancel (status + error +
-        // trace) and completed the bus; here we only log at the run level.
-        const cancelled = err instanceof RunCancelledError;
-        logger?.[cancelled ? 'info' : 'error'](
-          { runId, agent: agent.name, err: (err as Error).message, durationMs: Date.now() - agentStart },
-          `review: agent "${agent.name}" ${cancelled ? 'cancelled' : 'failed'}`,
-        );
-      }
-    }
+            runLog,
+            intentBlock,
+            intentResult,
+            scopeFilter,
+          );
+          logger?.info(
+            {
+              runId,
+              agent: agent.name,
+              findings: outcome.findings.length,
+              grounding: outcome.grounding,
+              costUsd: outcome.costUsd,
+              durationMs: Date.now() - agentStart,
+            },
+            `review: agent "${agent.name}" done — ${outcome.findings.length} finding(s)`,
+          );
+        } catch (err) {
+          // runOneAgent already persisted the failure/cancel (status + error +
+          // trace) and completed the bus; here we only log at the run level.
+          const cancelled = err instanceof RunCancelledError;
+          logger?.[cancelled ? 'info' : 'error'](
+            { runId, agent: agent.name, err: (err as Error).message, durationMs: Date.now() - agentStart },
+            `review: agent "${agent.name}" ${cancelled ? 'cancelled' : 'failed'}`,
+          );
+        }
+      }),
+    );
   }
 
   /** Execute a single agent's review against a PR, streaming progress. */
@@ -203,7 +212,9 @@ export class ReviewRunExecutor {
     // (built from the buffer) includes them too.
     const runLog = parentLog.forRun(runId, { agent: agent.name });
 
-    runLog.info(`Starting review with agent "${agent.name}" (${agent.provider}/${agent.model})`);
+    runLog.info(`Starting review with agent "${agent.name}" (${agent.provider}/${agent.model})`, {
+      phase: AGENT_STARTED_PHASE,
+    });
 
     // Declared before the `try` so a failed or cancelled run still stores what it read.
     let contextRecords: ContextDocRecord[] | undefined;

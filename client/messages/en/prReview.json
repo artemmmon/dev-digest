@@ -36,13 +36,15 @@
     "clearSeverityFilter": "Clear the severity filter"
   },
   "runReview": {
-    "runAll": "Run all enabled agents",
+    "noEnabledAgents": "No enabled agents",
+    "runSelected": "Run multi-agent review ({count})",
+    "runOne": "Run {name}",
+    "selectAgent": "Select an agent",
     "configureAgents": "Configure agents…",
     "running": "Running…",
     "runReview": "Run Review",
     "mergedWarning": "Already merged — review is informational",
-    "mergedTooltip": "This PR is already merged; running a review won’t affect the merged code.",
-    "skippedAgents": "Skipped (no changed file matches their \"applies to\"): {names}"
+    "mergedTooltip": "This PR is already merged; running a review won’t affect the merged code."
   },
   "runStatus": {
     "elapsed": "Running · {count} agent(s)",
@@ -178,7 +180,8 @@
     "agentRuns": "Agent runs",
     "filesChanged": "Files changed",
     "closedBanner": "This PR is already {status} — running a review is informational and won't affect the merged code.",
-    "viewOnGithub": "View on GitHub"
+    "viewOnGithub": "View on GitHub",
+    "multiAgent": "Multi-Agent Review"
   },
   "overview": {
     "description": "Description"
