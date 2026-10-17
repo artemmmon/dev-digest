@@ -46,6 +46,7 @@ The index below shows each spec's status in its own vocabulary.
 - [12-pr-brief](12-pr-brief.md) — implemented — server, client
 - [13-eval-pipeline](13-eval-pipeline.md) — implemented — server, client, evals
 - [14-multi-agent-review](14-multi-agent-review.md) — implemented — server, client
+- [15-export-to-ci](15-export-to-ci.md) — approved — server, client, agent-runner
 
 Per-package slices of these two live in `server/specs/`, `client/specs/`,
 `reviewer-core/specs/` and `e2e/specs/`.
