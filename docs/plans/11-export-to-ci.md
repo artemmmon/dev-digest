@@ -547,6 +547,7 @@ Accepted deviations recorded after implementation (verifier round):
   - Docs: `client/INSIGHTS.md` (4 entries); root `AGENTS.md` also shortens one "Keeping docs alive" bullet to stay at 100 lines.
 - Review-round changes outside any step's file list: fix round 1 touched `agent-runner/src/{run,diff,index,errors,manifest,skills}.ts`, `server/src/modules/ci/service.ts` and three client CiTab files. The security fix round touched `service.ts`, `redact.ts`, `octokit.ts` (`listWorkflowRuns` maps `event` and `head_repository_id`), shared `adapters.ts` and `contracts/eval-ci.ts` (+ client copy), and agent-runner `run.ts`, `artifact.ts`.
 - Contract note: `CiResultArtifact.pr_number` stays in the contract but the server ignores it (the PR number comes only from GitHub's run metadata); the PR title is fenced through the `prDescription` argument; ingest skips any run whose `event` is not `pull_request` or whose head repository id differs from the installation's `repository_id`.
+- Review round (PR #28): install validates the edited workflow server-side (no pull_request_target/workflow_run, permissions limited to contents read and pull-requests read|write, uses pinned to a 40-hex SHA); the spec's Untrusted-inputs table says the edited workflow is committed as edited, so this is stricter than the spec.
 
 ## Insights to record
 - `server/INSIGHTS.md` · Codebase Patterns — `yaml` is on the application allowlist so the `ci` generators can stringify YAML (Where: `.claude/skills/onion-architecture/assets/dependency-cruiser.cjs:45`)

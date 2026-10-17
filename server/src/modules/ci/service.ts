@@ -45,6 +45,7 @@ import type {
 } from './ports.js';
 import { findSecretShapes } from './redact.js';
 import { agentSlug, skillSlugs } from './slug.js';
+import { assertSafeWorkflow } from './workflow-guard.js';
 import { generateWorkflow } from './workflow.js';
 
 /** Runs shown on an agent's CI tab. */
@@ -123,6 +124,8 @@ export class CiService {
     if (input.workflow.trim().length === 0) {
       throw new ValidationError('The workflow file is empty', [{ path: 'workflow', message: 'Required' }]);
     }
+    // Before any GitHub call or zip: the edited workflow is committed as written.
+    assertSafeWorkflow(input.workflow);
     const { agent, repo } = await this.load(workspaceId, agentId, input.repo_id);
     const built = await this.build(workspaceId, agent, repo, input, input.workflow);
     const files = assembleFiles(built.bundle);

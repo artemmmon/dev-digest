@@ -452,6 +452,10 @@ Where: src/modules/ci/ports.ts:1
 A zip export made without a GitHub token cannot ask for the numeric repository id, so the column is nullable. `CiService.ingest` calls `getRepository` and `setRepositoryId` (guarded by `repository_id IS NULL`) before it ingests; `checkResult` fails closed as `repository_mismatch` for a null id, so AC-108 compares only after that. `ci_runs` also got a `repo` text column beyond the plan's Step 14 list: the run page filters and shows the repository, and `ci_installation_id` is set-null on delete.
 Where: src/modules/ci/service.ts:238, src/db/schema/ci.ts:82
 
+### 2026-10-17 — CI install validates the edited workflow (workflow-guard), stricter than the spec
+`CiService.install` runs `assertSafeWorkflow` (yaml-parsed) on `CiInstallInput.workflow` before any GitHub call or zip: refuses `pull_request_target`/`workflow_run`, permissions beyond `contents: read` + `pull-requests: read|write`, and any `uses:` not pinned to a 40-hex SHA (a `./` action is allowed). The spec says the edited workflow is committed as edited, so a legitimate edit that adds e.g. `issues: write` is refused on purpose; relax the rule in `workflow-guard.ts`, not in the service. Messages are fixed text (rule + path), never the workflow content.
+Where: src/modules/ci/workflow-guard.ts:59
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes

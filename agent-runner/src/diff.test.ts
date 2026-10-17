@@ -67,6 +67,101 @@ diff --git a/b.ts b/b.ts
   });
 });
 
+describe('parseUnifiedDiff body lines that look like file headers', () => {
+  it('counts a deleted `--x` (diff `---x`) and `---` (diff `----`) as deletions and an added `++ y` (diff `+++ y`) as an addition', () => {
+    const raw = [
+      'diff --git a/a.txt b/a.txt',
+      '--- a/a.txt',
+      '+++ b/a.txt',
+      '@@ -1,4 +1,3 @@',
+      ' keep',
+      '---x',
+      '----',
+      '+++ y',
+      ' tail',
+      '',
+    ].join('\n');
+    const diff = parseUnifiedDiff(raw);
+
+    expect(diff.files).toHaveLength(1);
+    const file = diff.files[0]!;
+    // the added `++ y` line must not rename the file
+    expect(file.path).toBe('a.txt');
+    expect(file.deletions).toBe(2);
+    expect(file.additions).toBe(1);
+    // keep(1), added `++ y`(2), tail(3); the deletions consume no new-side line
+    expect(file.hunks[0]!.newLineNumbers).toEqual([1, 2, 3]);
+  });
+
+  it('skips a `\\ No newline at end of file` marker inside a hunk', () => {
+    const raw = [
+      'diff --git a/a.txt b/a.txt',
+      '--- a/a.txt',
+      '+++ b/a.txt',
+      '@@ -1,2 +1,2 @@',
+      ' a',
+      '-b',
+      '\\ No newline at end of file',
+      '+c',
+      '\\ No newline at end of file',
+      '',
+    ].join('\n');
+    const file = parseUnifiedDiff(raw).files[0]!;
+
+    expect(file.additions).toBe(1);
+    expect(file.deletions).toBe(1);
+    expect(file.hunks[0]!.newLineNumbers).toEqual([1, 2]);
+  });
+
+  it('ends a hunk whose @@ counts are too small at the next `diff --git`', () => {
+    const raw = [
+      'diff --git a/a.txt b/a.txt',
+      '--- a/a.txt',
+      '+++ b/a.txt',
+      '@@ -1,1 +1,1 @@',
+      ' one',
+      ' stray line past the counts',
+      'diff --git a/b.txt b/b.txt',
+      '--- a/b.txt',
+      '+++ b/b.txt',
+      '@@ -1,1 +1,2 @@',
+      ' x',
+      '+y',
+      '',
+    ].join('\n');
+    const diff = parseUnifiedDiff(raw);
+
+    expect(diff.files.map((f) => f.path)).toEqual(['a.txt', 'b.txt']);
+    expect(diff.files[0]!.hunks[0]!.newLineNumbers).toEqual([1]);
+    expect(diff.files[1]!.additions).toBe(1);
+    expect(diff.files[1]!.hunks[0]!.newLineNumbers).toEqual([1, 2]);
+  });
+
+  it('ends a hunk whose @@ counts are too large at the next `diff --git`', () => {
+    const raw = [
+      'diff --git a/a.txt b/a.txt',
+      '--- a/a.txt',
+      '+++ b/a.txt',
+      '@@ -1,9 +1,9 @@',
+      ' one',
+      '+two',
+      'diff --git a/b.txt b/b.txt',
+      '--- a/b.txt',
+      '+++ b/b.txt',
+      '@@ -1,1 +1,2 @@',
+      ' x',
+      '+y',
+      '',
+    ].join('\n');
+    const diff = parseUnifiedDiff(raw);
+
+    expect(diff.files.map((f) => f.path)).toEqual(['a.txt', 'b.txt']);
+    expect(diff.files[0]!.additions).toBe(1);
+    expect(diff.files[0]!.hunks[0]!.newLineNumbers).toEqual([1, 2]);
+    expect(diff.files[1]!.hunks[0]!.newLineNumbers).toEqual([1, 2]);
+  });
+});
+
 describe('stripIgnoredFiles', () => {
   const raw = `diff --git a/src/config.ts b/src/config.ts
 --- a/src/config.ts

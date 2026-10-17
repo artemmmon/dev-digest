@@ -21273,9 +21273,9 @@ const CiAgentOverview = zod.z.object({
 const CiRunsQuery = zod.z.object({
     period: zod.z.enum(['7d', '30d', 'all']).default('7d'),
     agent_id: zod.z.string().uuid().optional(),
-    repo: zod.z.string().optional(),
+    repo: zod.z.string().max(200).optional(),
     status: CiRunStatus.optional(),
-    cursor: zod.z.string().optional(),
+    cursor: zod.z.string().max(200).optional(),
     limit: zod.z.coerce.number().int().min(1).max(100).default(50),
 });
 /** Response of `GET /ci/runs` (keyset pagination). */

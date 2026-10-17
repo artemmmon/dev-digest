@@ -107,6 +107,7 @@ export const ciRuns = pgTable(
     wsRanAtIdx: index('ci_runs_ws_ran_at_idx').on(t.workspaceId, t.ranAt.desc()),
     installationIdx: index('ci_runs_installation_idx').on(t.ciInstallationId),
     agentIdx: index('ci_runs_agent_idx').on(t.agentId),
+    agentRunIdx: index('ci_runs_agent_run_idx').on(t.agentRunId),
     statusCk: check('ci_runs_status_ck', sql`${t.status} in ('succeeded', 'no_findings', 'failed')`),
   }),
 );

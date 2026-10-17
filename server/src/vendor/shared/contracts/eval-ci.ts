@@ -429,9 +429,9 @@ export type CiAgentOverview = z.infer<typeof CiAgentOverview>;
 export const CiRunsQuery = z.object({
   period: z.enum(['7d', '30d', 'all']).default('7d'),
   agent_id: z.string().uuid().optional(),
-  repo: z.string().optional(),
+  repo: z.string().max(200).optional(),
   status: CiRunStatus.optional(),
-  cursor: z.string().optional(),
+  cursor: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 export type CiRunsQuery = z.infer<typeof CiRunsQuery>;
