@@ -1,4 +1,7 @@
 {
+  "nav": {
+    "label": "CI Runs"
+  },
   "page": {
     "crumb": "CI Runs"
   },

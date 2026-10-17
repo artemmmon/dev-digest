@@ -7,4 +7,5 @@ export const G_NAV_TIMEOUT_MS = 1200;
 export const NAV_LABEL_KEYS: Record<string, string> = {
   eval: "eval.nav.label",
   "multi-agent": "shell.nav.multi-agent",
+  "ci-runs": "ci.nav.label",
 };
