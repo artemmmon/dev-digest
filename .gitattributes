@@ -1,0 +1,4 @@
+# The committed ncc bundle must stay byte-identical to what `pnpm build` produces on Linux CI.
+# A bundled dependency (whatwg-url 5.0.0, via openai) ships CRLF source; autocrlf/eol
+# normalization would strip it on commit and break the dist drift check.
+agent-runner/dist/** -text

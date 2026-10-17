@@ -1,5 +1,7 @@
 # agent-runner Insights
 
+> Training copy that came in with main. Several entries describe the earlier runner (git-ignored `dist/`, `PR_NUMBER`-only context, an open `post_as` question) and are superseded by `../INSIGHTS.md` and `../AGENTS.md`: read those first.
+
 Non-obvious discoveries from real sessions. Specific and actionable — pass the cold-read test.
 See also: `insights/gotchas.md` for known quirks at project start.
 

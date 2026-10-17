@@ -24,6 +24,10 @@ Where: agent-runner/tsconfig.json:1
 The root `.gitignore` un-ignores `agent-runner/dist/`, but the upstream `agent-runner/.gitignore` also listed `dist/`, and a nested `.gitignore` wins over the parent one. `git check-ignore -v agent-runner/dist/index.js` showed `agent-runner/.gitignore:2:dist/`, so the committed-bundle rule was dead. Fix: `agent-runner/.gitignore` holds only `node_modules/` and `*.log`. Check with `git check-ignore -v agent-runner/dist/index.js` (no output of the nested file means the root negation applies).
 Where: agent-runner/.gitignore:1
 
+### 2026-10-17 — `core.autocrlf=input` strips the CRLF a bundled dependency ships, so the committed `dist/index.js` differs from a Linux build
+`whatwg-url` 5.0.0 (via `openai` → `node-fetch`) is published with CRLF line endings, and ncc copies them into `dist/index.js` (1297 lines, 4339-5635). With `core.autocrlf=input` (the global git config here) `git add` rewrites them to LF, so the blob is LF while `pnpm build` on Linux CI emits CRLF and the `git diff --exit-code -- dist` drift check fails. Fix: the root `.gitattributes` has `agent-runner/dist/** -text`, which turns the conversion off for the bundle. Check: `git ls-files --eol agent-runner/dist` must show the same value under `i/` and `w/` for `index.js` after staging.
+Where: .gitattributes:4
+
 ## Codebase Patterns
 
 ### 2026-10-17 — the built bundle is ESM with one `import` line, and it needs no `node_modules`
