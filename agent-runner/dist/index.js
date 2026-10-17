@@ -20051,6 +20051,8 @@ const ReviewRunResponse = zod.z.object({
     runs: zod.z.array(ReviewRunTarget),
     reviews: zod.z.array(ReviewRecord),
     skipped_agents: zod.z.array(SkippedAgent),
+    // Id of this review batch = the multi-agent run id (`agent_runs.batch_id`).
+    multi_agent_run_id: zod.z.string(),
 });
 /** Smart-diff response for a PR (the SmartDiff). */
 const SmartDiffResponse = (/* unused pure expression or super */ null && (SmartDiff));
@@ -20882,6 +20884,8 @@ const IndexStatus = zod.z.object({
 // ---- Run request (review trigger; owned by A2, contract lives here) ----
 const RunRequest = zod.z.object({
     agentId: zod.z.string().optional(),
+    // Explicit agent list (wins over agentId and all); ids are de-duplicated server-side.
+    agentIds: zod.z.array(zod.z.string().uuid()).min(1).max(50).optional(),
     all: zod.z.boolean().optional(),
 });
 // ---- Structured API error envelope (returned by the API; UX taxonomy is FE) ----
@@ -21344,14 +21348,17 @@ const HookScanResult = zod.z.object({
 ;// CONCATENATED MODULE: ../server/src/vendor/shared/contracts/observability.ts
 
 
+
 /**
  * A5 — Observability / Multi-agent contracts (L07).
  *
- * These are NEW contracts (A5 owns this file; the barrel re-exports it). They
- * sit alongside A2's `review-api.ts`:
- *   - MultiAgentRun        the response of POST /pulls/:id/multi-agent-run
- *   - AgentColumn          one agent's column in the multi-agent view
- *   - Conflict / ConflictTake  where agents disagree on the same file:line
+ * A5 owns this file; the barrel re-exports it.
+ *   - MultiAgentRun        one review batch of a PR: columns, finding groups, conflicts
+ *                          (GET /pulls/:id/multi-agent-runs/:runId). Computed on read
+ *                          from `agent_runs` + persisted findings; nothing here is stored.
+ *   - AgentColumn          one agent run's column
+ *   - FindingGroup         findings of all columns on one overlapping file range
+ *   - AgentRunEstimate     per-agent average duration/cost (GET /review-estimates)
  *   - AgentStats           per-agent quality aggregates (GET /agents/:id/stats)
  *   - CuratorResult        the cross-session memory curator outcome
  *
@@ -21360,61 +21367,79 @@ const HookScanResult = zod.z.object({
 // ---------------------------------------------------------------------------
 // Multi-Agent Review
 // ---------------------------------------------------------------------------
-/** A finding as surfaced in a multi-agent column (subset of FindingRecord). */
-const AgentColumnFinding = zod.z.object({
-    id: zod.z.string(),
-    severity: Severity,
-    category: zod.z.string(),
-    title: zod.z.string(),
-    file: zod.z.string(),
-    start_line: zod.z.number().int(),
-    kind: zod.z.string().nullish(),
+/** Column state. `queued` is derived on read (no agent-started event yet), never stored. */
+const ColumnState = zod.z.enum(['queued', 'running', 'done', 'failed', 'cancelled']);
+/** A persisted finding tagged with the agent run that produced it. */
+const MultiAgentFinding = FindingRecord.extend({
+    agent_id: zod.z.string().nullable(),
+    agent_name: zod.z.string().nullable(),
+    run_id: zod.z.string(),
 });
-/** One agent's result column in the multi-agent review. */
+/** One agent run's result column in the multi-agent review. */
 const AgentColumn = zod.z.object({
     run_id: zod.z.string(),
-    agent_id: zod.z.string(),
-    agent_name: zod.z.string(),
-    provider: zod.z.string().nullable(),
-    model: zod.z.string().nullable(),
-    status: zod.z.enum(['done', 'failed', 'running']),
-    verdict: zod.z.string().nullable(),
-    score: zod.z.number().int().nullable(),
-    summary: zod.z.string().nullable(),
+    agent_id: zod.z.string().nullable(),
+    agent_name: zod.z.string().nullable(),
+    state: ColumnState,
+    error: zod.z.string().nullable(),
     duration_ms: zod.z.number().int().nullable(),
     cost_usd: zod.z.number().nullable(),
-    findings: zod.z.array(AgentColumnFinding),
+    tokens_in: zod.z.number().int().nullable(),
+    tokens_out: zod.z.number().int().nullable(),
+    score: zod.z.number().int().nullable(),
+    verdict: zod.z.string().nullable(),
+    summary: zod.z.string().nullable(),
+    findings: zod.z.array(MultiAgentFinding),
 });
-/** One agent's stance on a contended file:line. */
-const ConflictTake = zod.z.object({
-    agent_id: zod.z.string(),
-    persona: zod.z.string(),
-    /** Severity if the agent flagged it, or 'ignored' when it did not. */
-    verdict: zod.z.union([Severity, zod.z.literal('ignored')]),
-    note: zod.z.string(),
+/** One column's stance on a finding group. */
+const GroupTake = zod.z.object({
+    run_id: zod.z.string(),
+    agent_id: zod.z.string().nullable(),
+    agent_name: zod.z.string().nullable(),
+    take: zod.z.enum(['flagged', 'did_not_flag', 'failed', 'running']),
+    finding_id: zod.z.string().nullable(),
+    severity: Severity.nullable(),
+    title: zod.z.string().nullable(),
 });
-/**
- * A conflict = a file:line that at least one agent flagged and at least one
- * other agent (that also reviewed) did NOT, OR where agents assigned divergent
- * severities. Computed from persisted findings; not stored.
- */
-const Conflict = zod.z.object({
+/** Findings on one overlapping file range, with one take per column. */
+const FindingGroup = zod.z.object({
+    id: zod.z.string(),
     file: zod.z.string(),
-    line: zod.z.number().int(),
+    start_line: zod.z.number().int(),
+    end_line: zod.z.number().int(),
     title: zod.z.string(),
-    takes: zod.z.array(ConflictTake),
+    finding_ids: zod.z.array(zod.z.string()),
+    takes: zod.z.array(GroupTake),
 });
-/** Response of POST /pulls/:id/multi-agent-run and GET /pulls/:id/multi-agent. */
+/** One review batch of a PR (= `agent_runs.batch_id`, or the run id for an unbatched local run). */
 const MultiAgentRun = zod.z.object({
     id: zod.z.string(),
     pr_id: zod.z.string(),
-    pr_number: zod.z.number().int().nullish(),
     ran_at: zod.z.string(),
     agent_count: zod.z.number().int(),
-    total_duration_ms: zod.z.number().int(),
+    total_duration_ms: zod.z.number().int().nullable(),
     total_cost_usd: zod.z.number().nullable(),
+    cost_partial: zod.z.boolean(),
+    tokens_in: zod.z.number().int(),
+    tokens_out: zod.z.number().int(),
+    preparation_error: zod.z.string().nullable(),
     columns: zod.z.array(AgentColumn),
-    conflicts: zod.z.array(Conflict),
+    groups: zod.z.array(FindingGroup),
+    /** Ids of the groups where the agents disagree. */
+    conflicts: zod.z.array(zod.z.string()),
+});
+/** Entry of the run selector (GET /pulls/:id/multi-agent-runs). */
+const MultiAgentRunListItem = zod.z.object({
+    id: zod.z.string(),
+    ran_at: zod.z.string(),
+    agent_count: zod.z.number().int(),
+});
+/** Average of an agent's recent finished runs (GET /review-estimates). */
+const AgentRunEstimate = zod.z.object({
+    agent_id: zod.z.string(),
+    avg_duration_ms: zod.z.number().nullable(),
+    avg_cost_usd: zod.z.number().nullable(),
+    runs: zod.z.number().int(),
 });
 // ---------------------------------------------------------------------------
 // Per-agent Stats (GET /agents/:id/stats)
