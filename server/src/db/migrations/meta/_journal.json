@@ -183,6 +183,13 @@
       "when": 1792051605976,
       "tag": "0025_premium_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792258417154,
+      "tag": "0026_clear_sentinels",
+      "breakpoints": true
     }
   ]
 }

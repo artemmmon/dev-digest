@@ -18,6 +18,10 @@ import type {
   CommitFilesPayload,
   IssueMeta,
   RepoFileContent,
+  RepositoryMeta,
+  WorkflowRunMeta,
+  WorkflowRunJob,
+  WorkflowRunArtifact,
   GitClient,
   CloneOptions,
   UnifiedDiff,
@@ -130,12 +134,26 @@ export interface MockGitHubOptions {
   closingIssues?: Record<string, IssueMeta[]>;
   /** Keyed `<owner>/<name>:<path>@<ref>` — getFileContent() result for that read. */
   files?: Record<string, RepoFileContent | { status: 'not_found' | 'too_large' }>;
+  /** getRepository() result; default id 1, default branch "main". */
+  repository?: Partial<RepositoryMeta>;
+  /** listWorkflowRuns() result; default []. */
+  workflowRuns?: WorkflowRunMeta[];
+  /** Keyed by run id — listRunJobs() result; default []. */
+  runJobs?: Record<number, WorkflowRunJob[]>;
+  /** Keyed by run id — listRunArtifacts() result; default []. */
+  runArtifacts?: Record<number, WorkflowRunArtifact[]>;
+  /** Keyed by artifact id — downloadArtifact() zip bytes. */
+  artifactBytes?: Record<number, Uint8Array>;
+  /** listRepoSecretNames() result; null simulates a token that cannot read secrets. */
+  secretNames?: string[] | null;
 }
 
 export class MockGitHubClient implements GitHubClient {
   public posted: { n: number; review: GitHubReviewPayload }[] = [];
   public openedPrs: OpenPrPayload[] = [];
   public committed: CommitFilesPayload[] = [];
+  /** The most recent commitFiles() payload (for CI export checks). */
+  public lastCommit: CommitFilesPayload | null = null;
   public createdComments: CreateReviewCommentInput[] = [];
 
   constructor(private opts: MockGitHubOptions = {}) {}
@@ -227,6 +245,7 @@ export class MockGitHubClient implements GitHubClient {
 
   async commitFiles(_repo: RepoRef, payload: CommitFilesPayload): Promise<{ branch: string }> {
     this.committed.push(payload);
+    this.lastCommit = payload;
     return { branch: payload.branch };
   }
 
@@ -255,6 +274,39 @@ export class MockGitHubClient implements GitHubClient {
 
   async currentLogin(): Promise<string> {
     return this.opts.login ?? 'mock-user';
+  }
+
+  async getRepository(repo: RepoRef): Promise<RepositoryMeta> {
+    return {
+      id: 1,
+      full_name: `${repo.owner}/${repo.name}`,
+      default_branch: 'main',
+      ...this.opts.repository,
+    };
+  }
+
+  async listWorkflowRuns(
+    _repo: RepoRef,
+    _workflowFile: string,
+    _opts: { createdAfter: Date; perPage: number },
+  ): Promise<WorkflowRunMeta[]> {
+    return this.opts.workflowRuns ?? [];
+  }
+
+  async listRunJobs(_repo: RepoRef, runId: number): Promise<WorkflowRunJob[]> {
+    return this.opts.runJobs?.[runId] ?? [];
+  }
+
+  async listRunArtifacts(_repo: RepoRef, runId: number): Promise<WorkflowRunArtifact[]> {
+    return this.opts.runArtifacts?.[runId] ?? [];
+  }
+
+  async downloadArtifact(_repo: RepoRef, artifactId: number): Promise<Uint8Array> {
+    return this.opts.artifactBytes?.[artifactId] ?? new Uint8Array();
+  }
+
+  async listRepoSecretNames(_repo: RepoRef): Promise<string[] | null> {
+    return this.opts.secretNames === undefined ? [] : this.opts.secretNames;
   }
 }
 

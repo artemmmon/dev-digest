@@ -12,6 +12,10 @@ import type {
   CommitFilesPayload,
   IssueMeta,
   RepoFileContent,
+  RepositoryMeta,
+  WorkflowRunMeta,
+  WorkflowRunJob,
+  WorkflowRunArtifact,
 } from '@devdigest/shared';
 import { INTENT_LIMITS } from '@devdigest/shared';
 import { withRetry, withTimeout } from '../../platform/resilience.js';
@@ -30,6 +34,15 @@ function toAppError(what: string, err: unknown): AppError {
   const reason = err instanceof Error ? err.message : String(err);
   const message = `GitHub couldn't ${what}: ${reason}`;
   const details = typeof status === 'number' ? { status } : undefined;
+  // A write that touches `.github/workflows` is refused without the workflow
+  // scope; GitHub answers 403/404/422 with a message naming the workflow.
+  if (
+    what === 'commit files' &&
+    (status === 403 || status === 404 || status === 422) &&
+    /workflow/i.test(reason)
+  ) {
+    return new AppError('github_workflow_scope', message, 403, details);
+  }
   if (status === 404) return new AppError('github_not_found', message, 404, details);
   if (status === 422) return new AppError('github_rejected', message, 422, details);
   if (status === 401 || status === 403) {
@@ -289,16 +302,45 @@ export class OctokitGitHubClient implements GitHubClient {
 
       // New tree layered on the parent's tree (so unrelated files are kept).
       const parentCommit = await g.getCommit({ owner, repo: name, commit_sha: parentSha });
+      const entries: Array<{
+        path: string;
+        mode: '100644';
+        type: 'blob';
+        content?: string;
+        sha?: string | null;
+      }> = payload.files.map((f) => ({
+        path: f.path,
+        mode: '100644',
+        type: 'blob',
+        content: f.contents,
+      }));
+
+      // Delete every old blob under `replaceDirs` that is not rewritten now. This
+      // runs on a new branch as well: the parent is then the base branch's tree.
+      if (payload.replaceDirs && payload.replaceDirs.length > 0) {
+        const full = await g.getTree({
+          owner,
+          repo: name,
+          tree_sha: parentCommit.data.tree.sha,
+          recursive: 'true',
+        });
+        if (full.data.truncated) {
+          throw new ExternalServiceError('GitHub returned a truncated repository tree');
+        }
+        const keep = new Set(payload.files.map((f) => f.path));
+        for (const node of full.data.tree) {
+          if (node.type !== 'blob' || !node.path || keep.has(node.path)) continue;
+          if (payload.replaceDirs.some((dir) => node.path!.startsWith(dir))) {
+            entries.push({ path: node.path, mode: '100644', type: 'blob', sha: null });
+          }
+        }
+      }
+
       const tree = await g.createTree({
         owner,
         repo: name,
         base_tree: parentCommit.data.tree.sha,
-        tree: payload.files.map((f) => ({
-          path: f.path,
-          mode: '100644',
-          type: 'blob',
-          content: f.contents,
-        })),
+        tree: entries,
       });
 
       const commit = await g.createCommit({
@@ -443,5 +485,108 @@ export class OctokitGitHubClient implements GitHubClient {
   async currentLogin(): Promise<string> {
     const res = await this.call('check the token', () => this.octokit.rest.users.getAuthenticated());
     return res.data.login;
+  }
+
+  async getRepository(repo: RepoRef): Promise<RepositoryMeta> {
+    const res = await this.call('load the repository', () =>
+      this.octokit.rest.repos.get({ owner: repo.owner, repo: repo.name }),
+    );
+    return {
+      id: res.data.id,
+      full_name: res.data.full_name,
+      default_branch: res.data.default_branch,
+    };
+  }
+
+  async listWorkflowRuns(
+    repo: RepoRef,
+    workflowFile: string,
+    opts: { createdAfter: Date; perPage: number },
+  ): Promise<WorkflowRunMeta[]> {
+    return this.call('list workflow runs', async () => {
+      const res = await this.octokit.rest.actions.listWorkflowRuns({
+        owner: repo.owner,
+        repo: repo.name,
+        workflow_id: workflowFile,
+        status: 'completed',
+        created: `>=${opts.createdAfter.toISOString()}`,
+        per_page: opts.perPage,
+      });
+      return res.data.workflow_runs.map((run) => ({
+        id: run.id,
+        head_sha: run.head_sha,
+        conclusion: run.conclusion,
+        html_url: run.html_url,
+        run_started_at: run.run_started_at ?? null,
+        updated_at: run.updated_at,
+        repository_id: run.repository.id,
+        event: run.event,
+        head_repository_id: run.head_repository?.id ?? null,
+        pr_number: run.pull_requests?.[0]?.number ?? null,
+        display_title: run.display_title ?? null,
+      }));
+    });
+  }
+
+  async listRunJobs(repo: RepoRef, runId: number): Promise<WorkflowRunJob[]> {
+    return this.call('list workflow jobs', async () => {
+      const res = await this.octokit.rest.actions.listJobsForWorkflowRun({
+        owner: repo.owner,
+        repo: repo.name,
+        run_id: runId,
+        per_page: 20,
+      });
+      return res.data.jobs.map((job) => ({ name: job.name, conclusion: job.conclusion }));
+    });
+  }
+
+  async listRunArtifacts(repo: RepoRef, runId: number): Promise<WorkflowRunArtifact[]> {
+    return this.call('list workflow artifacts', async () => {
+      const res = await this.octokit.rest.actions.listWorkflowRunArtifacts({
+        owner: repo.owner,
+        repo: repo.name,
+        run_id: runId,
+        per_page: 20,
+      });
+      return res.data.artifacts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        size_in_bytes: a.size_in_bytes,
+        expired: a.expired,
+      }));
+    });
+  }
+
+  async downloadArtifact(repo: RepoRef, artifactId: number): Promise<Uint8Array> {
+    return this.call('download the artifact', async () => {
+      const res = await this.octokit.rest.actions.downloadArtifact({
+        owner: repo.owner,
+        repo: repo.name,
+        artifact_id: artifactId,
+        archive_format: 'zip',
+      });
+      return new Uint8Array(res.data as ArrayBuffer);
+    });
+  }
+
+  /** Names only: the secrets endpoint never returns values, and none are logged. */
+  async listRepoSecretNames(repo: RepoRef): Promise<string[] | null> {
+    try {
+      return await this.call('list repository secrets', async () => {
+        const res = await this.octokit.rest.actions.listRepoSecrets({
+          owner: repo.owner,
+          repo: repo.name,
+          per_page: 100,
+        });
+        return res.data.secrets.map((s) => s.name);
+      });
+    } catch (err) {
+      // 403/404 → the token cannot read secrets (a status, not an outage).
+      const status = (err as AppError).details as { status?: number } | undefined;
+      if (err instanceof AppError && (status?.status === 403 || status?.status === 404)) {
+        return null;
+      }
+      throw err;
+    }
   }
 }

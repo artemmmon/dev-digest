@@ -30,6 +30,9 @@ const EnvSchema = z.object({
   API_HOST: z.string().min(1).default('localhost'),
   WEB_PORT: z.coerce.number().int().default(3000),
   DEVDIGEST_CLONE_DIR: z.string().optional(),
+  // Directory of the built agent-runner bundle exported into target repos (Export to CI).
+  // Relative paths resolve against the server's cwd; default is the repo's agent-runner/dist.
+  DEVDIGEST_CI_RUNNER_DIR: z.string().optional(),
   // TEST-ONLY: path to a JSON fixture; replaces every LLM provider with a stub that
   // answers from it (hermetic e2e). Refused when NODE_ENV=production.
   DEVDIGEST_LLM_STUB: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
@@ -54,6 +57,8 @@ export type AppConfig = {
   webPort: number;
   /** Absolute path where repos are cloned (~/.devdigest/workspace by default). */
   cloneDir: string;
+  /** Absolute path of the built agent-runner bundle (`agent-runner/dist`) that Export to CI copies. */
+  ciRunnerBundleDir: string;
   /** Absolute path to the writable secrets store (BYO keys from the UI). */
   secretsPath: string;
   nodeEnv: 'development' | 'test' | 'production';
@@ -81,6 +86,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const cloneDirRaw =
     parsed.DEVDIGEST_CLONE_DIR ?? join(homedir(), '.devdigest', 'workspace');
   const cloneDir = isAbsolute(cloneDirRaw) ? cloneDirRaw : resolve(process.cwd(), cloneDirRaw);
+  const ciRunnerRaw = parsed.DEVDIGEST_CI_RUNNER_DIR ?? '../agent-runner/dist';
+  const ciRunnerBundleDir = isAbsolute(ciRunnerRaw) ? ciRunnerRaw : resolve(process.cwd(), ciRunnerRaw);
   if (parsed.DEVDIGEST_LLM_STUB && parsed.NODE_ENV === 'production') {
     throw new Error('DEVDIGEST_LLM_STUB is test-only and must not be set with NODE_ENV=production');
   }
@@ -91,6 +98,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     apiHost: parsed.API_HOST,
     webPort: parsed.WEB_PORT,
     cloneDir,
+    ciRunnerBundleDir,
     secretsPath: join(homedir(), '.devdigest', 'secrets.json'),
     nodeEnv: parsed.NODE_ENV,
     logLevel: parsed.LOG_LEVEL ?? (parsed.NODE_ENV === 'test' ? 'silent' : 'info'),
