@@ -24,9 +24,15 @@
         "server/pnpm-lock.yaml",
         "reviewer-core/package-lock.json",
         "e2e/package-lock.json",
-        "mcp/pnpm-lock.yaml"
+        "mcp/pnpm-lock.yaml",
+        "agent-runner/pnpm-lock.yaml"
       ],
       "note": "regenerate with the package's own manager"
+    },
+    {
+      "id": "agent-runner-dist",
+      "globs": ["agent-runner/dist/**"],
+      "note": "built by `pnpm build` (ncc); never hand-edited"
     }
   ],
   "packages": {
@@ -60,6 +66,13 @@
       "checks": [
         { "id": "typecheck", "cmd": "pnpm typecheck" },
         { "id": "lint", "cmd": "pnpm lint" },
+        { "id": "test", "cmd": "pnpm test" }
+      ]
+    },
+    "agent-runner": {
+      "dir": "agent-runner",
+      "checks": [
+        { "id": "typecheck", "cmd": "pnpm typecheck" },
         { "id": "test", "cmd": "pnpm test" }
       ]
     },
@@ -150,10 +163,16 @@
       "skills": ["typescript-expert", "zod"]
     },
     {
+      "id": "agent-runner-src",
+      "globs": ["agent-runner/src/**/*.ts"],
+      "ignore": ["**/*.test.ts"],
+      "skills": ["typescript-expert", "zod"]
+    },
+    {
       "id": "security-surface",
       "globs": [
-        "{client,server,reviewer-core,mcp,e2e}/**/*.{ts,tsx,mjs,js,cjs}",
-        "{client,server,reviewer-core,mcp,e2e}/package.json",
+        "{client,server,reviewer-core,mcp,e2e,agent-runner}/**/*.{ts,tsx,mjs,js,cjs}",
+        "{client,server,reviewer-core,mcp,e2e,agent-runner}/package.json",
         ".mcp.json",
         "server/.env.example",
         ".github/workflows/**",
@@ -163,6 +182,7 @@
       "ignore": [
         "**/*.test.{ts,tsx}",
         "client/src/vendor/**",
+        "agent-runner/dist/**",
         "**/node_modules/**"
       ],
       "skills": ["security"]

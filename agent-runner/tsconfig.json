@@ -19,6 +19,7 @@
     "types": ["node"],
     "lib": ["ES2022"],
     "paths": {
+      "zod": ["./node_modules/zod"],
       "@devdigest/shared": ["../server/src/vendor/shared/index.ts"],
       "@devdigest/shared/*": ["../server/src/vendor/shared/*"],
       "@devdigest/reviewer-core": ["../reviewer-core/src/index.ts"],

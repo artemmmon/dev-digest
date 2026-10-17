@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "DevDigest CI runner — bundles reviewer-core + shared contracts into a single self-contained script (dist/index.js) that is exported into a target repo's devdigest/ci PR and executed by their CI. Consumes reviewer-core and @devdigest/shared as raw TypeScript source via tsconfig path aliases, exactly like the server.",
+  "description": "DevDigest CI runner: bundles reviewer-core and the shared contracts into a self-contained script (dist/index.js) that the server exports into a target repo as .devdigest/runner/ and the repo's own GitHub Actions run. Consumes reviewer-core and @devdigest/shared as raw TypeScript source through tsconfig path aliases, exactly like the server.",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "ncc build src/index.ts -o dist",
+    "build": "rm -rf dist && ncc build src/index.ts -o dist",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "@vercel/ncc": "^0.38.3",
+    "@vercel/ncc": "0.38.4",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

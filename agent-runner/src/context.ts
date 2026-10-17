@@ -5,8 +5,9 @@ import { RunnerError } from './errors.js';
  * Resolves the PR context (owner/repo/number/title/body/fork) from the
  * GitHub-Actions-injected env vars + the standard `pull_request` event
  * payload — "the CI context" the runner assembles the diff + PR body/title
- * from (T8 action). `GITHUB_REPOSITORY` and `PR_NUMBER` are explicit env vars
- * the generated workflow sets (`server/src/modules/ci/workflow.ts`);
+ * from (T8 action). `PR_NUMBER` and `DEVDIGEST_HEAD_SHA` are explicit env vars
+ * the generated workflow sets (`server/src/modules/ci/workflow.ts`); the run id
+ * and repository id come from the default `GITHUB_RUN_ID` / `GITHUB_REPOSITORY_ID`;
  * `GITHUB_EVENT_PATH` is a default GitHub Actions runtime var (always present)
  * pointing at the JSON payload for the triggering event, which carries the
  * (untrusted, author-controlled) PR title/body and the fork flag.
@@ -14,6 +15,14 @@ import { RunnerError } from './errors.js';
 
 export interface CiEnv {
   GITHUB_REPOSITORY?: string;
+  /** GitHub's numeric repository id (default Actions variable). */
+  GITHUB_REPOSITORY_ID?: string;
+  /** The Actions workflow run id (default Actions variable). */
+  GITHUB_RUN_ID?: string;
+  /** The pull request's HEAD commit, set by the generated workflow. On a
+   *  `pull_request` event the checkout is a merge commit, so `GITHUB_SHA` is
+   *  not the commit the server compares against (AC-118). */
+  DEVDIGEST_HEAD_SHA?: string;
   PR_NUMBER?: string;
   GITHUB_EVENT_PATH?: string;
   [key: string]: string | undefined;
@@ -23,6 +32,12 @@ export interface PrContext {
   owner: string;
   repo: string;
   prNumber: number;
+  /** PR head commit (`DEVDIGEST_HEAD_SHA`), 40 lowercase hex characters. */
+  headSha: string;
+  /** Actions workflow run id (`GITHUB_RUN_ID`). */
+  runId: number;
+  /** Numeric repository id (`GITHUB_REPOSITORY_ID`). */
+  repositoryId: number;
   /** PR title (untrusted, author-controlled). */
   title: string;
   /** PR body/description (untrusted, author-controlled). */
@@ -59,6 +74,14 @@ function readEventPayload(
   }
 }
 
+function positiveInt(name: string, raw: string | undefined): number {
+  const value = raw ? Number(raw) : NaN;
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new RunnerError(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
 /** Resolve the PR context from env + (best-effort) event payload. */
 export function resolvePrContext(
   env: CiEnv,
@@ -83,10 +106,20 @@ export function resolvePrContext(
     );
   }
 
+  const headSha = env.DEVDIGEST_HEAD_SHA;
+  if (!headSha || !/^[0-9a-f]{40}$/.test(headSha)) {
+    throw new RunnerError('DEVDIGEST_HEAD_SHA must be set to a 40-character lowercase hex commit SHA');
+  }
+  const runId = positiveInt('GITHUB_RUN_ID', env.GITHUB_RUN_ID);
+  const repositoryId = positiveInt('GITHUB_REPOSITORY_ID', env.GITHUB_REPOSITORY_ID);
+
   return {
     owner,
     repo,
     prNumber,
+    headSha,
+    runId,
+    repositoryId,
     title: pr?.title ?? '',
     body: pr?.body ?? '',
     isFork: pr?.head?.repo?.fork ?? false,

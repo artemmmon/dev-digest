@@ -13,23 +13,24 @@ import { RunnerError } from './errors.js';
  * `runCi` — the runner's single orchestration entry point (T8). Mirrors the
  * pipeline a local studio review runs (assemblePrompt/wrapUntrusted →
  * completeStructured → groundFindings, all INSIDE `reviewPullRequest`) so CI
- * and local stay in parity (AC-36): this file never re-implements or
+ * and local stay in parity: this file never re-implements or
  * hand-rolls any of that — it only resolves CI-specific inputs (manifest,
  * skills, diff, PR context) and hands them to the SAME reviewer-core engine
  * the studio calls, then turns the grounded result into GitHub side effects.
  *
- * Deterministic gate (AC-23): the GitHub review event + blocker count are
+ * Deterministic gate (AC-63, AC-64, AC-67): the GitHub review event + blocker count are
  * computed from `countBlockers`/`gateTriggered` + the manifest's `ci_fail_on`
  * against the GROUNDED findings — never from `review.verdict` (the model's
  * self-report), which is discarded here on purpose.
  *
- * Hard-fail (Q5): a single try/catch wraps the ENTIRE pipeline. Any failure —
- * invalid manifest (AC-20), missing skill file, unresolvable CI context,
- * diff-fetch failure, or an LLM/model-call error inside `reviewPullRequest` —
- * short-circuits to `{ exitCode: 1, artifact: null, posted: null }` before any
- * GitHub post or artifact write. Do not add per-stage catches that post partial
- * state; the whole point is that a failure anywhere upstream of "we have a
- * grounded review" produces NOTHING (no synthetic review skeleton).
+ * Hard-fail (AC-70, EC-10): a single try/catch wraps the ENTIRE pipeline. Any
+ * failure — invalid manifest (AC-62), missing skill file, unresolvable CI
+ * context, diff-fetch failure, an LLM/model-call error inside
+ * `reviewPullRequest`, or a failed GitHub post — short-circuits to
+ * `{ exitCode: 1, artifact: null, posted: null }`. The result file is written
+ * only AFTER the post succeeded, so a review that could not complete leaves no
+ * `devdigest-result.json` for the workflow to upload. Do not add per-stage
+ * catches that post partial state (no synthetic review skeleton).
  */
 
 export type PostAs = 'github_review' | 'pr_comment' | 'none';
@@ -40,7 +41,7 @@ export interface RunCiDeps {
   env: CiEnv;
   /** Injected LLM provider — `OpenRouterProvider` in production, a stub in tests. */
   llm: LLMProvider;
-  /** How to post the result — `'github_review' | 'pr_comment' | 'none'` (AC-24). */
+  /** How to post the result — `'github_review' | 'pr_comment' | 'none'` (AC-65, AC-66). */
   postAs: PostAs;
   /** Absolute path to write the `CiResultArtifact` JSON to. */
   resultPath: string;
@@ -89,7 +90,7 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
   const fetchDiffImpl = deps.fetchDiff ?? fetchPrDiff;
 
   try {
-    // 1. Load + validate the manifest BEFORE it is used for anything (AC-20).
+    // 1. Load + validate the manifest BEFORE it is used for anything (AC-62).
     const manifest = loadManifest(deps.devdigestDir, { readFile, readDir });
     const skills = loadSkillBodies(deps.devdigestDir, manifest.skills, readFile);
 
@@ -111,9 +112,9 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
     // 4. Run the SAME engine the studio uses. `reviewPullRequest` internally
     //    calls `assemblePrompt`/`wrapUntrusted` (diff → `<untrusted
     //    source="diff">`, prDescription → `<untrusted source="pr-description">`,
-    //    AC-21) and the mandatory `groundFindings()` gate (AC-22: an all-dropped
-    //    result is a valid zero-finding review, not an error — it flows through
-    //    normally below).
+    //    untrusted-input wrapping) and the mandatory `groundFindings()` gate (an
+    //    all-dropped result is a valid zero-finding review, not an error — it
+    //    flows through normally below).
     const start = now();
     const outcome = await reviewPullRequest({
       systemPrompt: manifest.system_prompt,
@@ -122,13 +123,15 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       llm: deps.llm,
       strategy: manifest.strategy,
       skills,
-      prDescription: ctx.body,
-      task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
+      // The PR title is attacker-controlled: it goes inside the fenced
+      // `pr-description` block with the body, never into the task line.
+      prDescription: `Title: ${ctx.title.slice(0, 300)}\n\n${ctx.body}`,
+      task: `Review PR #${ctx.prNumber}`,
     });
     const durationMs = now() - start;
 
     // 5. Deterministic verdict/gate from GROUNDED findings + `ci_fail_on`
-    //    (AC-23) — never `outcome.review.verdict`.
+    //    (AC-63, AC-64) — never `outcome.review.verdict`.
     const payload = toReviewPayload(outcome.review, {
       failOn: manifest.ci_fail_on,
       diff,
@@ -137,18 +140,24 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
     const blockers = countBlockers(outcome.review.findings, manifest.ci_fail_on);
     const triggered = gateTriggered(outcome.review.findings, manifest.ci_fail_on);
 
-    // 6. Build + write the artifact before posting, so a GitHub-side posting
-    //    failure never loses the already-computed, already-grounded result.
+    // 6. Build the artifact (counts and ids only); it is written in step 8, only
+    //    after posting succeeded (AC-70, EC-10).
     const artifact = buildResultArtifact({
       findings: outcome.review.findings,
       costUsd: outcome.costUsd,
       durationMs,
       agent: manifest.name,
+      model: manifest.model,
+      manifestVersion: manifest.manifest_version,
+      agentVersion: manifest.agent_version,
+      gateTriggered: triggered,
       prNumber: ctx.prNumber,
+      commitSha: ctx.headSha,
+      repositoryId: ctx.repositoryId,
+      runId: ctx.runId,
     });
-    writeFile(deps.resultPath, `${JSON.stringify(artifact, null, 2)}\n`);
 
-    // 7. Post per `post_as` (AC-24).
+    // 7. Post per `post_as` (AC-65, AC-66).
     if (deps.postAs === 'github_review') {
       await postGithubReview(ctx, githubToken as string, payload, fetchImpl);
     } else if (deps.postAs === 'pr_comment') {
@@ -156,7 +165,9 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
     }
     // 'none' → post nothing (exit-code only).
 
-    // 8. Exit non-zero IFF the gate triggered REQUEST_CHANGES (AC-25).
+    // 8. The review completed: write the result file (AC-71), then exit non-zero
+    //    IFF the gate triggered (AC-67, AC-68, AC-69).
+    writeFile(deps.resultPath, `${JSON.stringify(artifact, null, 2)}\n`);
     return {
       exitCode: triggered ? 1 : 0,
       artifact,
@@ -165,8 +176,9 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       gateTriggered: triggered,
     };
   } catch (err) {
-    // Hard-fail (Q5): non-zero exit, nothing posted, no artifact, no synthetic
-    // review skeleton — regardless of which stage above threw.
+    // Hard-fail (AC-70): non-zero exit, no artifact, no result file (it is only
+    // written after a successful post), no synthetic review skeleton —
+    // regardless of which stage above threw.
     const message = err instanceof Error ? err.message : String(err);
     return { exitCode: 1, artifact: null, posted: null, error: message };
   }

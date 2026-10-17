@@ -42,7 +42,7 @@ const SDK_PKGS = [
  * Fail-closed allowlist: the only packages / Node built-ins application code may import.
  * Everything else (DB drivers, SDKs, fs, net, child_process, …) is I/O and belongs behind a port.
  */
-const APPLICATION_PKGS = ['zod', 'graphology', 'graphology-[^/]+', 'p-queue'];
+const APPLICATION_PKGS = ['zod', 'graphology', 'graphology-[^/]+', 'p-queue', 'yaml'];
 const APPLICATION_BUILTINS = '^(node:)?(crypto|path|util)$';
 
 const CORE = ['^src/vendor/shared/', '^src/modules/[^/]+/(domain|ports)\\.ts$'];

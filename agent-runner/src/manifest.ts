@@ -6,7 +6,7 @@ import { RunnerError } from './errors.js';
 
 /**
  * Loads and VALIDATES the checked-in `.devdigest/agents/<slug>.yaml` manifest
- * (AC-20). The manifest is written by the studio's export flow
+ * (AC-62). The manifest is written by the studio's export flow
  * (`server/src/modules/ci/manifest.ts`) and is otherwise untrusted on-disk
  * content by the time it reaches CI — it is schema-validated with the same
  * `AgentManifest` Zod contract before any of its fields (system prompt, model,
@@ -45,7 +45,7 @@ export function findManifestPath(devdigestDir: string, deps: FsDeps = {}): strin
   return path.join(agentsDir, yamlFiles[0]!);
 }
 
-/** Read, parse, and Zod-validate the manifest at `manifestPath` (AC-20). */
+/** Read, parse, and Zod-validate the manifest at `manifestPath` (AC-62). */
 export function loadAgentManifest(manifestPath: string, deps: FsDeps = {}): AgentManifest {
   const readFile = deps.readFile ?? readFileSync;
   let raw: string;

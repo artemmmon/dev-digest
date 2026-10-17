@@ -6,8 +6,8 @@ import { RunnerError } from './errors.js';
  * Loads the checked-in `.devdigest/skills/<slug>.md` bodies referenced by the
  * manifest's `skills` slugs, in order. These are RESOLVED skill bodies (not
  * slugs) — `reviewPullRequest` (reviewer-core) takes strings, exactly like the
- * studio resolves slugs to DB rows before calling the same engine (AC-36
- * parity: both callers hand the engine already-resolved bodies).
+ * studio resolves slugs to DB rows before calling the same engine (both callers hand the engine
+ * already-resolved bodies).
  */
 export function loadSkillBodies(
   devdigestDir: string,

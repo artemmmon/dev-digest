@@ -1,0 +1,72 @@
+# agent-runner suite — the CI runner the server exports into target repos.
+# Typecheck + tests, then a rebuild with a drift check: agent-runner/dist/ is committed
+# (the server reads it and writes it into .devdigest/runner/), and ncc builds are
+# byte-reproducible (agent-runner/INSIGHTS.md), so any diff after `pnpm build` means a
+# source change was committed without its bundle.
+#
+# reviewer-core/** and server/src/vendor/shared/** are in the path filter because the
+# bundle inlines both as raw TypeScript source through tsconfig path aliases.
+# Read-only token and no secrets: nothing here needs one.
+name: agent-runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent-runner/**'
+      - 'reviewer-core/**'
+      - 'server/src/vendor/shared/**'
+      - '.github/workflows/agent-runner.yml'
+  pull_request:
+    paths:
+      - 'agent-runner/**'
+      - 'reviewer-core/**'
+      - 'server/src/vendor/shared/**'
+      - '.github/workflows/agent-runner.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-runner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: typecheck · tests · bundle drift
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: agent-runner/pnpm-lock.yaml
+
+      # The bundle resolves `openai` from reviewer-core/node_modules.
+      - run: npm ci
+        working-directory: reviewer-core
+
+      # Install scripts stay blocked (agent-runner/pnpm-workspace.yaml allowBuilds).
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      # Fails when the committed bundle differs from a fresh build: a changed file
+      # (`git diff`) or an added or removed one (`git status`, which also lists untracked).
+      - name: Check dist/ is up to date
+        run: |
+          git diff --exit-code -- dist
+          test -z "$(git status --porcelain -- dist)"

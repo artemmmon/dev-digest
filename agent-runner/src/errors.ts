@@ -3,7 +3,7 @@
  * invalid manifest, missing skill file, missing required env var, malformed CI
  * context). Distinguished from a plain `Error` only for clearer log messages;
  * both are handled identically by `runCi`'s single top-level catch (see
- * `run.ts`): hard-fail, no PR post, no artifact, non-zero exit (Q5).
+ * `run.ts`): hard-fail, no PR post, no artifact, no result file, non-zero exit (AC-70).
  */
 export class RunnerError extends Error {
   constructor(message: string) {
