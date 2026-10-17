@@ -46,6 +46,7 @@ import type {
 import { findSecretShapes } from './redact.js';
 import { agentSlug, skillSlugs } from './slug.js';
 import { assertSafeWorkflow } from './workflow-guard.js';
+import { asWorkflowScopeError } from './workflow-scope.js';
 import { generateWorkflow } from './workflow.js';
 
 /** Runs shown on an agent's CI tab. */
@@ -150,13 +151,19 @@ export class CiService {
         const gh = await this.deps.github();
         const meta = await gh.getRepository(ref);
         repositoryId = meta.id;
-        await gh.commitFiles(ref, {
-          branch: CI_BRANCH,
-          base: meta.default_branch,
-          message: COMMIT_MESSAGE,
-          files: files.map((f) => ({ path: f.path, contents: decoder.decode(f.data) })),
-          replaceDirs: REPLACE_DIRS,
-        });
+        const commitFiles = files.map((f) => ({ path: f.path, contents: decoder.decode(f.data) }));
+        try {
+          await gh.commitFiles(ref, {
+            branch: CI_BRANCH,
+            base: meta.default_branch,
+            message: COMMIT_MESSAGE,
+            files: commitFiles,
+            replaceDirs: REPLACE_DIRS,
+          });
+        } catch (err) {
+          // The repository was read just above, so a 404 here is a refused write.
+          throw asWorkflowScopeError(err, commitFiles, true);
+        }
         const open =
           (await gh.findOpenPr(ref, CI_BRANCH)) ??
           (await gh.openPullRequest(ref, {

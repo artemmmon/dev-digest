@@ -444,6 +444,10 @@ Out of scope: everything under the spec's Non-goals; changes to `server/src/modu
   - (b) AC-57: a token without the workflow scope gets the mapped message;
   - (c) AC-120: the skipped `review` job shows `conclusion: skipped` in the jobs API on the export PR's own run.
   Record each outcome.
+- Outcomes (2026-10-17, probe repo; also in `agent-runner/INSIGHTS.md`):
+  - (a) OQ-4: in a private repo the diff request (`GET /repos/{r}/pulls/{n}`, diff media type, `GITHUB_TOKEN`) returned 200 with `contents: read` + `pull-requests: read` and with `contents: read` only. `pull-requests: read` is not required for "None"; AC-37 grants it anyway (harmless, left as is).
+  - (b) AC-57: an Actions token (no `workflows` permission) got 201 for a normal file and 403 `{"message":"Resource not accessible by integration"}` for `.github/workflows/evil.yml` through `POST git/trees` and `PUT contents`; the body does not contain "workflow", so the mapping uses the commit payload (`server/src/modules/ci/workflow-scope.ts`). Unverified: what a PAT or OAuth token without the `workflow` scope returns over REST (the "refusing to allow an OAuth App …" text was seen only from `git push`).
+  - (c) AC-120: the jobs API reports a skipped job as `completed` / `skipped`; a run whose only job is skipped is `completed` / `skipped` with 0 artifacts; a same-repo `pull_request` run has `pull_requests` length 1 and `head_repository.id` equal to `repository.id`.
 - Covers: AC-37, AC-57, AC-120
 - Rules / skills: security
 - Practices: never seed or show `acme/payments-api` (user memory); push only to the user's fork.
@@ -547,6 +551,7 @@ Accepted deviations recorded after implementation (verifier round):
   - Docs: `client/INSIGHTS.md` (4 entries); root `AGENTS.md` also shortens one "Keeping docs alive" bullet to stay at 100 lines.
 - Review-round changes outside any step's file list: fix round 1 touched `agent-runner/src/{run,diff,index,errors,manifest,skills}.ts`, `server/src/modules/ci/service.ts` and three client CiTab files. The security fix round touched `service.ts`, `redact.ts`, `octokit.ts` (`listWorkflowRuns` maps `event` and `head_repository_id`), shared `adapters.ts` and `contracts/eval-ci.ts` (+ client copy), and agent-runner `run.ts`, `artifact.ts`.
 - Contract note: `CiResultArtifact.pr_number` stays in the contract but the server ignores it (the PR number comes only from GitHub's run metadata); the PR title is fenced through the `prDescription` argument; ingest skips any run whose `event` is not `pull_request` or whose head repository id differs from the installation's `repository_id`.
+- Step 21 was run by the main session on a private probe repo, not through DevDigest's export; (b) is only approximated by an Actions token, not by a PAT without the workflow scope.
 - Review round (PR #28): install validates the edited workflow server-side (no pull_request_target/workflow_run, permissions limited to contents read and pull-requests read|write, uses pinned to a 40-hex SHA); the spec's Untrusted-inputs table says the edited workflow is committed as edited, so this is stricter than the spec.
 
 ## Insights to record

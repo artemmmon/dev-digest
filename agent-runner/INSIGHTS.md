@@ -14,6 +14,10 @@ cfb4b39ac742d39cdf34bc4c05597a82f9e4a7829749c6bf6a755c3348340b20  index.js
 (host build 1, host build 2 and the Docker build: the same three lines each.)
 Where: agent-runner/package.json:1
 
+### 2026-10-17 — Step 21 probe on a private repo: diff fetch needs only `contents: read`, a skipped job reads `completed/skipped`, a workflow write is refused with a message that does not say "workflow"
+Run by the main session on a throwaway private repo (`artemmmon/devdigest-ci-probe`, PR #1), not through DevDigest's export. (a) OQ-4: `GET /repos/{r}/pulls/{n}` with the diff media type and `GITHUB_TOKEN` returned 200 (2468 bytes) with `contents: read` + `pull-requests: read` and with `contents: read` only, so "None" mode does not need `pull-requests: read`; the generated workflow grants it anyway (AC-37, harmless). (b) AC-57: an Actions integration token (no `workflows` permission) wrote a normal file through create-tree with 201, but `.github/workflows/evil.yml` through `POST git/trees` and `PUT contents` got 403 `{"message":"Resource not accessible by integration"}`, with no "workflow" in the body. So `server/src/modules/ci/workflow-scope.ts` maps by the commit payload (a path under `.github/workflows/` plus 403/422, or 404 after a successful `getRepository`), not by the message. **(unverified)** what a classic PAT or OAuth token without the `workflow` scope returns over REST: the text "refusing to allow an OAuth App to create or update workflow … without `workflow` scope" was seen only from `git push`, and an Actions token is only an approximation of such a PAT. (c) AC-120: the jobs API reports a skipped job as status `completed`, conclusion `skipped`; a run whose only job is skipped is run status `completed`, conclusion `skipped`, with 0 artifacts; a same-repo `pull_request` run has `pull_requests` length 1 and `head_repository.id` equal to `repository.id`.
+Where: server/src/modules/ci/service.ts:165
+
 ## What Doesn't Work
 
 ### 2026-10-17 — `ncc build` fails on `Cannot find module 'zod'` without `server/node_modules`
