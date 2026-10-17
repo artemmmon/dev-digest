@@ -8,6 +8,8 @@ export function Chip({
   icon,
   count,
   color,
+  role,
+  ariaChecked,
 }: {
   children?: React.ReactNode;
   active?: boolean;
@@ -15,11 +17,18 @@ export function Chip({
   icon?: IconName;
   count?: number;
   color?: string;
+  /** Optional ARIA role for the button, e.g. `checkbox` for a toggle chip. */
+  role?: "checkbox" | "radio" | "switch";
+  /** `aria-checked` for a `role`d chip; leave unset for a plain button. */
+  ariaChecked?: boolean;
 }) {
   const I = icon ? Icon[icon] : null;
   const [h, setH] = React.useState(false);
   return (
     <button
+      type="button"
+      role={role}
+      aria-checked={role ? ariaChecked : undefined}
       onClick={onClick}
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}

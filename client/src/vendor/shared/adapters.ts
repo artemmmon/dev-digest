@@ -144,6 +144,50 @@ export interface CommitFilesPayload {
   base: string;
   message: string;
   files: CommitFile[];
+  /**
+   * Directory prefixes (e.g. ".devdigest/runner/") whose existing blobs in the
+   * parent tree are deleted unless they are also in `files`. Applies on a new
+   * branch too (the parent is then the base branch's tree), so a re-export leaves
+   * no stale file behind.
+   */
+  replaceDirs?: string[];
+}
+
+/** The repository facts the CI export needs (GET /repos/{owner}/{repo}). */
+export interface RepositoryMeta {
+  /** GitHub's numeric repository id (stable across renames). */
+  id: number;
+  full_name: string;
+  default_branch: string;
+}
+
+/** One completed GitHub Actions workflow run. */
+export interface WorkflowRunMeta {
+  id: number;
+  head_sha: string;
+  conclusion: string | null;
+  html_url: string;
+  run_started_at: string | null;
+  updated_at: string;
+  repository_id: number;
+  /** GitHub's `event` (`pull_request`, `push`, ...). */
+  event: string;
+  /** The repository the run's head commit lives in; a fork's differs from `repository_id`. */
+  head_repository_id: number | null;
+  pr_number: number | null;
+  display_title: string | null;
+}
+
+export interface WorkflowRunJob {
+  name: string;
+  conclusion: string | null;
+}
+
+export interface WorkflowRunArtifact {
+  id: number;
+  name: string;
+  size_in_bytes: number;
+  expired: boolean;
 }
 
 /** A file's raw content read from the repo at a given ref, under the size cap. */
@@ -191,6 +235,28 @@ export interface GitHubClient {
   ): Promise<RepoFileContent | { status: 'not_found' | 'too_large' }>;
   /** GET /user — for "posting as @user". */
   currentLogin(): Promise<string>;
+  /** GET /repos/{owner}/{repo} — numeric id and default branch. */
+  getRepository(repo: RepoRef): Promise<RepositoryMeta>;
+  /**
+   * Completed runs of one workflow file created at or after `createdAfter`,
+   * newest first. `perPage` is capped by the caller (NFR-10).
+   */
+  listWorkflowRuns(
+    repo: RepoRef,
+    workflowFile: string,
+    opts: { createdAfter: Date; perPage: number },
+  ): Promise<WorkflowRunMeta[]>;
+  /** Jobs of one workflow run (name + conclusion). */
+  listRunJobs(repo: RepoRef, runId: number): Promise<WorkflowRunJob[]>;
+  /** Artifacts of one workflow run (metadata only, nothing downloaded). */
+  listRunArtifacts(repo: RepoRef, runId: number): Promise<WorkflowRunArtifact[]>;
+  /** Download one artifact as its zip archive bytes. */
+  downloadArtifact(repo: RepoRef, artifactId: number): Promise<Uint8Array>;
+  /**
+   * Names (never values) of the repository's Actions secrets; null when the
+   * token may not read them (403/404).
+   */
+  listRepoSecretNames(repo: RepoRef): Promise<string[] | null>;
 }
 
 // ---------- Git (simple-git, heavy) ----------

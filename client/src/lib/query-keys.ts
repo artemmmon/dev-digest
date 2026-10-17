@@ -77,6 +77,15 @@ export const keys = {
     compare: (a: Id, b: Id) => ["eval", "compare", a, b] as const,
     dashboard: () => ["eval", "dashboard"] as const,
   },
+
+  ci: {
+    /** Everything cached for Export to CI (prefix): overviews and run lists. */
+    scope: () => ["ci"] as const,
+    /** One agent's CI installations and its 20 newest runs. */
+    overview: (agentId: Id) => ["ci", "agent", agentId] as const,
+    /** The CI Runs page list for one filter set (infinite, so the filters are the key). */
+    runs: (filters: Record<string, string | null | undefined>) => ["ci", "runs", filters] as const,
+  },
 };
 
 /** Predicate for `invalidateQueries`: any PR's cached reviews, when the PR id is not known. */

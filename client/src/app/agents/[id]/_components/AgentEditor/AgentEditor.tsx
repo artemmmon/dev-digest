@@ -1,12 +1,13 @@
 /* AgentEditor — agent config editor (model + system prompt) and the Skills tab
-   (bind, switch, reorder), the Context tab (attach project documents) and the Evals tab (cases, runs,
-   metrics). Later lessons add Stats/CI tabs. Tab state lives in ?tab=. */
+   (bind, switch, reorder), the Context tab (attach project documents), the Evals tab (cases, runs,
+   metrics) and the CI tab (installations, runs, Export to CI). A later lesson adds Stats. Tab state lives in ?tab=. */
 "use client";
 
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Tabs } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
+import { CiTab } from "./_components/CiTab";
 import { ConfigTab } from "./_components/ConfigTab";
 import { ContextTab } from "./_components/ContextTab";
 import { EvalsTab } from "./_components/EvalsTab";
@@ -17,9 +18,10 @@ import { s } from "./styles";
 export function AgentEditor({ agent, tab, onTab }: { agent: Agent; tab: string; onTab: (t: string) => void }) {
   const t = useTranslations("agents");
   const tEval = useTranslations("eval");
+  const tCi = useTranslations("ci");
   const tabs = TABS.map((tb) => ({
     key: tb.key,
-    label: tb.ns === "eval" ? tEval(tb.labelKey) : t(tb.labelKey),
+    label: tb.ns === "eval" ? tEval(tb.labelKey) : tb.ns === "ci" ? tCi(tb.labelKey) : t(tb.labelKey),
     icon: tb.icon,
   }));
   return (
@@ -34,6 +36,8 @@ export function AgentEditor({ agent, tab, onTab }: { agent: Agent; tab: string; 
           <ContextTab key={agent.id} agent={agent} />
         ) : tab === "evals" ? (
           <EvalsTab key={agent.id} agent={agent} />
+        ) : tab === "ci" ? (
+          <CiTab key={agent.id} agent={agent} />
         ) : (
           <ConfigTab key={agent.id} agent={agent} />
         )}

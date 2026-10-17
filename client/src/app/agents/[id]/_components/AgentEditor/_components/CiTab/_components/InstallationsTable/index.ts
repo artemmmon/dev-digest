@@ -1,0 +1,1 @@
+export { InstallationsTable } from "./InstallationsTable";
