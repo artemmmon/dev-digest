@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --exclude '**/*.it.test.ts'",
     "test:integration": "vitest run .it.test",
+    "verify:l06": "pnpm typecheck && pnpm lint && vitest run --exclude '**/*.it.test.ts' test/eval-",
     "arch": "depcruise src --config ../.claude/skills/onion-architecture/assets/dependency-cruiser.cjs --output-type err",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",

@@ -42,6 +42,15 @@ export interface ProjectContextPort {
   }): Promise<{ documents: Array<{ path: string; text: string }>; records: ContextDocRecord[] }>;
 }
 
+/**
+ * Structural port onto the eval module's repository — reviews reaches it through this narrow
+ * interface, never `modules/eval` (onion-architecture), to mark findings that seeded a case.
+ */
+export interface EvalCasesPort {
+  /** finding id → eval case id, workspace-scoped; findings without a case are absent. */
+  caseIdsBySourceFinding(workspaceId: string, findingIds: string[]): Promise<Map<string, string>>;
+}
+
 /** Everything the review service and the run executor collaborate with — narrow ports, no Container. */
 export interface ReviewDeps {
   reviews: ReviewStore;
@@ -60,6 +69,8 @@ export interface ReviewDeps {
   intent: IntentPort;
   /** Repository documents attached to the agent and its skills (untrusted text for the prompt). */
   projectContext: ProjectContextPort;
+  /** Which findings already seeded an eval case (the "In eval set" marker, AC-9). */
+  evalCases: EvalCasesPort;
 }
 
 /** The repo a PR belongs to — enough to run git against its clone. */

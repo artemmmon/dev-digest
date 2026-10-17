@@ -355,6 +355,35 @@ Where: src/app/repos/[repoId]/pulls/[number]/use-diff-jump.ts:21, src/lib/use-se
 `FileCard` and `RoleGroup` open from `toggle?.key === focusKey ? toggle.open : null) ?? (isFocused || default)` where `toggle = { key, open }` is set on click. A new `?file=&line=` changes the key, so the old collapse is ignored and the file opens again; the user can still collapse it. A `useEffect` that syncs `open` from the prop would fight the click and trip the react-hooks lint. The only effect is the scroll (`scrollIntoView?.` is absent in jsdom) plus a 2 s timer that records which focus has faded.
 Where: src/components/diff-viewer/FileCard/FileCard.tsx:60, src/components/diff-viewer/focus.ts:10
 
+### 2026-10-15 — A modal opened from the findings list must stop the list's j/k/a/d shortcuts
+`FindingsPanel` binds one `window` keydown handler (j/k move, a/d accept/dismiss) that only skips INPUT and TEXTAREA targets. The kit
+`Modal` has no Escape handling and no focus return either, so the Case Editor adds its own and a keypress on one of its buttons or the
+type toggle would otherwise reach `a`/`d` and accept or dismiss a finding. The handler now returns for any target inside `[role="dialog"]`;
+do the same in any new window-level shortcut handler that can sit under a modal.
+Where: `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.tsx:57`.
+
+### 2026-10-15 — A new agent-editor tab needs two edits: `TABS` and the page's `VALID_TABS`
+`AgentEditor` renders from `TABS` (`constants.ts`), but `agents/[id]/page.tsx` keeps its own `VALID_TABS` list and falls back to `config`
+for any other `?tab=` value, so a tab added only to `TABS` is never selected. A tab whose label belongs to another feature sets
+`EditorTab.ns` (today `"eval"`), and `AgentEditor` translates it from that namespace.
+Where: `src/app/agents/[id]/page.tsx:17`.
+
+### 2026-10-15 — `useEvalRuns` re-reads the cases and dashboard when a run stops running
+Polling only refetches the runs list, so a case row would keep "never run" after its run finished. The hook remembers whether a run was
+`running` and invalidates `keys.eval.cases` and `keys.eval.dashboard` on the true→false flip; a screen that lists cases needs no effect of its own.
+Where: `src/lib/hooks/eval.ts:83`.
+
+### 2026-10-15 — Compare's prompt diff is a capped word LCS, and the UI kit has no GitCompare icon
+`wordDiff` splits on `(?<=\s)(?=\S)` so each word keeps its trailing whitespace (whitespace-only edits are "same"), trims the
+common head/tail, and when the middle needs more than `MAX_DIFF_CELLS` (4M, a `Uint16Array`) it shows one removed and one added block
+instead of freezing the tab. `@devdigest/ui` has no `GitCompare` icon (the design uses it); the Compare button uses `GitBranch`.
+Where: `src/app/eval/[agentId]/_components/CompareView/helpers.ts:35`.
+
+### 2026-10-15 — A sidebar label can come from a feature namespace without touching the other nav items
+`NAV` in the vendored `src/vendor/ui/nav.ts` holds literal English labels, and `Sidebar` renders them as-is. For a label that must live in a feature namespace (NFR-5: eval), the item has no `label`; `ShellContext.navLabel(key)` (built by `useNavLabel` from `NAV_LABEL_KEYS`) returns the translated text and `Sidebar` falls back to `it.label` when it returns undefined. The command palette uses the same hook, then `shell.nav.<key>`. Add a key to `NAV_LABEL_KEYS` to move another label; the page `<title>` of such a route can also use that namespace (`getTranslations("eval")`), meta.json is a convention, not a requirement.
+Where: client/src/components/app-shell/hooks/useNavLabel.ts:10
+
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
@@ -468,6 +497,22 @@ Where: src/app/repos/[repoId]/onboarding/_components/TourView/hooks/useActiveSec
 ### 2026-10-05 — In-flight state of a mutation must outlive its tab: key it and read `useIsMutating`
 `useMutation().isPending` belongs to one observer: a tab component that unmounts and remounts (PR Overview → Files changed → back) sees `false` while the POST still runs, so Generate/refresh re-enable (spec 12 AC-7). Give the mutation a `mutationKey`, derive `generating` from `useIsMutating({ mutationKey })`, and put the cache refresh in the hook-level `onSettled` (mutation-level options fire for an orphaned run; `mutate(…, { onSuccess })` callbacks do not).
 Where: src/lib/hooks/brief.ts:43
+
+### 2026-10-15 — The kit `Textarea` takes no `aria-label`; the Case Editor uses a raw `<textarea>`
+`Textarea` (`src/vendor/ui/kit/Textarea.tsx`) forwards only `value`/`onChange`/`placeholder`/`rows`/`mono`, and `FormField` renders `<label>` without `htmlFor`, so a kit textarea has no accessible name and `getByLabelText` cannot find it. The Case Editor's diff and PR-body fields are plain `<textarea aria-label>` styled by `s.textarea`. Do not edit the vendored kit; use the raw element where a name is needed.
+Where: `src/components/eval/CaseEditor/CaseEditor.tsx:193`
+
+### 2026-10-15 — Trend chart: Recharts `accessibilityLayer` is the keyboard path, and `dashboard.*` in eval.json was dead
+The vendored `LineChart` (`vendor/ui/charts`) has no tooltip, no gaps and no axis labels, so the eval trend chart is its own
+Recharts chart. Recharts 2.x only makes the plot focusable and arrow-key navigable (tooltip follows the cursor) with the
+`accessibilityLayer` prop on `LineChart`; without it AC-59's "focus" has no path. A `null` metric needs `connectNulls={false}`
+(the default) and a `null` row value, not 0. The old `dashboard.*` block in `messages/en/eval.json` had no reader and was replaced
+by `trendChart.*`. A `ResponsiveContainer` renders nothing in jsdom (0 size): a test mocks it or asserts on the hook and rows.
+Where: `src/components/eval/TrendChart/TrendChart.tsx:74`, `src/components/eval/TrendChart/helpers.ts:20` (`trendRows`).
+
+### 2026-10-15 — Testing modals and dates: kit `Tabs` are plain buttons, the toast host owns `role="status"`, `renderWithIntl` has no time zone
+`@devdigest/ui` `Tabs` renders `<button>`s with no `role="tab"`, so a test queries `getByRole("button", { name: "PR meta" })`. The `ToastProvider` in `renderWithIntl` is itself `role="status"` (`aria-live="polite"`), so a component's own status line must be found by its text (`getByText(/overlaps the case/)`), not `getByRole("status")`. `renderWithIntl` passes no `timeZone`, so any component that formats a date logs `ENVIRONMENT_FALLBACK` per render: harmless noise, filter it when reading output. `vi.mock("@/lib/hooks", async (importOriginal) => ...)` must type the original as `importOriginal<Record<string, unknown>>()`, because lint forbids `typeof import("...")`.
+Where: `src/vendor/ui/kit/Tabs.tsx:5`, `src/lib/toast.tsx:92`, `src/test/render.tsx:21`.
 
 ## Recurring Errors & Fixes
 

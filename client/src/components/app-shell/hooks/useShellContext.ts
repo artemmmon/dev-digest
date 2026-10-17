@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/theme";
 import { useActiveRepo } from "@/lib/repo-context";
 import { usePulls, useDeleteRepo } from "@/lib/hooks";
 import { activeKeyFor, toShellRepo } from "../helpers";
+import { useNavLabel } from "./useNavLabel";
 
 interface ShellContextOptions {
   onOpenCommandPalette: () => void;
@@ -21,6 +22,7 @@ interface ShellContextOptions {
  */
 export function useShellContext({ onOpenCommandPalette }: ShellContextOptions): ShellContext {
   const t = useTranslations("shell");
+  const navLabel = useNavLabel();
   const pathname = usePathname() ?? "/";
   const router = useRouter();
   const { theme, toggle } = useTheme();
@@ -70,6 +72,7 @@ export function useShellContext({ onOpenCommandPalette }: ShellContextOptions): 
       onSelectRepo,
       onAddRepo,
       onRemoveRepo,
+      navLabel,
       // Sidebar badge = PRs that still NEED review, not the total PR count.
       // 0 → undefined so the badge hides entirely when nothing needs review.
       prCount: pulls?.filter((p) => p.status === "needs_review").length || undefined,
@@ -85,6 +88,7 @@ export function useShellContext({ onOpenCommandPalette }: ShellContextOptions): 
       onSelectRepo,
       onAddRepo,
       onRemoveRepo,
+      navLabel,
       pulls,
     ],
   );

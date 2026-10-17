@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { PrIntent } from '@devdigest/shared';
-import { intentBlockText, shouldFilterScope, taskLine } from '../src/modules/reviews/helpers.js';
+import {
+  intentBlockText,
+  reviewRulesText,
+  shouldFilterScope,
+  taskLine,
+} from '../src/modules/reviews/helpers.js';
+import * as reviewsIndex from '../src/modules/reviews/index.js';
 
 /**
  * Unit coverage for the review task-line. The key invariant: our trusted
@@ -21,6 +27,31 @@ describe('taskLine', () => {
     const line = taskLine(pull);
     expect(line).toMatch(/never .*withhold .*(or downgrade )?.*security/i);
     expect(line).toMatch(/review the entire diff/i);
+  });
+});
+
+describe('reviewRulesText — shared with eval runs', () => {
+  it('AC-21: taskLine is the PR header followed by the shared rules text, byte for byte', () => {
+    const pull = { number: 3, title: 'Add a thing', author: 'burnjohn' } as never;
+    expect(taskLine(pull)).toBe(`Review pull request #3 "Add a thing" by burnjohn. ${reviewRulesText()}`);
+  });
+
+  it('AC-21: the rules text is PR-independent and keeps the never-withhold-security rule', () => {
+    const rules = reviewRulesText();
+    expect(rules).not.toMatch(/#\d+|by \w+\./);
+    expect(rules).toMatch(/never .*withhold .*(or downgrade )?.*security/i);
+    expect(rules).toMatch(/review the entire diff/i);
+  });
+
+  it('AC-21: the reviews public index exposes only the pure review rules to other modules', () => {
+    expect(Object.keys(reviewsIndex).sort()).toEqual([
+      'REVIEW_EXCLUDED_PATHS',
+      'REVIEW_STRATEGY',
+      'excludeFromReview',
+      'partitionSkills',
+      'reviewRulesText',
+      'skillBlockText',
+    ]);
   });
 });
 

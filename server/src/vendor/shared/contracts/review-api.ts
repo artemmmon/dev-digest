@@ -12,10 +12,17 @@ import { SmartDiff } from './brief.js';
  * state and the `review_id` it belongs to.
  */
 
+/** Why a finding cannot be turned into an eval case (set by the server). */
+export const EvalUnavailableReason = z.enum(['no_agent', 'file_excluded', 'diff_unavailable']);
+export type EvalUnavailableReason = z.infer<typeof EvalUnavailableReason>;
+
 export const FindingRecord = Finding.extend({
   review_id: z.string(),
   accepted_at: z.string().nullable(),
   dismissed_at: z.string().nullable(),
+  // L06 eval markers: the case already seeded from this finding, or why none can be.
+  eval_case_id: z.string().nullish(),
+  eval_unavailable_reason: EvalUnavailableReason.nullish(),
 });
 export type FindingRecord = z.infer<typeof FindingRecord>;
 

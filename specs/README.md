@@ -44,6 +44,7 @@ The index below shows each spec's status in its own vocabulary.
 - [10-project-context](10-project-context.md) — approved — server, client, reviewer-core, e2e
 - [11-onboarding-tour](11-onboarding-tour.md) — implemented — server, client, e2e
 - [12-pr-brief](12-pr-brief.md) — implemented — server, client
+- [13-eval-pipeline](13-eval-pipeline.md) — implemented — server, client, evals
 
 Per-package slices of these two live in `server/specs/`, `client/specs/`,
 `reviewer-core/specs/` and `e2e/specs/`.

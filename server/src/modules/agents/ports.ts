@@ -83,6 +83,8 @@ export interface ResolvedSkill {
   name: string;
   body: string;
   appliesTo: string[] | null;
+  /** The skill's current version (recorded by eval runs; `skills.version`). */
+  version: number;
 }
 
 /** A document an agent receives through an enabled skill (read-only on the agent). */

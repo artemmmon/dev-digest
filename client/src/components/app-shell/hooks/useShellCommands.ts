@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { NAV, SETTINGS_ITEM, resolveHref, type Command } from "@devdigest/ui";
 import { useActiveRepo } from "@/lib/repo-context";
 import { useTheme } from "@/lib/theme";
+import { useNavLabel } from "./useNavLabel";
 
 /**
  * Builds the command-palette command set: one "Go to …" command per nav item,
@@ -13,6 +14,7 @@ import { useTheme } from "@/lib/theme";
  */
 export function useShellCommands(): Command[] {
   const t = useTranslations("shell");
+  const navLabel = useNavLabel();
   const router = useRouter();
   const { repoId } = useActiveRepo();
   const { theme, toggle } = useTheme();
@@ -21,7 +23,7 @@ export function useShellCommands(): Command[] {
     const navCmds: Command[] = NAV.flatMap((g) =>
       g.items.map((it) => ({
         id: it.key,
-        label: t("commandPalette.goTo", { label: t(`nav.${it.key}`) }),
+        label: t("commandPalette.goTo", { label: navLabel(it.key) ?? t(`nav.${it.key}`) }),
         group: g.section,
         icon: it.icon,
         run: () => router.push(resolveHref(it.href, repoId)),
@@ -44,5 +46,5 @@ export function useShellCommands(): Command[] {
       run: toggle,
     });
     return navCmds;
-  }, [t, router, repoId, theme, toggle]);
+  }, [t, navLabel, router, repoId, theme, toggle]);
 }

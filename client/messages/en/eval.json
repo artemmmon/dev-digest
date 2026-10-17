@@ -1,40 +1,13 @@
 {
-  "dashboard": {
-    "defaultTitle": "Eval Dashboard",
-    "loading": "Loading eval metrics…",
-    "casesSummary": "{count, plural, one {# eval case} other {# eval cases}} · gold set · {runs, plural, one {# run} other {# runs}}",
-    "configure": "Configure eval cases →",
-    "runEval": "Run eval ({count})",
-    "running": "Running…",
-    "metricTrend": "Metric trend",
-    "recentRuns": "Recent runs",
-    "noRuns": "No runs yet. Create an eval case and run it.",
-    "metrics": {
-      "recall": "RECALL",
-      "precision": "PRECISION",
-      "citationAccuracy": "CITATION ACCURACY"
-    },
-    "legend": {
-      "recall": "Recall",
-      "precision": "Precision",
-      "citation": "Citation"
-    },
-    "table": {
-      "ranAt": "Ran at",
-      "recall": "Recall",
-      "precision": "Precision",
-      "citation": "Citation",
-      "pass": "Pass",
-      "cost": "Cost"
-    },
-    "pass": "pass",
-    "fail": "fail"
+  "nav": {
+    "label": "Eval Dashboard"
+  },
+  "meta": {
+    "title": "Eval Dashboard"
   },
   "caseEditor": {
     "newCase": "New eval case",
     "caseTitle": "Eval case · {name}",
-    "runCase": "Run case",
-    "running": "Running…",
     "save": "Save",
     "saving": "Saving…",
     "nameLabel": "Name",
@@ -50,12 +23,32 @@
     "bodyLabel": "Body",
     "bodyPlaceholder": "Wire up payments via Stripe SDK.",
     "preview": "Preview",
-    "expectedOutput": "Expected output",
-    "validJson": "valid JSON",
-    "invalidJson": "invalid JSON",
-    "lastRunPassed": "Last run passed",
-    "lastRunFailed": "Last run failed",
-    "resultSummary": "recall {recall}% · precision {precision}% · citation {citation}% · {duration}s"
+    "cancel": "Cancel",
+    "seededSubtitle": "Seeded from a finding · the run checks the expectation below",
+    "seededSubtitleWithAgent": "{agent} · seeded from a finding · the run checks the expectation below",
+    "diffPreviewLabel": "Diff preview (read-only)",
+    "bodyEmpty": "No description",
+    "positiveCase": "Positive case",
+    "negativeCase": "Negative case",
+    "assertMustFind": "Expects a finding on {file}:{lines}",
+    "assertMustNotFlag": "Expects no finding on {file}:{lines}",
+    "expectationLabel": "Expectation",
+    "types": {
+      "must_find": "Must find",
+      "must_not_flag": "Must not flag"
+    },
+    "fileLabel": "File",
+    "startLineLabel": "Start line",
+    "endLineLabel": "End line",
+    "lineOrderError": "End line must be greater than or equal to the start line.",
+    "lineNumberError": "Lines must be whole numbers from 1.",
+    "overlapWarning": "This expectation overlaps the case “{name}” on the same file.",
+    "newSubtitle": "Write a diff and assert what the agent should or should not flag",
+    "newSubtitleWithAgent": "{agent} · write a diff and assert what the agent should or should not flag",
+    "editSubtitle": "Editing a saved case · the next run checks the new values",
+    "editSubtitleWithAgent": "{agent} · editing a saved case · the next run checks the new values",
+    "diffEditLabel": "Diff",
+    "diffTooLong": "The diff is too long: at most {max} characters."
   },
   "evalsTab": {
     "metricsTitle": "Eval metrics",
@@ -71,7 +64,32 @@
     "run": "Run",
     "running": "Running…",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "tabLabel": "Evals",
+    "scoringNote": "Scoring is mechanical — a finding counts when its file matches and the line ranges overlap. No model call in the scorer.",
+    "dashboardLink": "View full dashboard →",
+    "casesCount": "{count, plural, one {# case} other {# cases}}",
+    "passingSummary": "{passed} / {ran} passing",
+    "runAll": "Run all evals",
+    "runningProgress": "Running {done} / {total} cases",
+    "addCaseFirst": "Add a case first",
+    "loadError": "The evals could not be loaded.",
+    "runsHeading": "Recent runs",
+    "noRuns": "No runs yet. Run all evals to score this agent.",
+    "outcome": {
+      "pass": "pass",
+      "fail": "fail",
+      "error": "error"
+    },
+    "expectedGot": "expected {expected}, got {got}",
+    "newCaseButton": "New eval case",
+    "editCase": "Edit {name}",
+    "deleteCase": "Delete {name}",
+    "deleteTitle": "Delete eval case",
+    "deleteBody": "Delete the eval case “{name}”? Past runs keep their metrics.",
+    "deleteConfirm": "Delete",
+    "deleteFailed": "The case could not be deleted.",
+    "saveFailed": "The case could not be saved."
   },
   "page": {
     "crumbSkillsLab": "Skills Lab",
@@ -80,5 +98,136 @@
     "crumbEvals": "Evals",
     "crumbNewCase": "New case",
     "crumbEvalCase": "Eval case"
+  },
+  "findingCard": {
+    "turnIntoCase": "Turn into eval case",
+    "inEvalSet": "In eval set",
+    "reasons": {
+      "no_agent": "This finding has no agent",
+      "diff_unavailable": "The diff of this finding is no longer available",
+      "file_excluded": "This file is excluded from review"
+    },
+    "caseUnavailable": "The diff of this finding is no longer available",
+    "saveFailed": "The case could not be saved.",
+    "close": "Close"
+  },
+  "metricCards": {
+    "recall": "Recall",
+    "precision": "Precision",
+    "citationAccuracy": "Citation accuracy",
+    "tracesPassed": "Traces passed",
+    "deltaUp": "▲ {points}pt",
+    "deltaDown": "▼ {points}pt"
+  },
+  "trendChart": {
+    "title": "Metric trend",
+    "chartLabel": "Recall, precision and citation accuracy per counted run",
+    "legend": {
+      "recall": "Recall",
+      "precision": "Precision",
+      "citation": "Citation"
+    },
+    "tooltipVersion": "Agent version",
+    "tooltipCost": "Cost",
+    "empty": "No counted runs yet. Run all evals to start the trend.",
+    "loadError": "The trend could not be loaded."
+  },
+  "regressionAlert": {
+    "title": "Regression against the previous run",
+    "item": "{metric} dropped {points, plural, one {# point} other {# points}}"
+  },
+  "runsTable": {
+    "select": "Select",
+    "selectRun": "Select the run from {time}",
+    "time": "Time",
+    "version": "Version",
+    "versionValue": "v{version}",
+    "recall": "Recall",
+    "precision": "Precision",
+    "citation": "Citation",
+    "passed": "Passed",
+    "errored": "Errored",
+    "unlabelled": "Unlabelled",
+    "cost": "Cost",
+    "status": "Status",
+    "statusBadge": {
+      "running": "running",
+      "partial": "partial",
+      "failed": "failed"
+    }
+  },
+  "dashboardView": {
+    "title": "Eval Dashboard",
+    "subtitle": "Regression harness across all reviewer agents · pick an agent to see its runs",
+    "loadError": "The eval dashboard could not be loaded.",
+    "agentsHeading": "Agents",
+    "noAgents": "No agents yet",
+    "noAgentsBody": "Create an agent, add eval cases and run them to see its metrics here.",
+    "noRuns": "No eval runs yet",
+    "lastRun": "Last run {version} · {time}",
+    "passedSummary": "{value} passed",
+    "recentHeading": "Recent eval runs · all agents",
+    "noRecent": "No eval runs yet. Open an agent and run its eval cases.",
+    "columns": {
+      "agent": "Agent",
+      "time": "Time",
+      "version": "Version",
+      "recall": "Recall",
+      "precision": "Precision",
+      "citation": "Citation",
+      "passed": "Passed"
+    }
+  },
+  "agentView": {
+    "back": "All agents",
+    "subtitle": "Regression harness · {count, plural, one {# run} other {# runs}}",
+    "loadError": "The eval runs could not be loaded.",
+    "notFoundTitle": "Agent not found",
+    "notFoundBody": "This agent does not exist or was deleted.",
+    "notFoundCta": "Back to the dashboard",
+    "runEval": "Run eval",
+    "runsHeading": "Recent runs",
+    "selectHint": "Select two runs to compare",
+    "selectedCount": "{count} selected",
+    "compare": "Compare",
+    "noRuns": "No runs yet. Run eval to score this agent.",
+    "crumbFallback": "Agent"
+  },
+  "compare": {
+    "title": "Compare runs · v{older} → v{newer}",
+    "subtitle": "Older run vs newer run — metric changes, prompt diff and flipped cases",
+    "close": "Close",
+    "loadError": "The runs could not be compared.",
+    "casesDiffer": "Case sets differ",
+    "casesDifferDetail": "{older, plural, one {# case} other {# cases}} only in the older run · {newer, plural, one {# case} other {# cases}} only in the newer run",
+    "older": "Older",
+    "newer": "Newer",
+    "change": "Change",
+    "noChange": "no change",
+    "metrics": {
+      "recall": "Recall",
+      "precision": "Precision",
+      "citation": "Citation",
+      "cost": "Cost"
+    },
+    "versionsHeading": "Versions",
+    "agentVersion": "Agent version",
+    "model": "Model",
+    "skills": "Skills",
+    "skillChanged": "{name}: v{from} → v{to}",
+    "skillAdded": "{name}: added (v{to})",
+    "skillRemoved": "{name}: removed (was v{from})",
+    "noSkillChanges": "No skill version changes",
+    "promptHeading": "System prompt diff",
+    "promptUnchanged": "The system prompt is the same in both runs.",
+    "promptUnavailable": "A system prompt is not available for one of the runs.",
+    "legendRemoved": "Removed (older run)",
+    "legendAdded": "Added (newer run)",
+    "flippedHeading": "Cases that changed outcome",
+    "noFlipped": "No case changed between pass and fail.",
+    "flipped": "{from} → {to}",
+    "heading": "Compare runs",
+    "changeUp": "▲ {value}",
+    "changeDown": "▼ {value}"
   }
 }

@@ -59,7 +59,11 @@ export function Sidebar({ ctx }: { ctx: ShellContext }) {
             {grp.items.map((it) => (
               <NavItem
                 key={it.key}
-                item={it.key === "pulls" && ctx.prCount != null ? { ...it, badge: String(ctx.prCount) } : it}
+                item={{
+                  ...it,
+                  label: ctx.navLabel?.(it.key) ?? it.label,
+                  ...(it.key === "pulls" && ctx.prCount != null ? { badge: String(ctx.prCount) } : {}),
+                }}
                 active={ctx.activeKey === it.key}
                 repoId={ctx.repoId}
                 Link={Link}

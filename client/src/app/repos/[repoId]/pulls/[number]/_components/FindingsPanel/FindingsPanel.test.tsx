@@ -1,15 +1,33 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import React from "react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { screen, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FindingRecord } from "@devdigest/shared";
 import { renderWithIntl } from "@/test/render";
 
+const h = vi.hoisted(() => ({ mutate: vi.fn() }));
+
 vi.mock("@/lib/hooks/reviews", () => ({
-  useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
+  useFindingAction: () => ({ mutate: h.mutate, isPending: false }),
+}));
+
+// The Case Editor has its own tests; here it is a stand-in that is open while rendered.
+vi.mock("../FindingCaseEditor", () => ({
+  FindingCaseEditor: ({ onClose }: { onClose: () => void }) => (
+    <div>
+      <p>Case editor is open</p>
+      <button type="button" onClick={onClose}>
+        Close case editor
+      </button>
+    </div>
+  ),
 }));
 
 import { FindingsPanel } from "./FindingsPanel";
 
+beforeEach(() => {
+  h.mutate.mockReset();
+});
 afterEach(cleanup);
 
 function finding(o: Partial<FindingRecord> & { id: string }): FindingRecord {
@@ -125,5 +143,78 @@ describe("FindingsPanel severity filter", () => {
     await user.click(pill("Suggestion"));
     expect(pill("Critical")).toHaveAttribute("aria-pressed", "false");
     expect(shownTitles()).toEqual(["Rename variable"]);
+  });
+});
+
+describe("FindingsPanel keyboard shortcuts", () => {
+  /** Move focus off every control, so a key goes to `document.body` like on an idle page. */
+  function blurAll() {
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+  }
+
+  it("with nothing open, a on the page accepts the focused finding and d dismisses it", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    blurAll();
+
+    await user.keyboard("a");
+    expect(h.mutate).toHaveBeenLastCalledWith({ findingId: "f1", action: "accept", prId: "pr1" });
+
+    await user.keyboard("jd");
+    expect(h.mutate).toHaveBeenLastCalledWith({ findingId: "f2", action: "dismiss", prId: "pr1" });
+  });
+
+  it("NFR-6: while the Case Editor is open, a, d, j and k are inert even when focus is on the page body", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    // the first card is expanded by default and offers the editor
+    await user.click(screen.getByRole("button", { name: "Turn into eval case" }));
+    expect(screen.getByText("Case editor is open")).toBeInTheDocument();
+    blurAll();
+
+    await user.keyboard("a");
+    await user.keyboard("d");
+    await user.keyboard("j");
+    await user.keyboard("k");
+    expect(h.mutate).not.toHaveBeenCalled();
+
+    // closing it brings the shortcuts back, and the cursor did not move while it was open
+    await user.click(screen.getByRole("button", { name: "Close case editor" }));
+    expect(screen.queryByText("Case editor is open")).not.toBeInTheDocument();
+    blurAll();
+    await user.keyboard("a");
+    expect(h.mutate).toHaveBeenCalledTimes(1);
+    expect(h.mutate).toHaveBeenCalledWith({ findingId: "f1", action: "accept", prId: "pr1" });
+  });
+
+  it("NFR-6: while any aria-modal element is on the page, a and d do nothing, and they work again once it is gone", async () => {
+    const user = userEvent.setup();
+    function Harness() {
+      const [modal, setModal] = React.useState(true);
+      return (
+        <>
+          <FindingsPanel findings={FINDINGS} prId="pr1" />
+          {modal && (
+            <div role="dialog" aria-modal="true" aria-label="Some other modal">
+              <button type="button" onClick={() => setModal(false)}>
+                Dismiss modal
+              </button>
+            </div>
+          )}
+        </>
+      );
+    }
+    renderWithIntl(<Harness />);
+    blurAll();
+
+    await user.keyboard("a");
+    await user.keyboard("d");
+    expect(h.mutate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Dismiss modal" }));
+    blurAll();
+    await user.keyboard("d");
+    expect(h.mutate).toHaveBeenCalledWith({ findingId: "f1", action: "dismiss", prId: "pr1" });
   });
 });

@@ -36,6 +36,8 @@ export interface ShellContext {
   onRemoveRepo?: (id: string) => void;
   onRefresh?: () => void;
   prCount?: number;
+  /** Translated label for a nav item key; return undefined to use the item's literal `label`. */
+  navLabel?: (key: string) => string | undefined;
 }
 
 export interface Crumb {

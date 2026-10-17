@@ -92,6 +92,7 @@ function setup(agents: AgentRecord[] = [agent({})], prFiles: string[] = []) {
     repoIntel: {} as RepoIntel,
     intent: fakeIntent,
     projectContext: { resolveForRun: async () => ({ documents: [], records: [] }) },
+    evalCases: { caseIdsBySourceFinding: async () => new Map() },
     bus,
   };
   return { state, bus, service: new ReviewService(deps) };
@@ -270,6 +271,7 @@ describe('ReviewRunExecutor — a throwing intent resolver still completes the r
       tokenizer: { count: () => 0 },
       intent: { forRun: async () => Promise.reject(new Error('boom: intent store is down')) },
       projectContext: { resolveForRun: async () => ({ documents: [], records: [] }) },
+      evalCases: { caseIdsBySourceFinding: async () => new Map() },
     };
 
     const executor = new ReviewRunExecutor(deps);

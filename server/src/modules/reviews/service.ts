@@ -6,7 +6,7 @@ import type { ReviewDeps } from './deps.js';
 import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
-import { reviewToDto } from './helpers.js';
+import { evalMarkerContext, reviewToDto, withEvalMarkers } from './helpers.js';
 import { effectivePaths, matchesAppliesTo } from './applicability.js';
 
 // Re-export DTO types + converters for backward-compatible imports from
@@ -200,8 +200,18 @@ export class ReviewService {
     const rows = await this.repo.reviewsForPull(prId);
     const agentIds = [...new Set(rows.flatMap(({ review }) => review.agentId ?? []))];
     const names = await this.agents.namesByIds(workspaceId, agentIds);
+    // Eval markers (AC-1, AC-8, AC-9, AC-65): two batched reads for the whole pull, none per finding.
+    const findingIds = rows.flatMap(({ findings }) => findings.map((f) => f.id));
+    const [files, caseIds] = await Promise.all([
+      this.repo.getPrFiles(prId),
+      this.deps.evalCases.caseIdsBySourceFinding(workspaceId, findingIds),
+    ]);
+    const ctx = evalMarkerContext(files, caseIds);
     return rows.map(({ review, findings, batchId }) =>
-      reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null, batchId),
+      withEvalMarkers(
+        reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null, batchId),
+        ctx,
+      ),
     );
   }
 

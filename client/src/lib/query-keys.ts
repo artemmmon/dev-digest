@@ -57,4 +57,23 @@ export const keys = {
   agentContext: (agentId: Id, repoId: Id) => ["agent-context", agentId, repoId] as const,
   /** A skill's attached documents for one repo. */
   skillContext: (skillId: Id, repoId: Id) => ["skill-context", skillId, repoId] as const,
+
+  eval: {
+    /** Everything cached for the eval pipeline (prefix). */
+    scope: () => ["eval"] as const,
+    /** One agent's eval cases and runs (prefix of `cases` / `runs` / `trend`). */
+    agent: (agentId: Id) => ["eval", "agent", agentId] as const,
+    cases: (agentId: Id) => ["eval", "agent", agentId, "cases"] as const,
+    runs: (agentId: Id, limit?: number) => ["eval", "agent", agentId, "runs", limit ?? null] as const,
+    /** Every counted run of one agent as chart points (under `agent`, so a case or run change refreshes it). */
+    trend: (agentId: Id) => ["eval", "agent", agentId, "trend"] as const,
+    /** Two runs of one agent side by side (older/newer is decided by the server). */
+    compare: (a: Id, b: Id) => ["eval", "compare", a, b] as const,
+    dashboard: () => ["eval", "dashboard"] as const,
+  },
 };
+
+/** Predicate for `invalidateQueries`: any PR's cached reviews, when the PR id is not known. */
+export function isPrReviewsKey(queryKey: readonly unknown[]): boolean {
+  return queryKey[0] === "pr" && queryKey[2] === "reviews";
+}
