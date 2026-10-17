@@ -32,10 +32,13 @@ import { OnboardingRepository } from '../modules/onboarding/repository.js';
 import type { OnboardingDeps } from '../modules/onboarding/ports.js';
 import { EvalRepository } from '../modules/eval/repository.js';
 import type { EvalDeps } from '../modules/eval/ports.js';
+import { CiRepository } from '../modules/ci/repository.js';
+import type { CiDeps } from '../modules/ci/ports.js';
 import { resolveFeatureModel } from '../modules/settings/feature-models.js';
 import { renderPrompt } from './prompts.js';
 import type { ArchiveReader, RemoteFileFetcher } from '../modules/skills/ports.js';
-import { FflateZipReader } from '../adapters/archive/zip.js';
+import { FflateZipReader, FflateZipWriter } from '../adapters/archive/zip.js';
+import { FsRunnerBundle } from '../adapters/runner-bundle/fs-runner-bundle.js';
 import { SafeHttpFetcher } from '../adapters/http/safe-fetch.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/index.js';
@@ -138,6 +141,9 @@ export class Container {
   private _priceBook?: PriceBook;
   private _onboardingRepo?: OnboardingRepository;
   private _evalRepo?: EvalRepository;
+  private _ciRepo?: CiRepository;
+  private _runnerBundle?: FsRunnerBundle;
+  private _zipWriter?: FflateZipWriter;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -220,6 +226,34 @@ export class Container {
       agents: this.agentsRepo,
       findings: this.reviewRepo,
       llm: (provider) => this.llm(provider),
+    };
+  }
+
+  get ciRepo(): CiRepository {
+    return (this._ciRepo ??= new CiRepository(this.db));
+  }
+
+  /** The built agent-runner bundle that Export to CI copies (`DEVDIGEST_CI_RUNNER_DIR`). */
+  get runnerBundle(): FsRunnerBundle {
+    return (this._runnerBundle ??= new FsRunnerBundle(this.config.ciRunnerBundleDir));
+  }
+
+  /** In-memory .zip writer for the manual CI export. */
+  get zipWriter(): FflateZipWriter {
+    return (this._zipWriter ??= new FflateZipWriter());
+  }
+
+  /** Collaborators of the ci service (the route adds `log: app.log`). Cross-module reads are structural ports on the repositories. */
+  get ciDeps(): Omit<CiDeps, 'log'> {
+    return {
+      store: this.ciRepo,
+      agents: this.agentsRepo,
+      repos: this.reposRepo,
+      github: () => this.github(),
+      bundle: this.runnerBundle,
+      zip: this.zipWriter,
+      archive: this.archive,
+      now: () => new Date(),
     };
   }
 

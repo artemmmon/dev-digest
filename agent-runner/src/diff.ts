@@ -86,7 +86,38 @@ export function parseUnifiedDiff(raw: string): UnifiedDiff {
     current = null;
   };
 
+  // Lines left to read in the open hunk (from the `@@` header counts). While a
+  // hunk is open every line is classified by its FIRST character only: a
+  // deleted line whose content starts with `--` (diff `----`) or an added line
+  // whose content starts with `++ ` (diff `+++ x`) is a body line, not a file
+  // header. File headers (`--- `/`+++ `) are matched only outside an open hunk.
+  let oldRemaining = 0;
+  let newRemaining = 0;
+
   for (const line of lines) {
+    // A body line always starts with ` `, `+`, `-` or `\`, so `diff --git` ends a hunk whose counts were wrong.
+    if (hunk && (oldRemaining > 0 || newRemaining > 0) && !line.startsWith('diff --git')) {
+      if (line.startsWith('\\')) continue; // "\ No newline at end of file"
+      if (current) {
+        if (line.startsWith('+')) {
+          current.additions++;
+          hunk.newLineNumbers.push(newLineCursor);
+          newLineCursor++;
+          newRemaining--;
+        } else if (line.startsWith('-')) {
+          current.deletions++;
+          // deletion: no new-side line consumed
+          oldRemaining--;
+        } else {
+          // context line: advances new-side cursor and counts as covered
+          hunk.newLineNumbers.push(newLineCursor);
+          newLineCursor++;
+          oldRemaining--;
+          newRemaining--;
+        }
+      }
+      continue;
+    }
     if (line.startsWith('diff --git')) {
       flushFile();
       current = { path: '', additions: 0, deletions: 0, hunks: [] };
@@ -104,29 +135,19 @@ export function parseUnifiedDiff(raw: string): UnifiedDiff {
       flushHunk();
       const newStart = Number(hh[3]);
       const newLines = hh[4] ? Number(hh[4]) : 1;
+      const oldLines = hh[2] ? Number(hh[2]) : 1;
       hunk = {
         file: current?.path ?? '',
         oldStart: Number(hh[1]),
-        oldLines: hh[2] ? Number(hh[2]) : 1,
+        oldLines,
         newStart,
         newLines,
         newLineNumbers: [],
       };
       newLineCursor = newStart;
+      oldRemaining = oldLines;
+      newRemaining = newLines;
       continue;
-    }
-    if (!current || !hunk) continue;
-    if (line.startsWith('+') && !line.startsWith('+++')) {
-      current.additions++;
-      hunk.newLineNumbers.push(newLineCursor);
-      newLineCursor++;
-    } else if (line.startsWith('-') && !line.startsWith('---')) {
-      current.deletions++;
-      // deletion: no new-side line consumed
-    } else {
-      // context line: advances new-side cursor and counts as covered
-      hunk.newLineNumbers.push(newLineCursor);
-      newLineCursor++;
     }
   }
   flushFile();

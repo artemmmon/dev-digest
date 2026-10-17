@@ -1,4 +1,4 @@
-import { unzipSync } from 'fflate';
+import { unzipSync, zipSync } from 'fflate';
 
 /**
  * .zip reader for skill import (implements the skills module's ArchiveReader port).
@@ -39,5 +39,18 @@ export class FflateZipReader {
     if (!data) throw new Error(`No such entry: ${path}`);
     if (data.byteLength > maxBytes) throw new Error(`Entry too large: ${path}`);
     return new TextDecoder('utf-8', { fatal: false }).decode(data);
+  }
+}
+
+/**
+ * .zip writer for the CI export (implements the ci module's ZipWriter port).
+ * In memory only; the caller supplies paths it generated itself, so there is no
+ * user-controlled entry name.
+ */
+export class FflateZipWriter {
+  zip(files: Array<{ path: string; bytes: Uint8Array }>): Uint8Array {
+    const entries: Record<string, Uint8Array> = {};
+    for (const f of files) entries[f.path] = f.bytes;
+    return zipSync(entries);
   }
 }

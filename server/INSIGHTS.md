@@ -444,6 +444,18 @@ Where: `src/modules/reviews/run-executor.ts:216`
 `batchKey` = `batchId ?? id`; a local run without a batch is a one-column run. `source='ci'` rows are hidden from the multi-agent view. Groups, conflicts, states and totals are computed on read in `multi-agent.ts`; no table, no migration.
 Where: `src/modules/reviews/multi-agent.ts:37`
 
+### 2026-10-17 — ci module: ports.ts is core, so its collaborators are structural and `yaml` is allowlisted
+`modules/ci/ports.ts` is in the depcruise CORE set (zod + vendor/shared only), so `CiAgentSource`/`CiRepoSource` re-declare the few fields they read (satisfied by `AgentRecord`/`RepoRecord`) instead of importing other modules. The pure generators (`manifest.ts`) need `yaml`, so it was added to `APPLICATION_PKGS` in `.claude/skills/onion-architecture/assets/dependency-cruiser.cjs`; `FsRunnerBundle` (fs) and `FflateZipWriter` stay in `adapters/` behind `RunnerBundleSource`/`ZipWriter`. `assembleFiles` returns the preview shape plus `data` bytes (the commit needs `contents` strings, the zip needs bytes); `toPreviewFiles` strips `data`.
+Where: src/modules/ci/ports.ts:1
+
+### 2026-10-17 — ci: `ci_installations.repository_id` is nullable and the first refresh fills it
+A zip export made without a GitHub token cannot ask for the numeric repository id, so the column is nullable. `CiService.ingest` calls `getRepository` and `setRepositoryId` (guarded by `repository_id IS NULL`) before it ingests; `checkResult` fails closed as `repository_mismatch` for a null id, so AC-108 compares only after that. `ci_runs` also got a `repo` text column beyond the plan's Step 14 list: the run page filters and shows the repository, and `ci_installation_id` is set-null on delete.
+Where: src/modules/ci/service.ts:238, src/db/schema/ci.ts:82
+
+### 2026-10-17 — CI install validates the edited workflow (workflow-guard), stricter than the spec
+`CiService.install` runs `assertSafeWorkflow` (yaml-parsed) on `CiInstallInput.workflow` before any GitHub call or zip: refuses `pull_request_target`/`workflow_run`, permissions beyond `contents: read` + `pull-requests: read|write`, and any `uses:` not pinned to a 40-hex SHA (a `./` action is allowed). The spec says the edited workflow is committed as edited, so a legitimate edit that adds e.g. `issues: write` is refused on purpose; relax the rule in `workflow-guard.ts`, not in the service. Messages are fixed text (rule + path), never the workflow content.
+Where: src/modules/ci/workflow-guard.ts:59
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
@@ -534,6 +546,10 @@ Where: `src/modules/eval/repository.ts:193`
 ### 2026-10-15 — A per-route `rateLimit` is inert under `NODE_ENV=test`: the 429 test needs a non-test app
 `app.ts` registers `@fastify/rate-limit` only when `config.nodeEnv !== 'test'`, so `config: { rateLimit: { max: 10 } }` on a route (eval run start, review start) never answers 429 in a normal `.it.test.ts` app. Build that one app with `{ ...loadConfig(...), nodeEnv: 'production' }` and `LOG_LEVEL=silent` semantics from the test config; a non-test app also runs the repo-stack backfill at boot, so put the test before any test that inserts repos (the eval one is the first test of its file). Starts 2-10 may be 202 or 409 (a run still running), never 429.
 Where: `src/app.ts:114`, `test/eval.it.test.ts:202`.
+
+### 2026-10-17 — `commitFiles.replaceDirs` deletes through tree entries with `sha: null`, also on a new branch
+The export commit removes stale files of an earlier agent by listing the parent tree recursively and adding `{path, mode, type:'blob', sha: null}` for every blob under a `replaceDirs` prefix that `files` does not rewrite; on a branch that does not exist yet the parent is the base branch's tree. A truncated tree throws `ExternalServiceError` instead of leaving stale files. A refused `.github/workflows` write becomes `AppError('github_workflow_scope', …, 403)`.
+Where: src/adapters/github/octokit.ts:318
 
 ## Recurring Errors & Fixes
 
@@ -631,6 +647,10 @@ Where: `src/db/schema/eval.ts:84`, `src/db/migrations/0025_premium_dragon_lord.s
 ### 2026-10-15 — A run-executor test that awaits `store.ended()` hangs for 120 s when the code under test is broken
 `createMemoryEvalStore().ended(runId)` resolves only on `finishRun` or a refused write, and `vitest.config.ts` sets `testTimeout: 120_000`: if a regression skips `finishFailed`, a test that awaits `ended()` stalls for two minutes instead of failing. After `await executor.run(...)` has resolved, assert on `store.runs[0].summary.status` directly, and use `ended()` only to wait for a run still in flight. macOS also has no `timeout` binary: a `timeout 60 pnpm exec vitest …` wrapper exits 127 without running anything.
 Where: `test/helpers/eval.ts:188`, `vitest.config.ts:16`.
+
+### 2026-10-17 — CI ingest: a fork PR runs its own copy of the workflow, trust only GitHub's run metadata
+A `pull_request` run from a fork executes the workflow file of the merge ref, so the fork controls the fork guard, job names and the uploaded `devdigest-result.json`; the run is still listed under `devdigest-review.yml` and its artifact passes commit/repository/run checks. Ingest therefore skips any run whose `event !== 'pull_request'` or `head_repository_id !== repository_id` before reading jobs/artifacts, and takes `pr_number` only from `run.pr_number`, never from the artifact. GitHub-origin AppErrors are mapped to fixed texts in `CiService.install` (`toAppError` keeps GitHub's raw message for other modules).
+Where: server/src/modules/ci/service.ts:299
 
 ## Open Questions
 

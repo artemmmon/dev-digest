@@ -19,7 +19,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+/** One request: the network and non-2xx failures both become an `ApiError`; the caller reads the body. */
+async function request(path: string, init?: RequestInit): Promise<Response> {
   let res: Response;
   try {
     // The one legitimate `fetch` in the app — this function IS the seam every
@@ -61,9 +62,19 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     }
     throw new ApiError(message, res.status, code, details);
   }
+  return res;
+}
 
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await request(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Like `apiFetch`, for an answer that is bytes (a zip download). Errors are the same `ApiError`s. */
+export async function apiFetchBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const res = await request(path, init);
+  return res.blob();
 }
 
 export const api = {
@@ -75,4 +86,6 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     apiFetch<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   del: <T>(path: string) => apiFetch<T>(path, { method: "DELETE" }),
+  postBlob: (path: string, body?: unknown) =>
+    apiFetchBlob(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
 };

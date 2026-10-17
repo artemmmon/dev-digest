@@ -3,6 +3,7 @@ import { NAV, SHORTCUTS, resolveHref } from "@devdigest/ui";
 import { activeKeyFor } from "./helpers";
 import { NAV_LABEL_KEYS } from "./constants";
 import evalMessages from "../../../messages/en/eval.json";
+import ciMessages from "../../../messages/en/ci.json";
 import shellMessages from "../../../messages/en/shell.json";
 
 describe("sidebar nav — Conventions", () => {
@@ -43,5 +44,24 @@ describe("sidebar nav — Eval Dashboard", () => {
     expect(shellMessages.nav).not.toHaveProperty("eval");
     expect(activeKeyFor("/eval")).toBe("eval");
     expect(activeKeyFor("/eval/ag1")).toBe("eval");
+  });
+});
+
+describe("sidebar nav — CI Runs", () => {
+  it("AC-81/AC-82: the GLOBAL section shows 'CI Runs' (no literal label), linking to /ci-runs, after Multi-Agent Review when it is there", () => {
+    const global = NAV.find((g) => g.section === "GLOBAL")!;
+    const keys = global.items.map((i) => i.key);
+    const item = global.items.find((i) => i.key === "ci-runs")!;
+    expect(item).toMatchObject({ href: "/ci-runs", icon: "Workflow" });
+    expect(item.label).toBeUndefined();
+    if (keys.includes("multi-agent")) expect(keys.indexOf("ci-runs")).toBeGreaterThan(keys.indexOf("multi-agent"));
+    expect(NAV_LABEL_KEYS["ci-runs"]).toBe("ci.nav.label");
+    expect(ciMessages.nav.label).toBe("CI Runs");
+  });
+
+  it("is active on /ci-runs and not on other routes", () => {
+    expect(activeKeyFor("/ci-runs")).toBe("ci-runs");
+    expect(activeKeyFor("/eval")).not.toBe("ci-runs");
+    expect(activeKeyFor("/agents")).not.toBe("ci-runs");
   });
 });

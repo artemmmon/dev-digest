@@ -183,6 +183,20 @@
       "when": 1792051605976,
       "tag": "0025_premium_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792258417154,
+      "tag": "0026_clear_sentinels",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792265779765,
+      "tag": "0027_elite_thena",
+      "breakpoints": true
     }
   ]
 }

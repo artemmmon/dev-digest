@@ -21,10 +21,14 @@ import path from 'node:path';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { OpenRouterProvider } from '@devdigest/reviewer-core';
 import { runCi, type PostAs } from './run.js';
+import { RunnerError } from './errors.js';
 
 function resolvePostAs(value: string | undefined): PostAs {
+  if (value === undefined || value === '') return 'github_review';
   if (value === 'github_review' || value === 'pr_comment' || value === 'none') return value;
-  return 'github_review';
+  throw new RunnerError(
+    `DEVDIGEST_POST_AS must be one of github_review, pr_comment, none (got '${value}')`,
+  );
 }
 
 export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number> {

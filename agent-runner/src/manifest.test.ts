@@ -6,6 +6,8 @@ import { loadManifest, findManifestPath, loadAgentManifest } from './manifest.js
 import { RunnerError } from './errors.js';
 
 const VALID_MANIFEST_YAML = `
+manifest_version: 1
+agent_version: 3
 name: "Security Reviewer"
 provider: "openrouter"
 model: "deepseek/deepseek-v4-flash"
@@ -32,6 +34,8 @@ describe('manifest loading + validation (AC-20)', () => {
 
     const manifest = loadManifest(dir);
 
+    expect(manifest.manifest_version).toBe(1);
+    expect(manifest.agent_version).toBe(3);
     expect(manifest.name).toBe('Security Reviewer');
     expect(manifest.model).toBe('deepseek/deepseek-v4-flash');
     expect(manifest.skills).toEqual(['security-basics']);
@@ -42,6 +46,8 @@ describe('manifest loading + validation (AC-20)', () => {
     writeFileSync(
       path.join(dir, 'agents', 'bad.yaml'),
       `
+manifest_version: 1
+agent_version: 1
 name: "Bad Agent"
 model: "gpt-4.1"
 system_prompt: "review"
@@ -51,6 +57,22 @@ ci_fail_on: "sometimes"
 
     expect(() => loadManifest(dir)).toThrow(RunnerError);
     expect(() => loadManifest(dir)).toThrow(/failed validation/i);
+  });
+
+  it('rejects a manifest without manifest_version / agent_version (the old unversioned shape)', () => {
+    writeFileSync(
+      path.join(dir, 'agents', 'old.yaml'),
+      'name: "Old"\nmodel: "gpt-4.1"\nsystem_prompt: "review"\nci_fail_on: "critical"\n',
+    );
+    expect(() => loadManifest(dir)).toThrow(/manifest_version/);
+  });
+
+  it('rejects an unknown manifest_version and an agent_version below 1', () => {
+    const base = 'name: "A"\nmodel: "m"\nsystem_prompt: "p"\n';
+    writeFileSync(path.join(dir, 'agents', 'a.yaml'), `manifest_version: 2\nagent_version: 1\n${base}`);
+    expect(() => loadManifest(dir)).toThrow(/manifest_version/);
+    writeFileSync(path.join(dir, 'agents', 'a.yaml'), `manifest_version: 1\nagent_version: 0\n${base}`);
+    expect(() => loadManifest(dir)).toThrow(/agent_version/);
   });
 
   it('fails clearly when the manifest is missing required fields', () => {

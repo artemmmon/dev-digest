@@ -100,6 +100,17 @@ export const RunTrace = z.object({
   specs_read: z.array(z.string()),
   /** What the run did with each attached project-context document; absent in older traces. */
   context_docs: z.array(ContextDocRecord).nullish(),
+  /** Set for runs ingested from CI; absent in local runs and older traces. */
+  ci: z
+    .object({
+      manifest_version: z.number().int(),
+      agent_version: z.number().int(),
+      runner_version: z.string(),
+      commit_sha: z.string(),
+      repository: z.string(),
+      run_id: z.number().int(),
+    })
+    .nullish(),
   log: z.array(RunLogLine),
 });
 export type RunTrace = z.infer<typeof RunTrace>;

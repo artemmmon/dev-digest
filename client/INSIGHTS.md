@@ -383,6 +383,23 @@ Where: `src/app/eval/[agentId]/_components/CompareView/helpers.ts:35`.
 `NAV` in the vendored `src/vendor/ui/nav.ts` holds literal English labels, and `Sidebar` renders them as-is. For a label that must live in a feature namespace (NFR-5: eval), the item has no `label`; `ShellContext.navLabel(key)` (built by `useNavLabel` from `NAV_LABEL_KEYS`) returns the translated text and `Sidebar` falls back to `it.label` when it returns undefined. The command palette uses the same hook, then `shell.nav.<key>`. Add a key to `NAV_LABEL_KEYS` to move another label; the page `<title>` of such a route can also use that namespace (`getTranslations("eval")`), meta.json is a convention, not a requirement.
 Where: client/src/components/app-shell/hooks/useNavLabel.ts:10
 
+### 2026-10-17 — A filtered-empty CI list cannot tell "nothing stored" from "nothing matches" without a second query
+`/ci-runs` defaults to the last 7 days, so an empty page may be a quiet week, not an empty workspace (AC-96 vs AC-95). `CiRunsView` runs one
+extra `useCiRuns({ period: "all" })` only while the filtered list is empty and a filter is set; zero runs there means "No CI runs yet", else
+"No runs match these filters". Do not decide it from the filtered result alone.
+Where: `src/app/ci-runs/_components/CiRunsView/CiRunsView.tsx:37`.
+
+### 2026-10-17 — The kit `Modal` still has no focus trap: `useDialogA11y` is the reusable fix, and a nested `ConfirmDialog` must own Tab
+The Export Wizard needed Escape, a Tab trap, initial focus and focus return on top of the kit `Modal`. The hook leaves Tab alone when focus is in a
+different `[role="dialog"]` (the replace/discard `ConfirmDialog` stacked on the wizard) and gets `locked` while that dialog is open, because both
+listen on `document` and `stopPropagation` does not stop a sibling listener. Reuse it for the next modal that needs a trap.
+Where: `src/app/agents/[id]/_components/AgentEditor/_components/CiTab/_components/ExportWizard/useDialogA11y.ts:15`.
+
+### 2026-10-17 — Kit `Chip` is now `type="button"` and takes `role` + `ariaChecked`, so a chip can be a toggle
+A bare `<button>` inside a `<form>` submits it, and the old `Chip` never set a type. It does now, with an optional `role` (`checkbox | radio | switch`)
+and `ariaChecked` passed to the button; callers that pass neither (`FilterBar`, `Showcase`) render as before, and neither sits in a `<form>`.
+The Export Wizard trigger chips use `role="checkbox"` + `ariaChecked`; do not add a `role` without `ariaChecked`.
+Where: `src/vendor/ui/primitives/Chip.tsx:29`.
 
 ### 2026-10-17 — The Multi-Agent page polls; only the trace drawer streams
 A batch of N agents would open N `EventSource` streams, and browsers allow about 6 connections per origin over HTTP/1.1, so a 7+ agent run would stall the rest of the page. `useMultiAgentRun` re-reads the run every `MULTI_AGENT_POLL_MS` (4 s) while a column is `queued`/`running` (`usePrRuns` does the same); the live log streams only for the one run open in `RunTraceDrawer`. Do not add a stream per column.
@@ -526,6 +543,11 @@ Where: `src/components/eval/TrendChart/TrendChart.tsx:74`, `src/components/eval/
 `@devdigest/ui` `Tabs` renders `<button>`s with no `role="tab"`, so a test queries `getByRole("button", { name: "PR meta" })`. The `ToastProvider` in `renderWithIntl` is itself `role="status"` (`aria-live="polite"`), so a component's own status line must be found by its text (`getByText(/overlaps the case/)`), not `getByRole("status")`. `renderWithIntl` passes no `timeZone`, so any component that formats a date logs `ENVIRONMENT_FALLBACK` per render: harmless noise, filter it when reading output. `vi.mock("@/lib/hooks", async (importOriginal) => ...)` must type the original as `importOriginal<Record<string, unknown>>()`, because lint forbids `typeof import("...")`.
 Where: `src/vendor/ui/kit/Tabs.tsx:5`, `src/lib/toast.tsx:92`, `src/test/render.tsx:21`.
 
+### 2026-10-17 — `pnpm add` with pnpm 10.34 rewrites unrelated lines of `client/pnpm-lock.yaml`
+Adding `yaml` also dropped the `(supports-color@…)` peer suffixes and added `libc:` fields for the native packages (about 300 changed lines, no
+version bumps). It is lockfile-format drift from the newer pnpm, not a dependency change; review the diff for `specifier:` lines, not its size.
+Where: `package.json:24`.
+
 ## Recurring Errors & Fixes
 
 ### 2026-09-16 — The PR-list table card clipped anything absolutely positioned in a row
@@ -603,6 +625,12 @@ Where: `src/app/repos/[repoId]/pulls/[number]/_components/OverviewTab/_component
 ### 2026-10-17 — Row padding next to a kit `Checkbox` is a dead click zone
 The kit `Checkbox` makes only its own `<label>` box clickable. With the padding on the wrapping `<li>`, a click a few pixels off the box did nothing, so a checkbox seemed to toggle "every other time" (seen in a screen recording of the agent checklist). Put the vertical padding inside the label content, give the `<li>` none and the list `gap: 0`, so the whole row height is the target.
 Where: `src/components/agent-checklist/styles.ts:33`
+
+### 2026-10-17 — A message key that is a string in one place and an object in another silently loses the string
+`ci.json` had `wizard.install` ("Install") and `wizard.install.methods…` at the same level; JSON keeps the last duplicate, so the footer button
+rendered the raw key `ci.wizard.install`. Neither tsc nor eslint sees it. Name the leaf differently (`installButton`) and render the step in a
+quick test with the real catalogue (`renderWithIntl`) to catch a raw key.
+Where: `messages/en/ci.json:142`.
 
 ## Open Questions
 
