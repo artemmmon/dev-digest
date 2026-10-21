@@ -31,7 +31,7 @@
       "source": {
         "source": "github",
         "repo": "artemmmon/test-ai-marketplace",
-        "ref": "sdd-engineering--v1.1.1"
+        "ref": "sdd-engineering--v1.0.0"
       }
     }
   }
