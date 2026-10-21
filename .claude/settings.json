@@ -26,6 +26,13 @@
         "source": "github",
         "repo": "artemmmon/screencast-demo-maker"
       }
+    },
+    "test-ai-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "artemmmon/test-ai-marketplace",
+        "ref": "sdd-engineering--v1.1.1"
+      }
     }
   }
 }
