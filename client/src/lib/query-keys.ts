@@ -3,6 +3,8 @@
    everything cached for that PR, `keys.pr.reviews(id)` just its reviews. Hooks and
    invalidations build keys here, never as string literals. */
 
+import type { StatsPeriodSelection } from "./stats-period";
+
 type Id = string | number | null | undefined;
 
 export const keys = {
@@ -78,6 +80,14 @@ export const keys = {
     dashboard: () => ["eval", "dashboard"] as const,
   },
 
+  agentPerformance: {
+    /** Everything cached for the Agent Performance page and the agent Stats tab (prefix). */
+    scope: () => ["agent-performance"] as const,
+    /** The workspace dashboard for one period selection. */
+    workspace: (sel: StatsPeriodSelection) => ["agent-performance", "workspace", sel] as const,
+    /** One agent's stats for one period selection. */
+    agent: (agentId: Id, sel: StatsPeriodSelection) => ["agent-performance", "agent", agentId, sel] as const,
+  },
   ci: {
     /** Everything cached for Export to CI (prefix): overviews and run lists. */
     scope: () => ["ci"] as const,

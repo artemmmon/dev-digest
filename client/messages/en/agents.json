@@ -127,6 +127,17 @@
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."
   },
+  "statsTab": {
+    "title": "Stats",
+    "billingNote": "Costs are DevDigest estimates, not reconciled with provider billing.",
+    "loading": "Loading agent stats",
+    "loadError": "Could not load this agent's stats.",
+    "noRuns": "No runs in this period",
+    "runs": "Runs",
+    "avgCost": "Avg cost",
+    "avgDuration": "Avg duration",
+    "acceptRate": "Accept rate"
+  },
   "notFound": {
     "title": "Agent not found",
     "body": "This agent doesn't exist in your workspace. It may have been deleted, or the link is stale.",

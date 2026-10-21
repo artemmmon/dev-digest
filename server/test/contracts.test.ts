@@ -19,6 +19,9 @@ import {
   Repo,
   PrDetail,
   PrMeta,
+  StatsPeriodQuery,
+  AgentStats,
+  AgentPerformance,
 } from '@devdigest/shared';
 
 /**
@@ -334,5 +337,93 @@ describe('platform DTOs', () => {
       PrMeta.parse({ ...base, findings_by_severity: { CRITICAL: 2, WARNING: 1, SUGGESTION: 0 } })
         .findings_by_severity,
     ).toEqual({ CRITICAL: 2, WARNING: 1, SUGGESTION: 0 });
+  });
+});
+
+describe('StatsPeriodQuery', () => {
+  const FROM = '2026-10-01T00:00:00.000Z';
+  const TO = '2026-10-21T23:59:59.999Z';
+
+  it('AC-91: defaults to 30d and accepts 1d/30d without bounds', () => {
+    expect(StatsPeriodQuery.parse({}).period).toBe('30d');
+    expect(StatsPeriodQuery.parse({ period: '1d' }).period).toBe('1d');
+    expect(StatsPeriodQuery.parse({ period: '30d' }).period).toBe('30d');
+  });
+
+  it('AC-91: rejects an unknown period', () => {
+    expect(StatsPeriodQuery.safeParse({ period: '7d' }).success).toBe(false);
+  });
+
+  it('AC-91: custom requires both from and to', () => {
+    expect(StatsPeriodQuery.safeParse({ period: 'custom' }).success).toBe(false);
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', from: FROM }).success).toBe(false);
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', to: TO }).success).toBe(false);
+  });
+
+  it('AC-91: rejects a malformed custom date', () => {
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', from: '2026-10-01', to: TO }).success).toBe(false);
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', from: FROM, to: 'tomorrow' }).success).toBe(false);
+  });
+
+  it('AC-91: rejects from after to, accepts equal and ordered bounds, also with an offset', () => {
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', from: TO, to: FROM }).success).toBe(false);
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', from: FROM, to: FROM }).success).toBe(true);
+    expect(StatsPeriodQuery.parse({ period: 'custom', from: FROM, to: TO })).toEqual({
+      period: 'custom',
+      from: FROM,
+      to: TO,
+    });
+    expect(
+      StatsPeriodQuery.safeParse({ period: 'custom', from: '2026-10-01T00:00:00+03:00', to: TO }).success,
+    ).toBe(true);
+  });
+
+  it('allows a custom to later than now (end of today)', () => {
+    const future = new Date(Date.now() + 3_600_000).toISOString();
+    expect(StatsPeriodQuery.safeParse({ period: 'custom', from: FROM, to: future }).success).toBe(true);
+  });
+});
+
+describe('AgentStats / AgentPerformance', () => {
+  const stats = {
+    agent_id: null,
+    agent_name: null,
+    runs: 0,
+    runs_done: 0,
+    runs_failed: 0,
+    runs_cancelled: 0,
+    accepted: 0,
+    dismissed: 0,
+    pending: 0,
+    accept_rate: null,
+    total_cost_usd: null,
+    avg_cost_usd: null,
+    cost_partial: false,
+    avg_duration_ms: null,
+    last_run_at: null,
+    cost_by_model: [{ model: null, cost_usd: 0.5 }],
+  };
+
+  it('parses the Deleted-agent entry with null id and name', () => {
+    expect(AgentStats.parse(stats).agent_id).toBeNull();
+  });
+
+  it('parses a workspace response', () => {
+    const parsed = AgentPerformance.parse({
+      totals: {
+        runs: 0,
+        total_cost_usd: null,
+        cost_partial: false,
+        accepted: 0,
+        dismissed: 0,
+        accept_rate: null,
+        most_active: null,
+      },
+      agents: [stats],
+      cost_by_agent: [{ agent_id: null, agent_name: null, cost_usd: 0.5 }],
+      cost_by_model: [{ model: 'm', cost_usd: 0.5 }],
+      has_runs_outside_period: false,
+    });
+    expect(parsed.agents).toHaveLength(1);
   });
 });

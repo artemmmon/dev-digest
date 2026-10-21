@@ -32,6 +32,8 @@ import { OnboardingRepository } from '../modules/onboarding/repository.js';
 import type { OnboardingDeps } from '../modules/onboarding/ports.js';
 import { EvalRepository } from '../modules/eval/repository.js';
 import type { EvalDeps } from '../modules/eval/ports.js';
+import { AgentPerformanceRepository } from '../modules/agent-performance/repository.js';
+import type { AgentPerformanceDeps } from '../modules/agent-performance/ports.js';
 import { CiRepository } from '../modules/ci/repository.js';
 import type { CiDeps } from '../modules/ci/ports.js';
 import { resolveFeatureModel } from '../modules/settings/feature-models.js';
@@ -141,6 +143,7 @@ export class Container {
   private _priceBook?: PriceBook;
   private _onboardingRepo?: OnboardingRepository;
   private _evalRepo?: EvalRepository;
+  private _agentPerformanceRepo?: AgentPerformanceRepository;
   private _ciRepo?: CiRepository;
   private _runnerBundle?: FsRunnerBundle;
   private _zipWriter?: FflateZipWriter;
@@ -226,6 +229,19 @@ export class Container {
       agents: this.agentsRepo,
       findings: this.reviewRepo,
       llm: (provider) => this.llm(provider),
+    };
+  }
+
+  get agentPerformanceRepo(): AgentPerformanceRepository {
+    return (this._agentPerformanceRepo ??= new AgentPerformanceRepository(this.db));
+  }
+
+  /** Collaborators of the agent-performance service (read-only). `agents` is a structural port on `AgentsRepository`. */
+  get agentPerformanceDeps(): AgentPerformanceDeps {
+    return {
+      store: this.agentPerformanceRepo,
+      agents: this.agentsRepo,
+      now: () => new Date(),
     };
   }
 

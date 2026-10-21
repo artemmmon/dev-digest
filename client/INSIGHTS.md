@@ -413,6 +413,10 @@ Where: `src/vendor/ui/kit/Drawer.tsx:20`.
 `useNavLabel` reads the root catalogue (`useTranslations()`), so a value is `eval.nav.label` or `shell.nav.multi-agent`, not a path inside the `eval` namespace as the 2026-10-15 entry says. A nav item with no literal `label` (Eval Dashboard, Multi-Agent Review) needs an entry there, or the sidebar shows nothing.
 Where: `src/components/app-shell/constants.ts:7`.
 
+### 2026-10-21 — The stats period lives in the URL as local dates; the API gets ISO instants
+`?period=1d|30d|custom&from=YYYY-MM-DD&to=YYYY-MM-DD` holds local calendar dates, so a link or reload shows the same range. `statsPeriodToApiQuery` turns a custom range into `new Date(y, m-1, d, 0,0,0,0)` / `(…, 23,59,59,999)` ISO instants in the browser, so the server never needs a time zone and validates only `from <= to`. The end-of-today instant is later than "now", which is why the server has no "future" check; the client blocks `to` after today (`validateCustomRange`). An unknown period or an invalid range falls back to 30 days.
+Where: `src/lib/stats-period.ts:71`.
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "no bare fetch" lint rule needs exactly one exception
