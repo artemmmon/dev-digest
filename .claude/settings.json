@@ -13,15 +13,26 @@
       }
     ]
   },
+  "enabledPlugins": {
+    "screencast-demo-maker@screencast-demo-maker": true,
+    "sdd-engineering@test-ai-marketplace": true,
+    "engineering-paved-path@test-ai-marketplace": true,
+    "research-tools@test-ai-marketplace": true,
+    "architecture-review@test-ai-marketplace": true
+  },
   "extraKnownMarketplaces": {
     "screencast-demo-maker": {
       "source": {
         "source": "github",
         "repo": "artemmmon/screencast-demo-maker"
       }
+    },
+    "test-ai-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "artemmmon/test-ai-marketplace",
+        "ref": "sdd-engineering--v1.0.0"
+      }
     }
-  },
-  "enabledPlugins": {
-    "screencast-demo-maker@screencast-demo-maker": true
   }
 }
