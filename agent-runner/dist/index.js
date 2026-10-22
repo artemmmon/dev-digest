@@ -21442,32 +21442,87 @@ const AgentRunEstimate = zod.z.object({
     runs: zod.z.number().int(),
 });
 // ---------------------------------------------------------------------------
-// Per-agent Stats (GET /agents/:id/stats)
+// Agent performance (GET /agents/:id/stats, GET /agent-performance)
 // ---------------------------------------------------------------------------
-/** A single (date, value) point for a sparkline/trend. */
-const StatPoint = zod.z.object({ label: zod.z.string(), value: zod.z.number() });
+/** Period of the stats views: rolling 1 day, rolling 30 days, or a custom range. */
+const StatsPeriod = zod.z.enum(['1d', '30d', 'custom']);
+/**
+ * Query of both stats routes. `from`/`to` are full ISO instants the client
+ * computes from local dates; they are required (and ordered) for `custom`.
+ */
+const StatsPeriodQuery = zod.z
+    .object({
+    period: StatsPeriod.default('30d'),
+    from: zod.z.string().datetime({ offset: true }).optional(),
+    to: zod.z.string().datetime({ offset: true }).optional(),
+})
+    .superRefine((q, ctx) => {
+    if (q.period !== 'custom')
+        return;
+    if (q.from === undefined) {
+        ctx.addIssue({ code: zod.z.ZodIssueCode.custom, path: ['from'], message: 'from is required for a custom period' });
+    }
+    if (q.to === undefined) {
+        ctx.addIssue({ code: zod.z.ZodIssueCode.custom, path: ['to'], message: 'to is required for a custom period' });
+    }
+    if (q.from !== undefined && q.to !== undefined && Date.parse(q.from) > Date.parse(q.to)) {
+        ctx.addIssue({ code: zod.z.ZodIssueCode.custom, path: ['from'], message: 'from must not be after to' });
+    }
+});
+/** Cost of one model inside a period; `model` is null when the run recorded none. */
+const ModelCost = zod.z.object({
+    model: zod.z.string().nullable(),
+    cost_usd: zod.z.number(),
+});
+/**
+ * Performance of one agent over a period. `agent_id`/`agent_name` are null only
+ * for the "Deleted agent" entry. `accept_rate` is a 0..1 ratio; null means "no data".
+ */
 const AgentStats = zod.z.object({
-    agent_id: zod.z.string(),
-    agent_name: zod.z.string(),
+    agent_id: zod.z.string().nullable(),
+    agent_name: zod.z.string().nullable(),
     runs: zod.z.number().int(),
-    findings_total: zod.z.number().int(),
-    /** accept-rate is the headline quality signal. 0..1 over acted findings. */
+    runs_done: zod.z.number().int(),
+    runs_failed: zod.z.number().int(),
+    runs_cancelled: zod.z.number().int(),
     accepted: zod.z.number().int(),
     dismissed: zod.z.number().int(),
     pending: zod.z.number().int(),
     accept_rate: zod.z.number().nullable(),
-    dismiss_rate: zod.z.number().nullable(),
-    avg_findings_per_run: zod.z.number().nullable(),
     total_cost_usd: zod.z.number().nullable(),
     avg_cost_usd: zod.z.number().nullable(),
-    avg_latency_ms: zod.z.number().nullable(),
-    findings_by_severity: zod.z.object({
-        CRITICAL: zod.z.number().int(),
-        WARNING: zod.z.number().int(),
-        SUGGESTION: zod.z.number().int(),
+    /** true when some counted run in the period has no recorded cost. */
+    cost_partial: zod.z.boolean(),
+    avg_duration_ms: zod.z.number().nullable(),
+    last_run_at: zod.z.string().nullable(),
+    cost_by_model: zod.z.array(ModelCost),
+});
+const AgentCost = zod.z.object({
+    agent_id: zod.z.string().nullable(),
+    agent_name: zod.z.string().nullable(),
+    cost_usd: zod.z.number(),
+});
+const MostActiveAgent = zod.z.object({
+    agent_id: zod.z.string(),
+    agent_name: zod.z.string(),
+    runs: zod.z.number().int(),
+});
+/** Response of `GET /agent-performance`: workspace totals, per-agent rows and cost breakdowns. */
+const AgentPerformance = zod.z.object({
+    totals: zod.z.object({
+        runs: zod.z.number().int(),
+        total_cost_usd: zod.z.number().nullable(),
+        cost_partial: zod.z.boolean(),
+        accepted: zod.z.number().int(),
+        dismissed: zod.z.number().int(),
+        accept_rate: zod.z.number().nullable(),
+        most_active: MostActiveAgent.nullable(),
     }),
-    /** recent runs for a small trend chart (oldest→newest). */
-    trend: zod.z.array(StatPoint),
+    agents: zod.z.array(AgentStats),
+    cost_by_agent: zod.z.array(AgentCost),
+    cost_by_model: zod.z.array(ModelCost),
+    /** true when counted runs exist in the workspace outside the selected period. */
+    has_runs_outside_period: zod.z.boolean(),
 });
 // ---------------------------------------------------------------------------
 // Cross-session memory curator

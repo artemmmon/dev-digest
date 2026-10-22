@@ -1,0 +1,81 @@
+import type { CSSProperties } from "react";
+
+const td = { padding: "11px 12px", borderBottom: "1px solid var(--border)", verticalAlign: "middle" } satisfies CSSProperties;
+const th = {
+  padding: "10px 12px",
+  textAlign: "left",
+  background: "var(--bg-surface)",
+  borderBottom: "1px solid var(--border)",
+  fontSize: 10.5,
+  fontWeight: 700,
+  letterSpacing: "0.04em",
+  color: "var(--text-muted)",
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
+} satisfies CSSProperties;
+
+/** Co-located styles for AgentsTable (design: `screen_agentperf.jsx` PerfRow). */
+export const s = {
+  frame: {
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    overflowX: "auto",
+    background: "var(--bg-elevated)",
+  } satisfies CSSProperties,
+  table: { width: "100%", borderCollapse: "collapse", fontSize: 12.5 } satisfies CSSProperties,
+  th,
+  td,
+  num: { ...td, fontVariantNumeric: "tabular-nums" } satisfies CSSProperties,
+  sortButton: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    margin: 0,
+    font: "inherit",
+    letterSpacing: "inherit",
+    textTransform: "inherit",
+    color: "inherit",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+  } satisfies CSSProperties,
+  agentCell: { ...td, minWidth: 180 } satisfies CSSProperties,
+  agentLine: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 } satisfies CSSProperties,
+  expand: {
+    background: "none",
+    border: "none",
+    padding: 2,
+    margin: 0,
+    cursor: "pointer",
+    color: "var(--text-muted)",
+    display: "inline-flex",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  name: { fontSize: 13.5, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" } satisfies CSSProperties,
+  muted: { color: "var(--text-muted)" } satisfies CSSProperties,
+  stack: { display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 6 } satisfies CSSProperties,
+  sub: { fontSize: 11, color: "var(--text-muted)" } satisfies CSSProperties,
+  link: { color: "var(--accent-text)", fontSize: 12.5, fontWeight: 600 } satisfies CSSProperties,
+  details: {
+    ...td,
+    background: "var(--bg-surface)",
+    padding: "12px 18px 14px 44px",
+  } satisfies CSSProperties,
+  detailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: 16,
+    margin: 0,
+  } satisfies CSSProperties,
+  detailsHead: {
+    margin: "0 0 6px",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    color: "var(--text-muted)",
+    textTransform: "uppercase",
+  } satisfies CSSProperties,
+  list: { listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 3, fontSize: 12.5 } satisfies CSSProperties,
+  listRow: { display: "flex", justifyContent: "space-between", gap: 12 } satisfies CSSProperties,
+} as const;

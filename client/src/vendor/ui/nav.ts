@@ -5,7 +5,7 @@ import type { IconName } from "./icons";
 export interface NavItemDef {
   key: string;
   /** Literal label. Optional: an app that translates a label resolves it through
-      `ShellContext.navLabel` (the Eval Dashboard, Multi-Agent Review and CI Runs items have no literal here). */
+      `ShellContext.navLabel` (the Eval Dashboard, Multi-Agent Review, Agent Performance and CI Runs items have no literal here). */
   label?: string;
   icon: IconName;
   /** Route template; :repoId is replaced with the active repo id by the app. */
@@ -41,7 +41,10 @@ export const NAV: NavGroup[] = [
   },
   {
     section: "GLOBAL",
-    items: [{ key: "ci-runs", icon: "Workflow", href: "/ci-runs" }],
+    items: [
+      { key: "agent-performance", icon: "Activity", href: "/agent-performance" },
+      { key: "ci-runs", icon: "Workflow", href: "/ci-runs" },
+    ],
   },
 ];
 

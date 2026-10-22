@@ -9,11 +9,12 @@ export interface EditorTab {
   ns?: "eval" | "ci";
 }
 
-/** Editor tabs. A later lesson adds Stats. */
+/** Editor tabs. */
 export const TABS: readonly EditorTab[] = [
   { key: "config", labelKey: "editor.tabs.config", icon: "Settings" },
   { key: "skills", labelKey: "editor.tabs.skills", icon: "Sparkles" },
   { key: "context", labelKey: "editor.tabs.context", icon: "Folder" },
   { key: "evals", labelKey: "evalsTab.tabLabel", icon: "Gauge", ns: "eval" },
+  { key: "stats", labelKey: "editor.tabs.stats", icon: "Activity" },
   { key: "ci", labelKey: "tab.tabLabel", icon: "Workflow", ns: "ci" },
 ];

@@ -113,37 +113,101 @@ export const AgentRunEstimate = z.object({
 export type AgentRunEstimate = z.infer<typeof AgentRunEstimate>;
 
 // ---------------------------------------------------------------------------
-// Per-agent Stats (GET /agents/:id/stats)
+// Agent performance (GET /agents/:id/stats, GET /agent-performance)
 // ---------------------------------------------------------------------------
 
-/** A single (date, value) point for a sparkline/trend. */
-export const StatPoint = z.object({ label: z.string(), value: z.number() });
-export type StatPoint = z.infer<typeof StatPoint>;
+/** Period of the stats views: rolling 1 day, rolling 30 days, or a custom range. */
+export const StatsPeriod = z.enum(['1d', '30d', 'custom']);
+export type StatsPeriod = z.infer<typeof StatsPeriod>;
 
+/**
+ * Query of both stats routes. `from`/`to` are full ISO instants the client
+ * computes from local dates; they are required (and ordered) for `custom`.
+ */
+export const StatsPeriodQuery = z
+  .object({
+    period: StatsPeriod.default('30d'),
+    from: z.string().datetime({ offset: true }).optional(),
+    to: z.string().datetime({ offset: true }).optional(),
+  })
+  .superRefine((q, ctx) => {
+    if (q.period !== 'custom') return;
+    if (q.from === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['from'], message: 'from is required for a custom period' });
+    }
+    if (q.to === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['to'], message: 'to is required for a custom period' });
+    }
+    if (q.from !== undefined && q.to !== undefined && Date.parse(q.from) > Date.parse(q.to)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['from'], message: 'from must not be after to' });
+    }
+  });
+export type StatsPeriodQuery = z.infer<typeof StatsPeriodQuery>;
+
+/** Cost of one model inside a period; `model` is null when the run recorded none. */
+export const ModelCost = z.object({
+  model: z.string().nullable(),
+  cost_usd: z.number(),
+});
+export type ModelCost = z.infer<typeof ModelCost>;
+
+/**
+ * Performance of one agent over a period. `agent_id`/`agent_name` are null only
+ * for the "Deleted agent" entry. `accept_rate` is a 0..1 ratio; null means "no data".
+ */
 export const AgentStats = z.object({
-  agent_id: z.string(),
-  agent_name: z.string(),
+  agent_id: z.string().nullable(),
+  agent_name: z.string().nullable(),
   runs: z.number().int(),
-  findings_total: z.number().int(),
-  /** accept-rate is the headline quality signal. 0..1 over acted findings. */
+  runs_done: z.number().int(),
+  runs_failed: z.number().int(),
+  runs_cancelled: z.number().int(),
   accepted: z.number().int(),
   dismissed: z.number().int(),
   pending: z.number().int(),
   accept_rate: z.number().nullable(),
-  dismiss_rate: z.number().nullable(),
-  avg_findings_per_run: z.number().nullable(),
   total_cost_usd: z.number().nullable(),
   avg_cost_usd: z.number().nullable(),
-  avg_latency_ms: z.number().nullable(),
-  findings_by_severity: z.object({
-    CRITICAL: z.number().int(),
-    WARNING: z.number().int(),
-    SUGGESTION: z.number().int(),
-  }),
-  /** recent runs for a small trend chart (oldest→newest). */
-  trend: z.array(StatPoint),
+  /** true when some counted run in the period has no recorded cost. */
+  cost_partial: z.boolean(),
+  avg_duration_ms: z.number().nullable(),
+  last_run_at: z.string().nullable(),
+  cost_by_model: z.array(ModelCost),
 });
 export type AgentStats = z.infer<typeof AgentStats>;
+
+export const AgentCost = z.object({
+  agent_id: z.string().nullable(),
+  agent_name: z.string().nullable(),
+  cost_usd: z.number(),
+});
+export type AgentCost = z.infer<typeof AgentCost>;
+
+export const MostActiveAgent = z.object({
+  agent_id: z.string(),
+  agent_name: z.string(),
+  runs: z.number().int(),
+});
+export type MostActiveAgent = z.infer<typeof MostActiveAgent>;
+
+/** Response of `GET /agent-performance`: workspace totals, per-agent rows and cost breakdowns. */
+export const AgentPerformance = z.object({
+  totals: z.object({
+    runs: z.number().int(),
+    total_cost_usd: z.number().nullable(),
+    cost_partial: z.boolean(),
+    accepted: z.number().int(),
+    dismissed: z.number().int(),
+    accept_rate: z.number().nullable(),
+    most_active: MostActiveAgent.nullable(),
+  }),
+  agents: z.array(AgentStats),
+  cost_by_agent: z.array(AgentCost),
+  cost_by_model: z.array(ModelCost),
+  /** true when counted runs exist in the workspace outside the selected period. */
+  has_runs_outside_period: z.boolean(),
+});
+export type AgentPerformance = z.infer<typeof AgentPerformance>;
 
 // ---------------------------------------------------------------------------
 // Cross-session memory curator

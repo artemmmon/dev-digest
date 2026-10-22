@@ -1,32 +1,79 @@
 {
-  "title": "Agent Performance",
-  "subtitle": "Accept-rate is the headline quality signal · cost shown as a breakdown",
-  "loadError": "Could not load agent performance.",
-  "summary": {
-    "totalRuns": "Total runs",
-    "avgAcceptRate": "Avg accept-rate",
-    "totalCost": "Total cost",
-    "mostActive": "Most active"
+  "period": {
+    "label": "Period",
+    "from": "From",
+    "to": "To",
+    "options": {
+      "1d": "1 day",
+      "30d": "30 days",
+      "custom": "Custom range"
+    },
+    "errors": {
+      "startAfterEnd": "The start date must not be after the end date.",
+      "endAfterToday": "The end date must not be after today."
+    }
   },
-  "costByAgent": "Cost by agent",
-  "costByModel": "Cost by model",
-  "noCost": "No cost recorded yet.",
-  "sort": {
-    "acceptRate": "accept-rate",
-    "runs": "runs",
-    "cost": "cost"
+  "marks": {
+    "estimate": "DevDigest estimate",
+    "partial": "partial",
+    "smallSample": "small sample"
+  },
+  "nav": {
+    "label": "Agent Performance"
+  },
+  "page": {
+    "crumb": "Agent Performance",
+    "title": "Agent Performance",
+    "subtitle": "Which agents earn their keep — accept rate is the quality signal",
+    "billingNote": "Costs are DevDigest estimates, not reconciled with provider billing.",
+    "loading": "Loading agent performance",
+    "loadError": "Could not load agent performance.",
+    "emptyTitle": "No agent runs yet",
+    "emptyBody": "Run an agent on a pull request and its figures appear here.",
+    "noRunsInPeriod": "No runs in this period"
+  },
+  "counts": {
+    "runs": "{count, plural, one {# run} other {# runs}}",
+    "decisions": "{count, plural, one {# decision} other {# decisions}}"
+  },
+  "tiles": {
+    "runs": "Total runs · {period}",
+    "cost": "Total cost · {period}",
+    "acceptRate": "Avg accept rate · {period}",
+    "mostActive": "Most-active agent · {period}",
+    "customPeriod": "{from} – {to}"
   },
   "table": {
+    "caption": "Agents",
     "agent": "Agent",
-    "accept": "Accept",
     "runs": "Runs",
+    "avgCost": "Avg cost",
+    "avgDuration": "Avg duration",
+    "acceptRate": "Accept rate",
+    "lastRun": "Last run",
+    "view": "View",
+    "viewLabel": "View stats of {name}",
+    "noRuns": "No runs in this period",
+    "deletedAgent": "Deleted agent",
+    "expand": "Show details of {name}",
+    "collapse": "Hide details of {name}"
+  },
+  "details": {
+    "runsByState": "Runs",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
     "findings": "Findings",
-    "cost": "Cost",
-    "trend": "Trend"
+    "accepted": "Accepted",
+    "dismissed": "Dismissed",
+    "pending": "Pending",
+    "costByModel": "Cost by model",
+    "unknownModel": "Unknown model"
   },
-  "empty": {
-    "title": "No agent runs yet",
-    "body": "Run a review (manually) to populate per-agent performance."
-  },
-  "perAgent": "Per-agent"
+  "breakdown": {
+    "title": "Cost breakdown",
+    "byAgent": "By agent",
+    "byModel": "By model",
+    "noCost": "No cost recorded yet."
+  }
 }

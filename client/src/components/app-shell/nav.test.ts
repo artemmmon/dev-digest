@@ -4,6 +4,7 @@ import { activeKeyFor } from "./helpers";
 import { NAV_LABEL_KEYS } from "./constants";
 import evalMessages from "../../../messages/en/eval.json";
 import ciMessages from "../../../messages/en/ci.json";
+import agentPerformanceMessages from "../../../messages/en/agentPerformance.json";
 import shellMessages from "../../../messages/en/shell.json";
 
 describe("sidebar nav — Conventions", () => {
@@ -63,5 +64,25 @@ describe("sidebar nav — CI Runs", () => {
     expect(activeKeyFor("/ci-runs")).toBe("ci-runs");
     expect(activeKeyFor("/eval")).not.toBe("ci-runs");
     expect(activeKeyFor("/agents")).not.toBe("ci-runs");
+  });
+});
+
+describe("sidebar nav — Agent Performance", () => {
+  it("AC-1 / AC-2: the GLOBAL section shows 'Agent Performance' (no literal label), linking to /agent-performance, before CI Runs", () => {
+    const global = NAV.find((g) => g.section === "GLOBAL")!;
+    const keys = global.items.map((i) => i.key);
+    const item = global.items.find((i) => i.key === "agent-performance")!;
+    expect(item).toMatchObject({ href: "/agent-performance", icon: "Activity" });
+    // NFR-5: the text is not a literal in the vendored nav; it resolves from the agentPerformance namespace.
+    expect(item.label).toBeUndefined();
+    expect(keys.indexOf("agent-performance")).toBeLessThan(keys.indexOf("ci-runs"));
+    expect(NAV_LABEL_KEYS["agent-performance"]).toBe("agentPerformance.nav.label");
+    expect(agentPerformanceMessages.nav.label).toBe("Agent Performance");
+  });
+
+  it("AC-3: is active on /agent-performance and not on other routes", () => {
+    expect(activeKeyFor("/agent-performance")).toBe("agent-performance");
+    expect(activeKeyFor("/agents")).not.toBe("agent-performance");
+    expect(activeKeyFor("/ci-runs")).not.toBe("agent-performance");
   });
 });

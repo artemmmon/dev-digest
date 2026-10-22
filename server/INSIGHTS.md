@@ -456,6 +456,10 @@ Where: src/modules/ci/service.ts:238, src/db/schema/ci.ts:82
 `CiService.install` runs `assertSafeWorkflow` (yaml-parsed) on `CiInstallInput.workflow` before any GitHub call or zip: refuses `pull_request_target`/`workflow_run`, permissions beyond `contents: read` + `pull-requests: read|write`, and any `uses:` not pinned to a 40-hex SHA (a `./` action is allowed). The spec says the edited workflow is committed as edited, so a legitimate edit that adds e.g. `issues: write` is refused on purpose; relax the rule in `workflow-guard.ts`, not in the service. Messages are fixed text (rule + path), never the workflow content.
 Where: src/modules/ci/workflow-guard.ts:59
 
+### 2026-10-21 — agent-performance: dashboard money is summed in integer nano-USD
+`agent_runs.cost_usd` stays `double precision`, so adding floats in different orders makes cost-by-agent and cost-by-model slices differ from the total in the last digits. `aggregate.ts` rounds each run to integer units (`Math.round(cost * COST_UNITS_PER_USD)`, 1e9), sums the units once per group and divides at the end; totals and both breakdowns therefore share one integer sum (0.1 + 0.2 gives exactly 0.3). A priced run costing 0 is still priced (null means "no data", never 0). Display rounding (`formatCost`, `Donut`) can still show a one-unit gap.
+Where: src/modules/agent-performance/aggregate.ts:10
+
 ## Tool & Library Notes
 
 ### 2026-09-17 — The "routes don't touch drizzle" rule fails on the starter's own routes
